@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/behavioros/behavioros/main/website/logo.svg" alt="BehaviorOS Logo" width="120" />
+  <img src="https://raw.githubusercontent.com/ilvan-develop/behavioros/main/website/logo.svg" alt="BehaviorOS Logo" width="120" />
 </p>
 
 <h1 align="center">BehaviorOS</h1>
@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/behavioros/behavioros/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" /></a>
-  <a href="https://github.com/behavioros/behavioros/releases"><img src="https://img.shields.io/badge/version-0.1.0-green.svg" alt="Version" /></a>
+  <a href="https://github.com/ilvan-develop/behavioros/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" /></a>
+  <a href="https://github.com/ilvan-develop/behavioros/releases"><img src="https://img.shields.io/badge/version-0.1.0-green.svg" alt="Version" /></a>
   <a href="#"><img src="https://img.shields.io/badge/tests-90%20passing-brightgreen.svg" alt="Tests" /></a>
 </p>
 
