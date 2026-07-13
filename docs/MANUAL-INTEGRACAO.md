@@ -1,61 +1,74 @@
-# Manual Técnico — Integração BehaviorOS + Brocolis + FinPay
+# Manual Técnico — Integração BehaviorOS
 
-> Guia completo para agentes de IA implementarem a integração entre os três projetos.
+> Guia genérico para agentes de IA integrarem BehaviorOS em qualquer projeto.
+> Brocolis e FinPay são apenas exemplos de utilização.
 
 ---
 
-## Visão Geral da Arquitetura
+## O que é BehaviorOS
+
+BehaviorOS é um framework de governança comportamental para equipas de agentes IA. Fornece:
+
+- **PipelineEngine** — Pipeline de 18 camadas de validação (EAARG)
+- **Governance Engine** — Regras de bloqueio/escalação/log
+- **Quality Engine** — Gates de qualidade (coverage, lint, typecheck, security)
+- **Audit Engine** — Pipeline multi-estágio
+- **Decision Engine** — Decisões por votação
+- **Learning Engine** — Registo de eventos e deteção de padrões
+- **Mission Engine** — Gestão de ciclo de vida de missões
+- **MCP Server** — 28 tools + 5 resources para agentes IA
+- **SDK** — API TypeScript de alto nível
+- **CLI** — Ferramenta de linha de comandos
+
+---
+
+## Arquitetura
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    BehaviorOS Orchestrator                    │
-│  PipelineEngine (18 layers) → Governance → Quality → Audit   │
-│  MCP Server (19 tools + 5 resources) → Learning Engine       │
-├──────────────────────────┬──────────────────────────────────┤
-│                          │                                   │
-│  ┌───────────────────────▼────────────────────┐             │
-│  │              Brocolis Platform               │             │
-│  │  NestJS API (28 módulos) + Next.js 16 Web    │             │
-│  │  Expo 52 Mobile + 72 DB Models (Prisma 7)    │             │
-│  │  Marketplace de farmácias para Angola         │             │
-│  │  Pagamentos via Stripe + Prescrições          │             │
-│  └───────────────────┬────────────────────────┘             │
-│                      │                                       │
-│                      │ Payment Intents                        │
-│                      │                                        │
-│  ┌───────────────────▼────────────────────┐                 │
-│  │              FinPay Platform              │                 │
-│  │  NestJS API + Next.js 16 Web              │                 │
-│  │  Pipeline: OCR → Compliance → Fraud       │                 │
-│  │  Trust Scoring + Reconciliation           │                 │
-│  │  Multi-tenant SaaS + Billing              │                 │
-│  └─────────────────────────────────────────┘                 │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    BehaviorOS Orchestrator                │
+│  PipelineEngine → Governance → Quality → Audit → Mission │
+│  MCP Server (28 tools + 5 resources) → Learning Engine   │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │             O Teu Projeto                           │ │
+│  │  (qualquer stack: NestJS, Next.js, React, etc.)    │ │
+│  │                                                     │ │
+│  │  1. Criar behavioros.yaml (DNA)                    │ │
+│  │  2. Criar .behaviorosrc (config)                   │ │
+│  │  3. Criar AGENTS.md (regras)                       │ │
+│  │  4. Configurar MCP server                          │ │
+│  │  5. Usar SDK no código                             │ │
+│  └────────────────────────────────────────────────────┘ │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Pacotes Criados
+## Pacotes Disponíveis
 
-| Pacote | Caminho | Descrição |
-|--------|---------|-----------|
-| `@behavioros/schemas` | `packages/schemas` | Tipos Zod para EAARG, Skills, Pipeline |
-| `@behavioros/core` | `packages/core` | PipelineEngine + 7 engines |
-| `@behavioros/finpay-integration` | `packages/finpay-integration` | SDK FinPay + Brocolis Adapter + AI Health |
-| `@behavioros/observability-dashboard` | `packages/observability-dashboard` | Métricas unificadas + Dashboards + Alertas |
-| `@behavioros/mcp-server` | `packages/mcp-server` | 19 tools CI/CD + 9 tools Integration |
-| `@behavioros/e2e-tests` | `packages/e2e-tests` | 54+ testes Playwright (API/Web/Mobile) |
+| Pacote | Descrição | Uso |
+|--------|-----------|-----|
+| `@behavioros/schemas` | Schemas Zod para todos os tipos | Importar tipos |
+| `@behavioros/core` | 7 engines + PipelineEngine | Lógica de governança |
+| `@behavioros/sdk` | SDK TypeScript | Integrar no teu projeto |
+| `@behavioros/cli` | CLI (init, compile, validate, status) | Terminal |
+| `@behavioros/mcp-server` | MCP server para agentes IA | OpenCode/Cursor/Claude |
+| `@behavioros/observability-dashboard` | Métricas + Dashboards + Alertas | Monitorização |
+| `@behavioros/finpay-integration` | Exemplo: integração FinPay + Brocolis | Referência |
+| `@behavioros/e2e-tests` | 54 testes Playwright | Testes E2E |
 
 ---
 
-## Fase 1: Configurar BehaviorOS no FinPay
+## Fase 1: Configurar BehaviorOS no Teu Projeto
 
 ### Prompt para Agente IA
 
 ```
-Cria a configuração BehaviorOS para o projeto FinPay em:
-C:\Users\Ilvan\Desktop\GitHub Apps\finpay-app
+Cria a configuração BehaviorOS para o projeto [NOME_DO_PROJETO] em:
+[DIRETORIO_DO_PROJETO]
 
 Cria estes ficheiros:
 
@@ -69,105 +82,74 @@ Cria estes ficheiros:
 }
 
 2. behavioros.yaml (YAML):
-- id: finpay
-- Personas: architect, senior_engineer, qa_lead, security_engineer, devops
-- Governance rules: payment-changes (critical/block), security-review (critical/escalate),
-  api-changes (high/escalate), database-changes (high/block), compliance-changes (critical/block)
-- Quality gates: test_coverage (80%), lint (100%), typecheck (100%), security (100%), performance (90%)
-- Patterns: payment-pipeline, api-versioning
-- Workflows: payment-validation, payment-reconciliation, security-audit, compliance-check
+- id: [id-do-projeto]
+- name: [Nome do DNA]
+- version: '1.0.0'
+- description: BehaviorOS config for [descrição]
+
+Personas (adapta ao teu projeto):
+- architect → arquiteto de software
+- engineer → engenheiro sénior
+- qa → responsável de QA
+- security → engenheiro de segurança
+- devops → engenheiro DevOps
+
+Governance rules (adapta ao teu domínio):
+- payment-changes → critical/block (se tiver pagamentos)
+- security-review → critical/escalate
+- api-changes → high/escalate
+- database-changes → high/block
+- compliance-changes → critical/block (se tiver compliance)
+
+Quality gates:
+- test_coverage: 80%
+- lint: 100%
+- typecheck: 100%
+- security: 100%
+- performance: 90%
+
+Patterns (adapta ao teu domínio):
+- payment-pipeline → pipeline de validação
+- api-versioning → versionamento de API
+
+Workflows (adapta ao teu domínio):
+- payment-validation → workflow de validação
+- security-audit → auditoria de segurança
+- compliance-check → verificação de compliance
 
 3. AGENTS.md:
-- Visão geral do projeto FinPay
-- Arquitetura (NestJS + Next.js + Prisma + BullMQ + Supabase)
+- Visão geral do projeto
+- Arquitetura (stack utilizada)
 - Comandos de dev (pnpm dev, pnpm test, pnpm build)
-- Convenções (Biome, TypeScript strict, Zod v4)
-- Módulos API (payments, billing, tenants, webhooks, audit, ocr)
-- Pipeline de validação de pagamentos
-- Trust scoring engine
-- Fraud detection engine
+- Convenções (formatter, TypeScript, testes)
+- Módulos/APIs principais
+- Domínio específico do projeto
 ```
 
 ---
 
-## Fase 2: Integrar FinPay SDK no Brocolis
+## Fase 2: Configurar MCP Server
 
 ### Prompt para Agente IA
 
 ```
-Integra o @behavioros/finpay-integration no projeto Brocolis.
+Configura o BehaviorOS MCP server para o projeto [NOME_DO_PROJETO].
 
-1. Adiciona dependência no package.json raiz do Brocolis:
-   "@behavioros/finpay-integration": "workspace:*"
-
-2. Cria packages/finpay-bridge no Brocolis:
-   - src/finpay-bridge.ts:
-     - Classe FinPayBridge que estende BrocolisAdapter
-     - Métodos:
-       - processOrderPayment(orderId, paymentMethod) → mapeia Brocolis order para FinPay intent
-       - verifyPrescriptionPayment(prescriptionId) → valida prescrição via FinPay
-       - handleDeliveryPayment(deliveryId) → processa pagamento de entrega
-       - generateInvoice(orderId) → gera fatura via FinPay
-       - reconcileSettlements(period) → reconciliação com farmácias
-     - Integra com Brocolis Stripe para fallback
-     - Webhook handler para status updates do FinPay
-
-3. Cria packages/finpay-bridge/src/__tests__/finpay-bridge.test.ts:
-   - Testes para cada método
-   - Mock do FinPayClient
-   - Testes de erro e retry
-
-4. Atualiza o módulo de pagamento do Brocolis (apps/api/src/payments):
-   - Adiciona FinPay como provider de pagamento alternativo
-   - Configura via environment variables:
-     FINPAY_API_KEY
-     FINPAY_BASE_URL
-     FINPAY_WEBHOOK_SECRET
-     FINPAY_ENABLED=true/false
-
-5. Cria migration para adicionar provider de pagamento:
-   - enum PaymentProvider { STRIPE, FINPAY }
-   - Adiciona campo provider na tabela Payment
-```
-
----
-
-## Fase 3: Configurar MCP Server para CI/CD
-
-### Prompt para Agente IA
-
-```
-Configura o BehaviorOS MCP server para CI/CD nos projetos Brocolis e FinPay.
-
-1. No Brocolis, cria .opencode/config.json:
+1. Cria .opencode/config.json no diretório do projeto:
 {
   "mcp": {
     "behavioros": {
       "command": "node",
-      "args": ["../behavioros/packages/mcp-server/dist/index.js"],
+      "args": ["[CAMINHO_PARA]/behavioros/packages/mcp-server/dist/index.js"],
       "env": {
         "BEHAVIOROS_DNA_PATH": "./behavioros.yaml",
-        "BEHAVIOROS_PROJECT": "brocolis"
+        "BEHAVIOROS_PROJECT": "[id-do-projeto]"
       }
     }
   }
 }
 
-2. No FinPay, cria .opencode/config.json:
-{
-  "mcp": {
-    "behavioros": {
-      "command": "node",
-      "args": ["../behavioros/packages/mcp-server/dist/index.js"],
-      "env": {
-        "BEHAVIOROS_DNA_PATH": "./behavioros.yaml",
-        "BEHAVIOROS_PROJECT": "finpay"
-      }
-    }
-  }
-}
-
-3. Cria GitHub Actions workflow para BehaviorOS:
+2. Cria GitHub Actions workflow:
    .github/workflows/behavioros.yml
    - Triggers: push, pull_request
    - Steps:
@@ -179,7 +161,7 @@ Configura o BehaviorOS MCP server para CI/CD nos projetos Brocolis e FinPay.
      - npx @behavioros/cli eaarg start
      - Upload report como artifact
 
-4. Cria .github/workflows/behavioros-merge-gate.yml:
+3. Cria .github/workflows/behavioros-merge-gate.yml:
    - Bloqueia merge se pipeline EAARG falhar
    - Verifica quality gates
    - Verifica governance rules
@@ -187,184 +169,98 @@ Configura o BehaviorOS MCP server para CI/CD nos projetos Brocolis e FinPay.
 
 ---
 
-## Fase 4: AI Health Assistant
+## Fase 3: Integrar SDK no Teu Código
 
 ### Prompt para Agente IA
 
 ```
-Implementa o AI Health Assistant no mobile do Brocolis usando FinPay trust scoring.
+Integra o @behavioros/sdk no projeto [NOME_DO_PROJETO].
 
-1. No Brocolis mobile (apps/mobile), cria src/features/ai-assistant/
-   - screens/AIAssistantScreen.tsx:
-     - Interface de chat com assistente de IA
-     - Input de texto +voice
-     - Cards de recomendações
-   - screens/MedicationInfoScreen.tsx:
-     - Informação detalhada de medicamento
-     - Interações medicamentosas
-     - Efeitos colaterais
-   - screens/PrescriptionVerifyScreen.tsx:
-     - Upload de prescrição
-     - Verificação via OCR
-     - Score de confiança
+1. Adiciona dependência:
+   "@behavioros/sdk": "workspace:*"  (monorepo)
+   ou
+   "@behavioros/sdk": "latest"      (projeto standalone)
 
-2. Cria src/features/ai-assistant/api/health-api.ts:
-   - analyzeMedicationInteraction(medications)
-   - getHealthRecommendations(patientProfile)
-   - verifyPrescriptionAuthenticity(prescription)
-   - assessPaymentRisk(payment)
+2. Cria src/behavioros.ts:
+   - Inicializa BehaviorOS com o DNA do projeto
+   - Exibe funções utilitárias:
+     - createMission(title, type, priority)
+     - startMission(id)
+     - completeMission(id, output)
+     - evaluateGovernance(action, context)
+     - evaluateQuality(metrics)
+     - recordLearning(event)
+     - runAudit(projectPath, stages)
 
-3. Cria src/features/ai-assistant/hooks/useAIAssistant.ts:
-   - useChat() — gerencia conversa com assistente
-   - useMedicationInfo() — busca info de medicamento
-   - usePrescriptionVerify() — verifica prescrição
+3. Cria middleware/opção de governance:
+   - Antes de cada ação crítica, avalia governance
+   - Bloqueia se governance retornar block
+   - Escala se governance retornar escalate
+   - Log se governance retornar warn/log
 
-4. Integra com FinPay:
-   - usePaymentRisk() — assessment de risco de pagamento
-   - Usa trust score para decidir se pagamento é seguro
-   - Mostra alertas de fraude ao utilizador
-
-5. Cria testes:
-   - src/features/ai-assistant/__tests__/ai-assistant.test.tsx
-   - Testes de renderização
-   - Testes de API
-   - Testes de hooks
+4. Cria hook/plugin de quality gates:
+   - Antes de cada deploy, corre quality gates
+   - Bloqueia se coverage < threshold
+   - Bloqueia se lint falhar
+   - Bloqueia se typecheck falhar
 ```
 
 ---
 
-## Fase 5: Dashboard Unificado de Observabilidade
+## Fase 4: Dashboard de Observabilidade
 
 ### Prompt para Agente IA
 
 ```
-Configura o dashboard unificado de observabilidade.
+Configura o dashboard de observabilidade para [NOME_DO_PROJETO].
 
-1. Cria packages/grafana-dashboards/ no BehaviorOS:
-   - dashboards/brocolis.json:
-     - Métricas de pedidos (total, pendentes, completos, receita)
-     - Métricas de prescrições (upload, verificação, rejeição)
-     - Métricas de delivery (ativo, completado, falhou)
-     - Métricas de utilizadores (ativo, novo, churned)
-     - Latência API, taxa de erro, throughput
+1. Cria packages/grafana-dashboards/:
+   - dashboards/[projeto].json:
+     - Métricas de negócio (adapta ao teu domínio)
+     - Métricas técnicas (latência, throughput, erros)
+     - Métricas de qualidade (coverage, testes, lint)
+     - Métricas de governância (bloqueios, escalações)
 
-   - dashboards/finpay.json:
-     - Métricas de pagamentos (total, aprovado, rejeitado, review)
-     - Trust score (média, distribuição)
-     - Fraude (detectado, falso positivo, verdadeiro positivo)
-     - Compliance (aprovado, violações)
-     - OCR (precisão, tempo de processamento)
+   - prometheus-rules.yml:
+     - Alertas técnicos (HighErrorRate, HighLatency)
+     - Alertas de negócio (adapta ao teu domínio)
+     - Alertas BehaviorOS (PipelineFailure, QualityGateFail)
 
-   - dashboards/unified.json:
-     - Métricas cross-platform
-     - Correlação entre pagamentos e pedidos
-     - Tendências de negócio
-     - Health score geral
-
-2. Cria packages/grafana-dashboards/prometheus-rules.yml:
-   - Alertas Brocolis:
-     - HighErrorRate: taxa_erro > 5%
-     - LowInventory: estoque < 10
-     - DeliveryDelay: tempo_entrega > 60min
-   - Alertas FinPay:
-     - HighFraudRate: fraude_detectada > 2%
-     - OCRFailure: taxa_falha_ocr > 10%
-     - ComplianceViolation: violacoes > 0
-   - Alertas BehaviorOS:
-     - PipelineFailure: pipeline_falhou > 0
-     - QualityGateFail: quality_gate_falhou > 0
-     - GovernanceBlock: governance_bloqueou > 0
-
-3. Cria docker-compose.observability.yml:
+2. Cria docker-compose.observability.yml:
    - Prometheus (port 9090)
    - Grafana (port 3002)
    - Loki (port 3100)
    - Alertmanager (port 9093)
-   - Configura data sources automaticamente
 ```
 
 ---
 
-## Fase 6: E2E Tests Completos
+## Fase 5: E2E Tests
 
 ### Prompt para Agente IA
 
 ```
-Completa os testes E2E para todas as apps.
+Cria testes E2E para o projeto [NOME_DO_PROJETO] usando Playwright.
 
 1. Testes API (packages/e2e-tests/src/api/):
-   - payment-flow.spec.ts:
-     - Criar payment intent via FinPay
-     - Upload de evidência (OCR)
-     - Validar pagamento através do pipeline
-     - Obter trust score
-     - Processar refund
-     - Reconciliar pagamentos
-     - Webhook delivery
-     - Idempotência em requests duplicados
+   - [dominio]-flow.spec.ts:
+     - Fluxo principal do teu domínio
+     - Happy path + error handling
+     - Idempotência
      - Rate limiting
-     - Error handling
-
-   - brocolis-order.spec.ts:
-     - Criar pedido multi-farmácia
-     - Adicionar itens ao carrinho
-     - Checkout com pagamento FinPay
-     - Upload de prescrição
-     - Verificar prescrição
-     - Rastrear delivery
-     - Cancelar pedido
-     - Processar devolução
-     - Guest checkout
-     - Pharmacy dashboard
-
-   - integration.spec.ts:
-     - Fluxo completo: pedido → pagamento → validação → entrega
-     - Prescrição verificada → pagamento → fulfillment
-     - Pedido multi-farmácia com pagamentos separados
-     - Detecção de fraude aciona review manual
-     - Violação de compliance bloqueia pagamento
-     - Trust score afeta status do pedido
-     - Reconciliação confere pedidos vs pagamentos
 
 2. Testes Web (packages/e2e-tests/src/web/):
-   - checkout.spec.ts (Page Object Model):
-     - Browse catálogo → adicionar ao carrinho → checkout
-     - Aplicar cupom
-     - Selecionar método de pagamento
-     - Completar pagamento
-     - Ver confirmação
-     - Rastrear status
-     - Falha de pagamento
-
-   - pharmacy-dashboard.spec.ts (POM):
-     - Login como pharmacy admin
-     - Ver pedidos recebidos
-     - Atualizar status do pedido
-     - Gerir inventário
-     - Ver relatórios financeiros
-     - Gerir staff
-
-   - admin-dashboard.spec.ts (POM):
-     - Login como super admin
-     - Ver analytics da plataforma
-     - Aprovar nova farmácia
-     - Gerir comissões
-     - Ver audit log
-     - Gerir feature flags
+   - [fluxo].spec.ts (Page Object Model):
+     - Navegação principal
+     - Formulários
+     - Interações
+     - Validações
 
 3. Testes Mobile (packages/e2e-tests/src/mobile/):
-   - order-flow.spec.ts (Playwright mobile emulation):
-     - Browse catálogo mobile
-     - Adicionar ao carrinho
-     - Checkout mobile
-     - Ver histórico de pedidos
-     - Rastrear delivery
-
-   - ai-assistant.spec.ts:
-     - Abrir assistente IA
-     - Perguntar sobre medicamento
-     - Obter recomendações
-     - Verificar prescrição
+   - [fluxo].spec.ts (mobile emulation):
+     - UX mobile
+     - Touch gestures
+     - Responsive
 
 4. Testes BehaviorOS (packages/e2e-tests/src/behavioros/):
    - pipeline.spec.ts:
@@ -372,7 +268,138 @@ Completa os testes E2E para todas as apps.
      - Validar cada layer
      - Pausar e retomar
      - Gerar relatório
-     - Registar learning events
+```
+
+---
+
+## Exemplos de Utilização
+
+### Exemplo 1: E-commerce
+
+```yaml
+# behavioros.yaml para e-commerce
+id: my-ecommerce
+name: E-commerce DNA
+personas:
+  - role: architect
+    authority: architect
+  - role: engineer
+    authority: senior
+  - role: qa
+    authority: senior
+governance:
+  - id: checkout-changes
+    name: Checkout Changes
+    level: critical
+    action: block
+    conditions:
+      - type:payment
+      - type:checkout
+quality:
+  - id: test-coverage
+    type: test_coverage
+    threshold: 80
+patterns:
+  - id: checkout-pipeline
+    name: Checkout Validation
+    type: deployment
+    triggers:
+      - checkout_started
+    actions:
+      - validate_cart
+      - process_payment
+      - send_confirmation
+workflows:
+  - id: checkout-flow
+    name: Checkout Flow
+    type: action
+    agent: engineer
+    input:
+      steps:
+        - validate_cart
+        - calculate_totals
+        - process_payment
+        - send_confirmation
+```
+
+### Exemplo 2: SaaS B2B
+
+```yaml
+# behavioros.yaml para SaaS B2B
+id: my-saas
+name: SaaS B2B DNA
+personas:
+  - role: architect
+    authority: architect
+  - role: engineer
+    authority: senior
+  - role: security
+    authority: architect
+governance:
+  - id: tenant-isolation
+    name: Tenant Isolation
+    level: critical
+    action: block
+    conditions:
+      - type:security
+      - type:multi-tenant
+  - id: billing-changes
+    name: Billing Changes
+    level: high
+    action: escalate
+    conditions:
+      - type:billing
+      - type:subscription
+quality:
+  - id: security-scan
+    type: security
+    threshold: 100
+patterns:
+  - id: tenant-provisioning
+    name: Tenant Provisioning
+    type: deployment
+    triggers:
+      - tenant_created
+    actions:
+      - create_schema
+      - seed_data
+      - configure_billing
+      - send_welcome
+```
+
+### Exemplo 3: API REST
+
+```yaml
+# behavioros.yaml para API REST
+id: my-api
+name: REST API DNA
+personas:
+  - role: architect
+    authority: architect
+  - role: engineer
+    authority: senior
+governance:
+  - id: breaking-changes
+    name: Breaking Changes
+    level: high
+    action: escalate
+    conditions:
+      - type:api
+      - type:breaking
+quality:
+  - id: test-coverage
+    type: test_coverage
+    threshold: 90
+patterns:
+  - id: api-versioning
+    name: API Versioning
+    type: review
+    triggers:
+      - api_change
+    actions:
+      - check_breaking
+      - update_openapi
+      - notify_consumers
 ```
 
 ---
@@ -393,7 +420,7 @@ pnpm lint
 pnpm typecheck
 
 # Pipeline EAARG
-npx @behavioros/cli validate --dna enterprise-agent-review.yaml
+npx @behavioros/cli validate --dna [dna-file].yaml
 npx @behavioros/cli eaarg start
 
 # MCP Server
@@ -410,39 +437,34 @@ docker-compose -f docker-compose.observability.yml up -d
 
 ## Environment Variables
 
-### Brocolis
-```env
-# FinPay Integration
-FINPAY_API_KEY=your_api_key
-FINPAY_BASE_URL=http://localhost:3001
-FINPAY_WEBHOOK_SECRET=your_webhook_secret
-FINPAY_ENABLED=true
-
-# BehaviorOS
-BEHAVIOROS_DNA_PATH=./behavioros.yaml
-BEHAVIOROS_PROJECT=brocolis
-```
-
-### FinPay
 ```env
 # BehaviorOS
 BEHAVIOROS_DNA_PATH=./behavioros.yaml
-BEHAVIOROS_PROJECT=finpay
-
-# Brocolis Integration
-BROCOLIS_API_URL=http://localhost:3001
-BROCOLIS_WEBHOOK_SECRET=your_webhook_secret
+BEHAVIOROS_PROJECT=[id-do-projeto]
+BEHAVIOROS_LOG_LEVEL=debug
 ```
 
 ---
 
 ## Ordem de Implementação
 
-1. **Criar BehaviorOS no FinPay** (Fase 1) — 15 min
-2. **Integrar FinPay SDK no Brocolis** (Fase 2) — 2 horas
-3. **Configurar MCP Server CI/CD** (Fase 3) — 1 hora
-4. **AI Health Assistant** (Fase 4) — 4 horas
-5. **Dashboard Observabilidade** (Fase 5) — 2 horas
-6. **E2E Tests Completos** (Fase 6) — 4 horas
+1. **Criar behavioros.yaml** — 15 min
+2. **Criar .behaviorosrc** — 5 min
+3. **Criar AGENTS.md** — 15 min
+4. **Configurar MCP Server** — 30 min
+5. **Integrar SDK** — 1 hora
+6. **Configurar Observabilidade** — 1 hora
+7. **Criar E2E Tests** — 2 horas
 
-**Total estimado: ~13 horas de trabalho de agente IA**
+**Total estimado: ~5 horas de trabalho de agente IA**
+
+---
+
+## Referências
+
+- `dnas/enterprise-agent-review.yaml` — DNA genérico com 18 camadas
+- `packages/finpay-integration/` — Exemplo de integração FinPay + Brocolis
+- `docs/SDK.md` — API reference completa
+- `docs/CLI.md` — Guia do CLI
+- `docs/ARCHITECTURE.md` — Arquitetura detalhada
+- `docs/DNAs.md` — Catálogo de DNA patterns
