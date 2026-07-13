@@ -1,107 +1,107 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { parse as parseYAML } from 'yaml'
-import type { DNAPackage } from '@behavioros/schemas'
-import { DNAPackageSchema } from '@behavioros/schemas'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import type { DNAPackage } from '@behavioros/schemas';
+import { DNAPackageSchema } from '@behavioros/schemas';
+import { parse as parseYAML } from 'yaml';
 
 // ============================================================
 // Behavior Compiler — YAML → Organization (agents, workflows, MCP, CI/CD)
 // ============================================================
 
 export interface CompilerOutput {
-  organization: GeneratedOrganization
-  files: GeneratedFile[]
+  organization: GeneratedOrganization;
+  files: GeneratedFile[];
 }
 
 export interface GeneratedOrganization {
-  name: string
-  agents: GeneratedAgent[]
-  workflows: GeneratedWorkflow[]
-  hooks: GeneratedHook[]
-  cicd: GeneratedCICD
-  mcp: GeneratedMCP
-  docs: GeneratedDocs
+  name: string;
+  agents: GeneratedAgent[];
+  workflows: GeneratedWorkflow[];
+  hooks: GeneratedHook[];
+  cicd: GeneratedCICD;
+  mcp: GeneratedMCP;
+  docs: GeneratedDocs;
 }
 
 export interface GeneratedAgent {
-  id: string
-  role: string
-  authority: string
-  persona: string
-  tools: string[]
-  systemPrompt: string
+  id: string;
+  role: string;
+  authority: string;
+  persona: string;
+  tools: string[];
+  systemPrompt: string;
 }
 
 export interface GeneratedWorkflow {
-  id: string
-  name: string
-  steps: string[]
-  triggers: string[]
+  id: string;
+  name: string;
+  steps: string[];
+  triggers: string[];
 }
 
 export interface GeneratedHook {
-  event: string
-  action: string
-  config: Record<string, unknown>
+  event: string;
+  action: string;
+  config: Record<string, unknown>;
 }
 
 export interface GeneratedCICD {
-  providers: string[]
-  stages: string[]
-  gates: string[]
+  providers: string[];
+  stages: string[];
+  gates: string[];
 }
 
 export interface GeneratedMCP {
-  server: string
-  tools: string[]
-  resources: string[]
+  server: string;
+  tools: string[];
+  resources: string[];
 }
 
 export interface GeneratedDocs {
-  readme: string
-  architecture: string
-  dna: string
+  readme: string;
+  architecture: string;
+  dna: string;
 }
 
 export interface GeneratedFile {
-  path: string
-  content: string
-  type: 'typescript' | 'yaml' | 'json' | 'markdown'
+  path: string;
+  content: string;
+  type: 'typescript' | 'yaml' | 'json' | 'markdown';
 }
 
 export class BehaviorCompiler {
-  private outputDir: string
-  private dryRun: boolean
-  private verbose: boolean
+  private outputDir: string;
+  private dryRun: boolean;
+  private verbose: boolean;
 
   constructor(options?: { outputDir?: string; dryRun?: boolean; verbose?: boolean }) {
-    this.outputDir = options?.outputDir ?? './generated'
-    this.dryRun = options?.dryRun ?? false
-    this.verbose = options?.verbose ?? false
+    this.outputDir = options?.outputDir ?? './generated';
+    this.dryRun = options?.dryRun ?? false;
+    this.verbose = options?.verbose ?? false;
   }
 
   /**
    * Compila um pacote DNA em uma organização completa
    */
   compile(dna: DNAPackage): CompilerOutput {
-    const organization = this.generateOrganization(dna)
-    const files = this.generateFiles(dna, organization)
+    const organization = this.generateOrganization(dna);
+    const files = this.generateFiles(dna, organization);
 
     if (!this.dryRun) {
-      this.writeFiles(files)
+      this.writeFiles(files);
     }
 
-    return { organization, files }
+    return { organization, files };
   }
 
   /**
    * Compila a partir de um arquivo YAML
    */
   compileFromYAML(yamlPath: string): CompilerOutput {
-    const content = readFileSync(yamlPath, 'utf-8')
-    const parsed = parseYAML(content)
-    const dna = DNAPackageSchema.parse(parsed)
-    return this.compile(dna)
+    const content = readFileSync(yamlPath, 'utf-8');
+    const parsed = parseYAML(content);
+    const dna = DNAPackageSchema.parse(parsed);
+    return this.compile(dna);
   }
 
   private generateOrganization(dna: DNAPackage): GeneratedOrganization {
@@ -137,27 +137,27 @@ export class BehaviorCompiler {
         architecture: this.generateArchitectureDoc(dna),
         dna: this.generateDNADoc(dna),
       },
-    }
+    };
   }
 
   private generateSystemPrompt(persona: DNAPackage['personas'][0]): string {
-    const lines: string[] = []
-    lines.push(`You are a ${persona.role} with ${persona.authority} authority level.`)
+    const lines: string[] = [];
+    lines.push(`You are a ${persona.role} with ${persona.authority} authority level.`);
     if (persona.description) {
-      lines.push(persona.description)
+      lines.push(persona.description);
     }
     if (persona.skills && persona.skills.length > 0) {
-      lines.push(`Skills: ${persona.skills.join(', ')}`)
+      lines.push(`Skills: ${persona.skills.join(', ')}`);
     }
     if (persona.boundaries && persona.boundaries.length > 0) {
-      lines.push(`Boundaries: ${persona.boundaries.map((b) => b.name).join(', ')}`)
+      lines.push(`Boundaries: ${persona.boundaries.map((b) => b.name).join(', ')}`);
     }
-    return lines.join('\n')
+    return lines.join('\n');
   }
 
   private generateHooks(dna: DNAPackage): GeneratedHook[] {
-    const hooks: GeneratedHook[] = []
-    const patterns = dna.patterns ?? []
+    const hooks: GeneratedHook[] = [];
+    const patterns = dna.patterns ?? [];
 
     for (const pattern of patterns) {
       if (pattern.triggers && pattern.triggers.length > 0) {
@@ -166,16 +166,16 @@ export class BehaviorCompiler {
             event: trigger,
             action: pattern.actions?.[0] ?? 'log',
             config: pattern.config ?? {},
-          })
+          });
         }
       }
     }
 
-    return hooks
+    return hooks;
   }
 
   private generateFiles(dna: DNAPackage, org: GeneratedOrganization): GeneratedFile[] {
-    const files: GeneratedFile[] = []
+    const files: GeneratedFile[] = [];
 
     // Agent configs
     for (const agent of org.agents) {
@@ -183,7 +183,7 @@ export class BehaviorCompiler {
         path: join('agents', `${agent.id}.ts`),
         content: this.generateAgentFile(agent),
         type: 'typescript',
-      })
+      });
     }
 
     // Workflow configs
@@ -192,7 +192,7 @@ export class BehaviorCompiler {
         path: join('workflows', `${workflow.id}.yaml`),
         content: this.generateWorkflowFile(workflow),
         type: 'yaml',
-      })
+      });
     }
 
     // MCP config
@@ -200,23 +200,23 @@ export class BehaviorCompiler {
       path: join('mcp', 'server.ts'),
       content: this.generateMCPFile(org.mcp),
       type: 'typescript',
-    })
+    });
 
     // CI/CD config
     files.push({
       path: join('.github', 'workflows', 'behavioros.yml'),
       content: this.generateCICDFile(org.cicd),
       type: 'yaml',
-    })
+    });
 
     // Docs
     files.push({
       path: 'README.md',
       content: org.docs.readme,
       type: 'markdown',
-    })
+    });
 
-    return files
+    return files;
   }
 
   private generateAgentFile(agent: GeneratedAgent): string {
@@ -229,7 +229,7 @@ export const ${agent.id.replace(/-/g, '_')}Agent = {
   tools: ${JSON.stringify(agent.tools)},
   systemPrompt: \`${agent.systemPrompt}\`,
 }
-`
+`;
   }
 
   private generateWorkflowFile(workflow: GeneratedWorkflow): string {
@@ -240,7 +240,7 @@ steps:
 ${workflow.steps.map((s) => `  - ${s}`).join('\n')}
 triggers:
 ${workflow.triggers.map((t) => `  - ${t}`).join('\n')}
-`
+`;
   }
 
   private generateMCPFile(mcp: GeneratedMCP): string {
@@ -264,7 +264,7 @@ export function createBehaviorOSMCP() {
 
   return server
 }
-`
+`;
   }
 
   private generateCICDFile(cicd: GeneratedCICD): string {
@@ -276,7 +276,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 ${cicd.stages.map((s) => `      - name: ${s}\n        run: pnpm ${s}`).join('\n')}
-`
+`;
   }
 
   private generateReadme(dna: DNAPackage): string {
@@ -294,7 +294,7 @@ ${(dna.governance ?? []).map((r) => `- ${r.name}: ${r.action} (${r.level})`).joi
 ${(dna.quality ?? []).map((g) => `- ${g.name}: ${g.type}`).join('\n') || 'None defined'}
 
 Generated by BehaviorOS Compiler v0.1.0
-`
+`;
   }
 
   private generateArchitectureDoc(dna: DNAPackage): string {
@@ -307,7 +307,7 @@ This organization uses ${dna.personas.length} agent roles with ${dna.governance?
 ${dna.personas.map((p) => `### ${p.role}\n- Authority: ${p.authority}\n- Skills: ${p.skills?.join(', ') ?? 'N/A'}`).join('\n\n')}
 
 Generated by BehaviorOS Compiler v0.1.0
-`
+`;
   }
 
   private generateDNADoc(dna: DNAPackage): string {
@@ -321,19 +321,19 @@ Generated by BehaviorOS Compiler v0.1.0
 ${(dna.patterns ?? []).map((p) => `- ${p.name} (${p.type})`).join('\n') || 'None defined'}
 
 Generated by BehaviorOS Compiler v0.1.0
-`
+`;
   }
 
   private writeFiles(files: GeneratedFile[]): void {
     for (const file of files) {
-      const fullPath = join(this.outputDir, file.path)
-      const dir = dirname(fullPath)
+      const fullPath = join(this.outputDir, file.path);
+      const dir = dirname(fullPath);
       if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true })
+        mkdirSync(dir, { recursive: true });
       }
-      writeFileSync(fullPath, file.content, 'utf-8')
+      writeFileSync(fullPath, file.content, 'utf-8');
       if (this.verbose) {
-        console.log(`Generated: ${file.path}`)
+        console.log(`Generated: ${file.path}`);
       }
     }
   }

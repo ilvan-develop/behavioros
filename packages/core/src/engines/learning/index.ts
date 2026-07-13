@@ -1,2 +1,2 @@
-export { LearningEngine } from './learning-engine'
-export type { PatternInsight, LearningReport } from './learning-engine'
+export type { LearningReport, PatternInsight } from './learning-engine';
+export { LearningEngine } from './learning-engine';

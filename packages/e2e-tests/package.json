@@ -1,0 +1,22 @@
+{
+  "name": "@behavioros/e2e-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "E2E tests for Brocolis + FinPay + BehaviorOS integration",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:api": "playwright test --project=api",
+    "test:web": "playwright test --project=web",
+    "test:mobile": "playwright test --project=mobile",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^26.1.1",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.10"
+  }
+}

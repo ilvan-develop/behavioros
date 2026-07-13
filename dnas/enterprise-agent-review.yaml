@@ -1,0 +1,1386 @@
+id: enterprise-agent-review
+name: Enterprise Agent Architecture Review Guide (EAARG)
+version: '1.0.0'
+description: |
+  Framework de 18 layers para revisão abrangente de arquitetura de agentes de IA.
+  Cada layer é mapeada para skills enterprise especializadas.
+
+personas:
+  - role: architect
+    authority: architect
+    name: Enterprise Architect
+    description: Responsável pela revisão geral de arquitetura
+  - role: engineer
+    authority: senior
+    name: Senior Engineer
+    description: Responsável pela implementação técnica
+  - role: qa
+    authority: senior
+    name: QA Lead
+    description: Responsável pela qualidade e testes
+  - role: security
+    authority: architect
+    name: Security Architect
+    description: Responsável pela segurança
+  - role: devops
+    authority: senior
+    name: DevOps Engineer
+    description: Responsável pela infraestrutura e deploy
+
+governance:
+  - id: eaarg-change-management
+    name: Gestão de Mudanças EAARG
+    level: critical
+    action: block
+    conditions:
+      - type:architecture
+      - type:infrastructure
+  - id: eaarg-security-review
+    name: Revisão de Segurança
+    level: critical
+    action: escalate
+    conditions:
+      - type:security
+  - id: eaarg-quality-gate
+    name: Gate de Qualidade
+    level: high
+    action: block
+    conditions:
+      - type:feature
+      - type:bugfix
+
+quality:
+  - id: eaarg-coverage
+    name: Cobertura de Testes
+    type: test_coverage
+    threshold: 80
+  - id: eaarg-lint
+    name: Verificação de Código
+    type: lint
+    threshold: 100
+  - id: eaarg-typecheck
+    name: Verificação de Tipos
+    type: typecheck
+    threshold: 100
+  - id: eaarg-security
+    name: Varredura de Segurança
+    type: security
+    threshold: 100
+  - id: eaarg-performance
+    name: Performance
+    type: performance
+    threshold: 90
+
+workflows:
+  # Layer 1: Business
+  - id: layer-1-business
+    name: Business
+    type: gate
+    agent: architect
+    next:
+      - layer-2-product
+    input:
+      layer: 1
+      layerName: Business
+      objectives:
+        - Validar alinhamento com objetivos de negócio
+        - Identificar stakeholders e partes interessadas
+        - Definir métricas de sucesso
+      questions:
+        - id: q1-1
+          question: Qual problema de negócio estamos resolvendo?
+          category: functional
+          required: true
+        - id: q1-2
+          question: Quem são os stakeholders principais?
+          category: functional
+          required: true
+        - id: q1-3
+          question: Quais são as métricas de sucesso?
+          category: non_functional
+          required: true
+        - id: q1-4
+          question: Qual o impacto financeiro esperado?
+          category: business
+          required: true
+      requiredEvidence:
+        - id: ev-1-1
+          type: document
+          description: Documento de requisitos de negócio
+          required: true
+        - id: ev-1-2
+          type: document
+          description: Análise de custo-benefício
+          required: true
+      acceptanceCriteria:
+        - id: ac-1-1
+          description: Problema de negócio claramente definido
+          weight: 1
+        - id: ac-1-2
+          description: Stakeholders identificados e mapeados
+          weight: 1
+        - id: ac-1-3
+          description: Métricas de sucesso definidas e mensuráveis
+          weight: 1
+      rejectionCriteria:
+        - id: rc-1-1
+          description: Problema de negócio não definido
+          weight: 1
+      checklist:
+        - Documento de visão aprovado
+        - Stakeholders mapeados
+        - Métricas definidas
+        - Análise de viabilidade concluída
+      nextSteps:
+        - "Proceder para Layer 2: Product"
+      skills:
+        - skillId: enterprise-product
+          skillName: Enterprise Product
+          description: Product discovery, jobs-to-be-done, value proposition
+          required: true
+          weight: 0.6
+        - skillId: enterprise-executive
+          skillName: Enterprise Executive
+          description: Gestão de produto, roadmapping, KPI management
+          required: true
+          weight: 0.4
+
+  # Layer 2: Product
+  - id: layer-2-product
+    name: Product
+    type: gate
+    agent: architect
+    next:
+      - layer-3-requirements
+    input:
+      layer: 2
+      layerName: Product
+      objectives:
+        - Definir escopo do produto
+        - Validar proposta de valor
+        - Identificar personas de usuário
+      questions:
+        - id: q2-1
+          question: O escopo do produto está completo?
+          category: functional
+          required: true
+        - id: q2-2
+          question: As personas de usuário estão definidas?
+          category: functional
+          required: true
+        - id: q2-3
+          question: A proposta de valor está clara?
+          category: business
+          required: true
+      requiredEvidence:
+        - id: ev-2-1
+          type: document
+          description: Documento de produto
+          required: true
+        - id: ev-2-2
+          type: document
+          description: Mapa de personas
+          required: true
+      acceptanceCriteria:
+        - id: ac-2-1
+          description: Escopo do produto definido
+          weight: 1
+        - id: ac-2-2
+          description: Personas documentadas
+          weight: 1
+        - id: ac-2-3
+          description: Proposta de valor validada
+          weight: 1
+      rejectionCriteria:
+        - id: rc-2-1
+          description: Escopo indefinido
+          weight: 1
+      checklist:
+        - Documento de produto aprovado
+        - Personas definidas
+        - Proposta de valor validada
+        - Roadmap inicial criado
+      nextSteps:
+        - "Proceder para Layer 3: Requirements"
+      skills:
+        - skillId: enterprise-product
+          skillName: Enterprise Product
+          description: Product design, discovery, metrics
+          required: true
+          weight: 0.5
+        - skillId: enterprise-ux-research
+          skillName: Enterprise UX Research
+          description: UX research, personas, journey mapping
+          required: true
+          weight: 0.5
+
+  # Layer 3: Requirements
+  - id: layer-3-requirements
+    name: Requirements
+    type: gate
+    agent: architect
+    next:
+      - layer-4-architecture
+    input:
+      layer: 3
+      layerName: Requirements
+      objectives:
+        - Documentar requisitos funcionais
+        - Definir requisitos não funcionais
+        - Validar critérios de aceitação
+      questions:
+        - id: q3-1
+          question: Todos os requisitos funcionais estão documentados?
+          category: functional
+          required: true
+        - id: q3-2
+          question: Requisitos não funcionais definidos?
+          category: non_functional
+          required: true
+        - id: q3-3
+          question: Critérios de aceitação claros?
+          category: functional
+          required: true
+      requiredEvidence:
+        - id: ev-3-1
+          type: document
+          description: Documento de requisitos
+          required: true
+        - id: ev-3-2
+          type: document
+          description: Matriz de rastreabilidade
+          required: true
+      acceptanceCriteria:
+        - id: ac-3-1
+          description: Requisitos funcionais completos
+          weight: 1
+        - id: ac-3-2
+          description: Requisitos não funcionais definidos
+          weight: 1
+        - id: ac-3-3
+          description: Critérios de aceitação documentados
+          weight: 1
+      rejectionCriteria:
+        - id: rc-3-1
+          description: Requisitos incompletos
+          weight: 1
+      checklist:
+        - Documento de requisitos aprovado
+        - Requisitos não funcionais definidos
+        - Critérios de aceitação documentados
+        - Matriz de rastreabilidade criada
+      nextSteps:
+        - "Proceder para Layer 4: Architecture"
+      skills:
+        - skillId: enterprise-product
+          skillName: Enterprise Product
+          description: User story mapping, value proposition
+          required: true
+          weight: 0.4
+        - skillId: enterprise-ux-research
+          skillName: Enterprise UX Research
+          description: Cognitive psychology, accessibility
+          required: true
+          weight: 0.6
+
+  # Layer 4: Architecture
+  - id: layer-4-architecture
+    name: Architecture
+    type: gate
+    agent: architect
+    next:
+      - layer-5-frontend
+    input:
+      layer: 4
+      layerName: Architecture
+      objectives:
+        - Definir arquitetura do sistema
+        - Validar padrões de design
+        - Documentar decisões de arquitetura (ADRs)
+      questions:
+        - id: q4-1
+          question: Arquitetura do sistema documentada?
+          category: architecture
+          required: true
+        - id: q4-2
+          question: Padrões de design validados?
+          category: architecture
+          required: true
+        - id: q4-3
+          question: ADRs documentadas?
+          category: architecture
+          required: true
+        - id: q4-4
+          question: Diagramas de container e componentes criados?
+          category: architecture
+          required: true
+      requiredEvidence:
+        - id: ev-4-1
+          type: document
+          description: Documento de arquitetura
+          required: true
+        - id: ev-4-2
+          type: document
+          description: ADRs (Architecture Decision Records)
+          required: true
+        - id: ev-4-3
+          type: diagram
+          description: Diagramas de arquitetura (C4)
+          required: true
+      acceptanceCriteria:
+        - id: ac-4-1
+          description: Arquitetura claramente definida
+          weight: 1
+        - id: ac-4-2
+          description: Padrões de design documentados
+          weight: 1
+        - id: ac-4-3
+          description: ADRs criadas para decisões-chave
+          weight: 1
+      rejectionCriteria:
+        - id: rc-4-1
+          description: Arquitetura indefinida
+          weight: 1
+      checklist:
+        - Documento de arquitetura aprovado
+        - Diagramas C4 criados
+        - ADRs documentadas
+        - Padrões de design definidos
+        - Stack tecnológica definida
+      nextSteps:
+        - "Proceder para Layer 5: Frontend"
+      skills:
+        - skillId: enterprise-architecture
+          skillName: Enterprise Architecture
+          description: TOGAF, C4 Model, DDD, Event Storming
+          required: true
+          weight: 1.0
+
+  # Layer 5: Frontend
+  - id: layer-5-frontend
+    name: Frontend
+    type: gate
+    agent: engineer
+    next:
+      - layer-6-backend
+    input:
+      layer: 5
+      layerName: Frontend
+      objectives:
+        - Validar design de UI/UX
+        - Verificar acessibilidade
+        - Testar responsividade
+      questions:
+        - id: q5-1
+          question: Design de UI/UX aprovado?
+          category: design
+          required: true
+        - id: q5-2
+          question: Acessibilidade WCAG 2.1 AA verificada?
+          category: accessibility
+          required: true
+        - id: q5-3
+          question: Responsividade testada?
+          category: responsive
+          required: true
+        - id: q5-4
+          question: Performance de UI otimizada?
+          category: performance
+          required: true
+      requiredEvidence:
+        - id: ev-5-1
+          type: screenshot
+          description: Screenshots do design
+          required: true
+        - id: ev-5-2
+          type: report
+          description: Relatório de acessibilidade
+          required: true
+        - id: ev-5-3
+          type: test
+          description: Testes de responsividade
+          required: true
+      acceptanceCriteria:
+        - id: ac-5-1
+          description: Design aprovado pelo time de design
+          weight: 1
+        - id: ac-5-2
+          description: Acessibilidade WCAG 2.1 AA
+          weight: 1
+        - id: ac-5-3
+          description: Responsividade em todos os breakpoints
+          weight: 1
+      rejectionCriteria:
+        - id: rc-5-1
+          description: Design não aprovado
+          weight: 1
+        - id: rc-5-2
+          description: Problemas críticos de acessibilidade
+          weight: 1
+      checklist:
+        - Design aprovado
+        - Acessibilidade verificada
+        - Responsividade testada
+        - Performance de UI otimizada
+        - Componentes reutilizáveis documentados
+      nextSteps:
+        - "Proceder para Layer 6: Backend"
+      skills:
+        - skillId: enterprise-frontend
+          skillName: Enterprise Frontend
+          description: React, Next.js, Vue, Angular, performance
+          required: true
+          weight: 0.4
+        - skillId: enterprise-design-qa
+          skillName: Enterprise Design QA
+          description: UI/UX audit, 10 dimensions, scoring
+          required: true
+          weight: 0.3
+        - skillId: enterprise-visual-design
+          skillName: Enterprise Visual Design
+          description: Typography, color theory, layout
+          required: true
+          weight: 0.3
+
+  # Layer 6: Backend
+  - id: layer-6-backend
+    name: Backend
+    type: gate
+    agent: engineer
+    next:
+      - layer-7-apis
+    input:
+      layer: 6
+      layerName: Backend
+      objectives:
+        - Validar arquitetura backend
+        - Verificar padrões de código
+        - Testar lógica de negócio
+      questions:
+        - id: q6-1
+          question: Arquitetura backend documentada?
+          category: architecture
+          required: true
+        - id: q6-2
+          question: Padrões de código seguidos?
+          category: quality
+          required: true
+        - id: q6-3
+          question: Lógica de negócio testada?
+          category: testing
+          required: true
+        - id: q6-4
+          question: Tratamento de erros implementado?
+          category: quality
+          required: true
+      requiredEvidence:
+        - id: ev-6-1
+          type: code
+          description: Código fonte revisado
+          required: true
+        - id: ev-6-2
+          type: test
+          description: Testes unitários
+          required: true
+        - id: ev-6-3
+          type: document
+          description: Documentação da API interna
+          required: true
+      acceptanceCriteria:
+        - id: ac-6-1
+          description: Código revisado e aprovado
+          weight: 1
+        - id: ac-6-2
+          description: Testes unitários com cobertura > 80%
+          weight: 1
+        - id: ac-6-3
+          description: Tratamento de erros implementado
+          weight: 1
+      rejectionCriteria:
+        - id: rc-6-1
+          description: Código não revisado
+          weight: 1
+        - id: rc-6-2
+          description: Cobertura de testes abaixo de 80%
+          weight: 1
+      checklist:
+        - Código revisado
+        - Testes unitários executados
+        - Tratamento de erros implementado
+        - Logging configurado
+        - Documentação atualizada
+      nextSteps:
+        - "Proceder para Layer 7: APIs"
+      skills:
+        - skillId: enterprise-backend
+          skillName: Enterprise Backend
+          description: DDD, Clean Architecture, CQRS, APIs
+          required: true
+          weight: 1.0
+
+  # Layer 7: APIs
+  - id: layer-7-apis
+    name: APIs
+    type: gate
+    agent: engineer
+    next:
+      - layer-8-data
+    input:
+      layer: 7
+      layerName: APIs
+      objectives:
+        - Validar contratos de API
+        - Verificar versionamento
+        - Testar integrações
+      questions:
+        - id: q7-1
+          question: Contratos de API documentados?
+          category: documentation
+          required: true
+        - id: q7-2
+          question: Versionamento implementado?
+          category: architecture
+          required: true
+        - id: q7-3
+          question: Integrações testadas?
+          category: testing
+          required: true
+        - id: q7-4
+          question: Rate limiting implementado?
+          category: security
+          required: true
+      requiredEvidence:
+        - id: ev-7-1
+          type: document
+          description: Documentação OpenAPI/Swagger
+          required: true
+        - id: ev-7-2
+          type: test
+          description: Testes de contrato
+          required: true
+        - id: ev-7-3
+          type: code
+          description: Código de versionamento
+          required: true
+      acceptanceCriteria:
+        - id: ac-7-1
+          description: API documentada OpenAPI 3.0
+          weight: 1
+        - id: ac-7-2
+          description: Versionamento semântico implementado
+          weight: 1
+        - id: ac-7-3
+          description: Testes de contrato passando
+          weight: 1
+      rejectionCriteria:
+        - id: rc-7-1
+          description: API não documentada
+          weight: 1
+      checklist:
+        - Documentação OpenAPI criada
+        - Versionamento implementado
+        - Testes de contrato executados
+        - Rate limiting configurado
+        - Autenticação implementada
+      nextSteps:
+        - "Proceder para Layer 8: Data"
+      skills:
+        - skillId: enterprise-backend
+          skillName: Enterprise Backend
+          description: REST, GraphQL, gRPC, API governance
+          required: true
+          weight: 1.0
+
+  # Layer 8: Data
+  - id: layer-8-data
+    name: Data
+    type: gate
+    agent: engineer
+    next:
+      - layer-9-security
+    input:
+      layer: 8
+      layerName: Data
+      objectives:
+        - Validar modelo de dados
+        - Verificar performance de queries
+        - Testar migrações
+      questions:
+        - id: q8-1
+          question: Modelo de dados documentado?
+          category: architecture
+          required: true
+        - id: q8-2
+          question: Performance de queries verificada?
+          category: performance
+          required: true
+        - id: q8-3
+          question: Migrações testadas?
+          category: testing
+          required: true
+        - id: q8-4
+          question: Backup e recuperação configurados?
+          category: operations
+          required: true
+      requiredEvidence:
+        - id: ev-8-1
+          type: diagram
+          description: Diagrama ER
+          required: true
+        - id: ev-8-2
+          type: test
+          description: Testes de performance de queries
+          required: true
+        - id: ev-8-3
+          type: code
+          description: Scripts de migração
+          required: true
+      acceptanceCriteria:
+        - id: ac-8-1
+          description: Modelo de dados normalizado
+          weight: 1
+        - id: ac-8-2
+          description: Queries otimizadas
+          weight: 1
+        - id: ac-8-3
+          description: Migrações testadas e reversíveis
+          weight: 1
+      rejectionCriteria:
+        - id: rc-8-1
+          description: Modelo de dados não normalizado
+          weight: 1
+      checklist:
+        - Diagrama ER criado
+        - Índices otimizados
+        - Migrações testadas
+        - Backup configurado
+        - Monitoramento de performance
+      nextSteps:
+        - "Proceder para Layer 9: Security"
+      skills:
+        - skillId: enterprise-database
+          skillName: Enterprise Database
+          description: PostgreSQL, Redis, query optimization
+          required: true
+          weight: 1.0
+
+  # Layer 9: Security
+  - id: layer-9-security
+    name: Security
+    type: gate
+    agent: security
+    next:
+      - layer-10-infrastructure
+    input:
+      layer: 9
+      layerName: Security
+      objectives:
+        - Realizar análise de segurança
+        - Verificar conformidade OWASP
+        - Validar autenticação e autorização
+      questions:
+        - id: q9-1
+          question: Análise OWASP Top 10 realizada?
+          category: security
+          required: true
+        - id: q9-2
+          question: Autenticação e autorização verificadas?
+          category: security
+          required: true
+        - id: q9-3
+          question: Secrets management configurado?
+          category: security
+          required: true
+        - id: q9-4
+          question: Dependências verificadas?
+          category: security
+          required: true
+      requiredEvidence:
+        - id: ev-9-1
+          type: report
+          description: Relatório de segurança
+          required: true
+        - id: ev-9-2
+          type: test
+          description: Testes de segurança
+          required: true
+        - id: ev-9-3
+          type: document
+          description: Política de segurança
+          required: true
+      acceptanceCriteria:
+        - id: ac-9-1
+          description: Nenhuma vulnerabilidade crítica
+          weight: 1
+        - id: ac-9-2
+          description: OWASP Top 10 coberto
+          weight: 1
+        - id: ac-9-3
+          description: Secrets não expostos no código
+          weight: 1
+      rejectionCriteria:
+        - id: rc-9-1
+          description: Vulnerabilidades críticas encontradas
+          weight: 1
+        - id: rc-9-2
+          description: Secrets expostos
+          weight: 1
+      checklist:
+        - Análise OWASP Top 10
+        - Varredura de dependências
+        - Verificação de secrets
+        - Testes de penetração
+        - Relatório de segurança
+      nextSteps:
+        - "Proceder para Layer 10: Infrastructure"
+      skills:
+        - skillId: enterprise-security
+          skillName: Enterprise Security
+          description: OWASP, Secure Coding, Threat Modeling
+          required: true
+          weight: 1.0
+
+  # Layer 10: Infrastructure
+  - id: layer-10-infrastructure
+    name: Infrastructure
+    type: gate
+    agent: devops
+    next:
+      - layer-11-devops
+    input:
+      layer: 10
+      layerName: Infrastructure
+      objectives:
+        - Validar infraestrutura como código
+        - Verificar configuração de containers
+        - Testar provisionamento
+      questions:
+        - id: q10-1
+          question: Infraestrutura como código documentada?
+          category: devops
+          required: true
+        - id: q10-2
+          question: Containers configurados?
+          category: devops
+          required: true
+        - id: q10-3
+          question: Provisionamento testado?
+          category: testing
+          required: true
+      requiredEvidence:
+        - id: ev-10-1
+          type: code
+          description: Código Terraform/Pulumi
+          required: true
+        - id: ev-10-2
+          type: code
+          description: Dockerfiles
+          required: true
+        - id: ev-10-3
+          type: test
+          description: Testes de infraestrutura
+          required: true
+      acceptanceCriteria:
+        - id: ac-10-1
+          description: IaC versionado e documentado
+          weight: 1
+        - id: ac-10-2
+          description: Containers otimizados
+          weight: 1
+        - id: ac-10-3
+          description: Provisionamento automatizado
+          weight: 1
+      rejectionCriteria:
+        - id: rc-10-1
+          description: IaC não versionado
+          weight: 1
+      checklist:
+        - Terraform/Pulumi configurado
+        - Dockerfiles otimizados
+        - Testes de infraestrutura
+        - Documentação de setup
+      nextSteps:
+        - "Proceder para Layer 11: DevOps"
+      skills:
+        - skillId: enterprise-devops
+          skillName: Enterprise DevOps
+          description: Docker, Kubernetes, Terraform, Helm
+          required: true
+          weight: 1.0
+
+  # Layer 11: DevOps
+  - id: layer-11-devops
+    name: DevOps
+    type: gate
+    agent: devops
+    next:
+      - layer-12-qa
+    input:
+      layer: 11
+      layerName: DevOps
+      objectives:
+        - Validar pipeline CI/CD
+        - Verificar automação de deploy
+        - Testar rollback
+      questions:
+        - id: q11-1
+          question: Pipeline CI/CD configurada?
+          category: devops
+          required: true
+        - id: q11-2
+          question: Deploy automatizado?
+          category: devops
+          required: true
+        - id: q11-3
+          question: Rollback testado?
+          category: testing
+          required: true
+      requiredEvidence:
+        - id: ev-11-1
+          type: code
+          description: Configuração CI/CD
+          required: true
+        - id: ev-11-2
+          type: test
+          description: Testes de deploy
+          required: true
+        - id: ev-11-3
+          type: document
+          description: Documentação de runbooks
+          required: true
+      acceptanceCriteria:
+        - id: ac-11-1
+          description: CI/CD funcional
+          weight: 1
+        - id: ac-11-2
+          description: Deploy automatizado e testado
+          weight: 1
+        - id: ac-11-3
+          description: Rollback documentado e testado
+          weight: 1
+      rejectionCriteria:
+        - id: rc-11-1
+          description: CI/CD não funcional
+          weight: 1
+      checklist:
+        - Pipeline CI/CD configurada
+        - Deploy automatizado
+        - Rollback testado
+        - Runbooks documentados
+        - Monitoramento configurado
+      nextSteps:
+        - "Proceder para Layer 12: QA"
+      skills:
+        - skillId: enterprise-devops
+          skillName: Enterprise DevOps
+          description: CI/CD, GitOps, Monitoring
+          required: true
+          weight: 0.6
+        - skillId: enterprise-qa
+          skillName: Enterprise QA
+          description: Test automation, E2E
+          required: true
+          weight: 0.4
+
+  # Layer 12: QA
+  - id: layer-12-qa
+    name: QA
+    type: gate
+    agent: qa
+    next:
+      - layer-13-performance
+    input:
+      layer: 12
+      layerName: QA
+      objectives:
+        - Executar testes E2E
+        - Verificar cobertura de testes
+        - Validar qualidade do código
+      questions:
+        - id: q12-1
+          question: Testes E2E executados?
+          category: testing
+          required: true
+        - id: q12-2
+          question: Cobertura de testes > 80%?
+          category: quality
+          required: true
+        - id: q12-3
+          question: Testes de regressão passando?
+          category: testing
+          required: true
+      requiredEvidence:
+        - id: ev-12-1
+          type: report
+          description: Relatório de testes
+          required: true
+        - id: ev-12-2
+          type: test
+          description: Resultados dos testes
+          required: true
+        - id: ev-12-3
+          type: document
+          description: Documentação de testes
+          required: true
+      acceptanceCriteria:
+        - id: ac-12-1
+          description: Todos os testes passando
+          weight: 1
+        - id: ac-12-2
+          description: Cobertura > 80%
+          weight: 1
+        - id: ac-12-3
+          description: Zero testes pendentes
+          weight: 1
+      rejectionCriteria:
+        - id: rc-12-1
+          description: Testes falhando
+          weight: 1
+        - id: rc-12-2
+          description: Cobertura abaixo de 80%
+          weight: 1
+      checklist:
+        - Testes unitários executados
+        - Testes de integração executados
+        - Testes E2E executados
+        - Cobertura verificada
+        - Relatório gerado
+      nextSteps:
+        - "Proceder para Layer 13: Performance"
+      skills:
+        - skillId: enterprise-qa
+          skillName: Enterprise QA
+          description: Unit, Integration, E2E, Performance Testing
+          required: true
+          weight: 1.0
+
+  # Layer 13: Performance
+  - id: layer-13-performance
+    name: Performance
+    type: gate
+    agent: engineer
+    next:
+      - layer-14-observability
+    input:
+      layer: 13
+      layerName: Performance
+      objectives:
+        - Realizar testes de carga
+        - Verificar Core Web Vitals
+        - Otimizar consultas
+      questions:
+        - id: q13-1
+          question: Testes de carga realizados?
+          category: performance
+          required: true
+        - id: q13-2
+          question: Core Web Vitals verificados?
+          category: performance
+          required: true
+        - id: q13-3
+          question: Consultas otimizadas?
+          category: performance
+          required: true
+      requiredEvidence:
+        - id: ev-13-1
+          type: report
+          description: Relatório de performance
+          required: true
+        - id: ev-13-2
+          type: test
+          description: Resultados dos testes de carga
+          required: true
+        - id: ev-13-3
+          type: document
+          description: Documentação de otimizações
+          required: true
+      acceptanceCriteria:
+        - id: ac-13-1
+          description: LCP < 2.5s
+          weight: 1
+        - id: ac-13-2
+          description: FID < 100ms
+          weight: 1
+        - id: ac-13-3
+          description: CLS < 0.1
+          weight: 1
+      rejectionCriteria:
+        - id: rc-13-1
+          description: Core Web Vitals abaixo do mínimo
+          weight: 1
+      checklist:
+        - Testes de carga executados
+        - Core Web Vitals verificados
+        - Consultas otimizadas
+        - Cache configurado
+        - CDN configurado
+      nextSteps:
+        - "Proceder para Layer 14: Observability"
+      skills:
+        - skillId: enterprise-performance
+          skillName: Enterprise Performance
+          description: Profiling, Memory Optimization, Caching
+          required: true
+          weight: 1.0
+
+  # Layer 14: Observability
+  - id: layer-14-observability
+    name: Observability
+    type: gate
+    agent: devops
+    next:
+      - layer-15-documentation
+    input:
+      layer: 14
+      layerName: Observability
+      objectives:
+        - Configurar monitoramento
+        - Implementar logging
+        - Configurar alertas
+      questions:
+        - id: q14-1
+          question: Monitoramento configurado?
+          category: operations
+          required: true
+        - id: q14-2
+          question: Logging implementado?
+          category: operations
+          required: true
+        - id: q14-3
+          question: Alertas configurados?
+          category: operations
+          required: true
+      requiredEvidence:
+        - id: ev-14-1
+          type: code
+          description: Configuração de monitoramento
+          required: true
+        - id: ev-14-2
+          type: code
+          description: Configuração de logging
+          required: true
+        - id: ev-14-3
+          type: document
+          description: Documentação de alertas
+          required: true
+      acceptanceCriteria:
+        - id: ac-14-1
+          description: Monitoramento funcional
+          weight: 1
+        - id: ac-14-2
+          description: Logging estruturado
+          weight: 1
+        - id: ac-14-3
+          description: Alertas configurados
+          weight: 1
+      rejectionCriteria:
+        - id: rc-14-1
+          description: Monitoramento não configurado
+          weight: 1
+      checklist:
+        - Prometheus/Grafana configurado
+        - Logging estruturado
+        - Alertas configurados
+        - Dashboards criados
+        - Tracing implementado
+      nextSteps:
+        - "Proceder para Layer 15: Documentation"
+      skills:
+        - skillId: enterprise-devops
+          skillName: Enterprise DevOps
+          description: Monitoring, Observability, Grafana, Prometheus
+          required: true
+          weight: 0.7
+        - skillId: enterprise-documentation
+          skillName: Enterprise Documentation
+          description: Technical Writing, API Documentation
+          required: true
+          weight: 0.3
+
+  # Layer 15: Documentation
+  - id: layer-15-documentation
+    name: Documentation
+    type: gate
+    agent: engineer
+    next:
+      - layer-16-ai-governance
+    input:
+      layer: 15
+      layerName: Documentation
+      objectives:
+        - Criar documentação técnica
+        - Documentar API
+        - Criar guias de uso
+      questions:
+        - id: q15-1
+          question: Documentação técnica criada?
+          category: documentation
+          required: true
+        - id: q15-2
+          question: Documentação de API atualizada?
+          category: documentation
+          required: true
+        - id: q15-3
+          question: Guias de uso criados?
+          category: documentation
+          required: true
+      requiredEvidence:
+        - id: ev-15-1
+          type: document
+          description: Documentação técnica
+          required: true
+        - id: ev-15-2
+          type: document
+          description: Documentação de API
+          required: true
+        - id: ev-15-3
+          type: document
+          description: Guias de uso
+          required: true
+      acceptanceCriteria:
+        - id: ac-15-1
+          description: Documentação completa
+          weight: 1
+        - id: ac-15-2
+          description: API documentada
+          weight: 1
+        - id: ac-15-3
+          description: Guias de uso disponíveis
+          weight: 1
+      rejectionCriteria:
+        - id: rc-15-1
+          description: Documentação incompleta
+          weight: 1
+      checklist:
+        - README atualizado
+        - Documentação de API (OpenAPI)
+        - Guias de uso
+        - Changelog
+        - Contributing guidelines
+      nextSteps:
+        - "Proceder para Layer 16: AI Governance"
+      skills:
+        - skillId: enterprise-documentation
+          skillName: Enterprise Documentation
+          description: Technical Writing, API Docs, Markdown
+          required: true
+          weight: 1.0
+
+  # Layer 16: AI Governance
+  - id: layer-16-ai-governance
+    name: AI Governance
+    type: gate
+    agent: architect
+    next:
+      - layer-17-enterprise-readiness
+    input:
+      layer: 16
+      layerName: AI Governance
+      objectives:
+        - Validar governança de IA
+        - Verificar ética e transparência
+        - Avaliar explicabilidade
+      questions:
+        - id: q16-1
+          question: Política de IA documentada?
+          category: governance
+          required: true
+        - id: q16-2
+          question: Viés e equidade verificados?
+          category: ethics
+          required: true
+        - id: q16-3
+          question: Explicabilidade implementada?
+          category: transparency
+          required: true
+      requiredEvidence:
+        - id: ev-16-1
+          type: document
+          description: Política de IA
+          required: true
+        - id: ev-16-2
+          type: report
+          description: Relatório de viés
+          required: true
+        - id: ev-16-3
+          type: code
+          description: Código de explicabilidade
+          required: true
+      acceptanceCriteria:
+        - id: ac-16-1
+          description: Política de IA definida
+          weight: 1
+        - id: ac-16-2
+          description: Análise de viés realizada
+          weight: 1
+        - id: ac-16-3
+          description: Explicabilidade documentada
+          weight: 1
+      rejectionCriteria:
+        - id: rc-16-1
+          description: Política de IA não definida
+          weight: 1
+      checklist:
+        - Política de IA documentada
+        - Análise de viés realizada
+        - Explicabilidade implementada
+        - Auditoria de IA configurada
+        - Compliance verificado
+      nextSteps:
+        - "Proceder para Layer 17: Enterprise Readiness"
+      skills:
+        - skillId: enterprise-ai-engineering
+          skillName: Enterprise AI Engineering
+          description: Prompt Engineering, Agent Design, AI Safety
+          required: true
+          weight: 1.0
+
+  # Layer 17: Enterprise Readiness
+  - id: layer-17-enterprise-readiness
+    name: Enterprise Readiness
+    type: gate
+    agent: architect
+    next:
+      - layer-18-production-readiness
+    input:
+      layer: 17
+      layerName: Enterprise Readiness
+      objectives:
+        - Verificar conformidade enterprise
+        - Validar processos
+        - Avaliar maturidade
+      questions:
+        - id: q17-1
+          question: Processos enterprise documentados?
+          category: governance
+          required: true
+        - id: q17-2
+          question: Conformidade verificada?
+          category: compliance
+          required: true
+        - id: q17-3
+          question: Maturidade avaliada?
+          category: assessment
+          required: true
+      requiredEvidence:
+        - id: ev-17-1
+          type: document
+          description: Documentação de processos
+          required: true
+        - id: ev-17-2
+          type: report
+          description: Relatório de conformidade
+          required: true
+        - id: ev-17-3
+          type: document
+          description: Plano de maturidade
+          required: true
+      acceptanceCriteria:
+        - id: ac-17-1
+          description: Processos documentados
+          weight: 1
+        - id: ac-17-2
+          description: Conformidade atestada
+          weight: 1
+        - id: ac-17-3
+          description: Plano de maturidade criado
+          weight: 1
+      rejectionCriteria:
+        - id: rc-17-1
+          description: Processos não documentados
+          weight: 1
+      checklist:
+        - Processos documentados
+        - Conformidade verificada
+        - Maturidade avaliada
+        - Plano de melhoria criado
+        - Stakeholders alinhados
+      nextSteps:
+        - "Proceder para Layer 18: Production Readiness"
+      skills:
+        - skillId: enterprise-architecture
+          skillName: Enterprise Architecture
+          description: TOGAF, Zachman, ArchiMate
+          required: true
+          weight: 0.5
+        - skillId: enterprise-executive
+          skillName: Enterprise Executive
+          description: KPI management, roadmapping
+          required: true
+          weight: 0.5
+
+  # Layer 18: Production Readiness
+  - id: layer-18-production-readiness
+    name: Production Readiness
+    type: gate
+    agent: devops
+    next: []
+    input:
+      layer: 18
+      layerName: Production Readiness
+      objectives:
+        - Verificar prontidão para produção
+        - Validar checklists de deploy
+        - Confirmar aprovação final
+      questions:
+        - id: q18-1
+          question: Checklist de prontidão completa?
+          category: operations
+          required: true
+        - id: q18-2
+          question: Aprovação de segurança obtida?
+          category: security
+          required: true
+        - id: q18-3
+          question: Plano de rollback preparado?
+          category: operations
+          required: true
+      requiredEvidence:
+        - id: ev-18-1
+          type: document
+          description: Checklist de prontidão
+          required: true
+        - id: ev-18-2
+          type: document
+          description: Aprovação de segurança
+          required: true
+        - id: ev-18-3
+          type: document
+          description: Plano de rollback
+          required: true
+      acceptanceCriteria:
+        - id: ac-18-1
+          description: Checklist completa
+          weight: 1
+        - id: ac-18-2
+          description: Aprovações obtidas
+          weight: 1
+        - id: ac-18-3
+          description: Plano de rollback pronto
+          weight: 1
+      rejectionCriteria:
+        - id: rc-18-1
+          description: Checklist incompleta
+          weight: 1
+        - id: rc-18-2
+          description: Aprovações pendentes
+          weight: 1
+      checklist:
+        - Checklist de prontidão completa
+        - Aprovações obtidas
+        - Plano de rollback preparado
+        - Monitoramento pós-deploy configurado
+        - Comunicação de deploy preparada
+      nextSteps:
+        - Deploy aprovado para produção
+      skills:
+        - skillId: enterprise-devops
+          skillName: Enterprise DevOps
+          description: Deployment, Monitoring, Rollback
+          required: true
+          weight: 0.5
+        - skillId: enterprise-qa
+          skillName: Enterprise QA
+          description: Production testing, monitoring
+          required: true
+          weight: 0.5

@@ -1,22 +1,19 @@
-import { z } from 'zod'
-import type { BehaviorOSEngine } from '@behavioros/core'
+import type { BehaviorOSEngine } from '@behavioros/core';
+import { z } from 'zod';
 
 export const listAgentsInput = z
   .object({
     role: z.string().optional().describe('Filter agents by role'),
   })
-  .optional()
+  .optional();
 
-export type ListAgentsInput = z.infer<typeof listAgentsInput>
+export type ListAgentsInput = z.infer<typeof listAgentsInput>;
 
-export async function listAgents(
-  engine: BehaviorOSEngine,
-  input?: ListAgentsInput,
-) {
-  let agents = engine.getAllAgents()
+export async function listAgents(engine: BehaviorOSEngine, input?: ListAgentsInput) {
+  let agents = engine.getAllAgents();
 
   if (input?.role) {
-    agents = engine.getAgentsByRole(input.role)
+    agents = engine.getAgentsByRole(input.role);
   }
 
   return {
@@ -26,5 +23,5 @@ export async function listAgents(
         text: JSON.stringify(agents, null, 2),
       },
     ],
-  }
+  };
 }

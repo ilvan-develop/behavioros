@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod';
 
 // ============================================================
 // BehaviorOS Core Schemas — Zod v4.4.3
@@ -20,11 +20,19 @@ export const AgentRoleSchema = z.enum([
   'researcher',
   'support',
   'specialist',
-])
-export type AgentRole = z.infer<typeof AgentRoleSchema>
+]);
+export type AgentRole = z.infer<typeof AgentRoleSchema>;
 
-export const AuthorityLevelSchema = z.enum(['junior', 'senior', 'architect', 'lead', 'director', 'vp', 'c-level'])
-export type AuthorityLevel = z.infer<typeof AuthorityLevelSchema>
+export const AuthorityLevelSchema = z.enum([
+  'junior',
+  'senior',
+  'architect',
+  'lead',
+  'director',
+  'vp',
+  'c-level',
+]);
+export type AuthorityLevel = z.infer<typeof AuthorityLevelSchema>;
 
 export const BoundaryRuleSchema = z.object({
   id: z.string(),
@@ -33,8 +41,8 @@ export const BoundaryRuleSchema = z.object({
   type: z.enum(['max_files', 'max_lines', 'max_modules', 'require_approval', 'forbidden']),
   value: z.union([z.number(), z.string(), z.boolean()]),
   scope: z.enum(['per_commit', 'per_pr', 'per_session', 'global']),
-})
-export type BoundaryRule = z.infer<typeof BoundaryRuleSchema>
+});
+export type BoundaryRule = z.infer<typeof BoundaryRuleSchema>;
 
 export const AgentPersonaSchema = z.object({
   role: AgentRoleSchema,
@@ -44,11 +52,17 @@ export const AgentPersonaSchema = z.object({
   boundaries: z.array(BoundaryRuleSchema).optional(),
   skills: z.array(z.string()).optional(),
   tools: z.array(z.string()).optional(),
-})
-export type AgentPersona = z.infer<typeof AgentPersonaSchema>
+});
+export type AgentPersona = z.infer<typeof AgentPersonaSchema>;
 
-export const VotingStrategySchema = z.enum(['unanimous', 'majority', 'weighted', 'byzantine', 'quorum'])
-export type VotingStrategy = z.infer<typeof VotingStrategySchema>
+export const VotingStrategySchema = z.enum([
+  'unanimous',
+  'majority',
+  'weighted',
+  'byzantine',
+  'quorum',
+]);
+export type VotingStrategy = z.infer<typeof VotingStrategySchema>;
 
 export const GovernanceRuleSchema = z.object({
   id: z.string(),
@@ -58,8 +72,8 @@ export const GovernanceRuleSchema = z.object({
   action: z.enum(['block', 'warn', 'log', 'escalate', 'auto_approve']),
   scope: z.array(z.string()).optional(),
   conditions: z.array(z.string()).optional(),
-})
-export type GovernanceRule = z.infer<typeof GovernanceRuleSchema>
+});
+export type GovernanceRule = z.infer<typeof GovernanceRuleSchema>;
 
 export const QualityGateSchema = z.object({
   id: z.string(),
@@ -69,8 +83,8 @@ export const QualityGateSchema = z.object({
   threshold: z.number().optional(),
   pass: z.boolean().optional(),
   config: z.record(z.unknown()).optional(),
-})
-export type QualityGate = z.infer<typeof QualityGateSchema>
+});
+export type QualityGate = z.infer<typeof QualityGateSchema>;
 
 export const BehaviorPatternSchema = z.object({
   id: z.string(),
@@ -92,8 +106,8 @@ export const BehaviorPatternSchema = z.object({
   actions: z.array(z.string()).optional(),
   conditions: z.array(z.string()).optional(),
   config: z.record(z.unknown()).optional(),
-})
-export type BehaviorPattern = z.infer<typeof BehaviorPatternSchema>
+});
+export type BehaviorPattern = z.infer<typeof BehaviorPatternSchema>;
 
 export const WorkflowStepSchema = z.object({
   id: z.string(),
@@ -107,8 +121,8 @@ export const WorkflowStepSchema = z.object({
   conditions: z.array(z.string()).optional(),
   timeout: z.number().optional(),
   retries: z.number().optional(),
-})
-export type WorkflowStep = z.infer<typeof WorkflowStepSchema>
+});
+export type WorkflowStep = z.infer<typeof WorkflowStepSchema>;
 
 export const DNAPackageSchema = z.object({
   id: z.string(),
@@ -124,8 +138,8 @@ export const DNAPackageSchema = z.object({
   patterns: z.array(BehaviorPatternSchema).optional(),
   workflows: z.array(WorkflowStepSchema).optional(),
   config: z.record(z.unknown()).optional(),
-})
-export type DNAPackage = z.infer<typeof DNAPackageSchema>
+});
+export type DNAPackage = z.infer<typeof DNAPackageSchema>;
 
 // --- Mission ---
 export const MissionStatusSchema = z.enum([
@@ -138,11 +152,11 @@ export const MissionStatusSchema = z.enum([
   'completed',
   'failed',
   'cancelled',
-])
-export type MissionStatus = z.infer<typeof MissionStatusSchema>
+]);
+export type MissionStatus = z.infer<typeof MissionStatusSchema>;
 
-export const MissionPrioritySchema = z.enum(['critical', 'high', 'medium', 'low'])
-export type MissionPriority = z.infer<typeof MissionPrioritySchema>
+export const MissionPrioritySchema = z.enum(['critical', 'high', 'medium', 'low']);
+export type MissionPriority = z.infer<typeof MissionPrioritySchema>;
 
 export const MissionSchema = z.object({
   id: z.string().uuid(),
@@ -160,8 +174,8 @@ export const MissionSchema = z.object({
   completedAt: z.string().datetime().optional(),
   deadline: z.string().datetime().optional(),
   metadata: z.record(z.unknown()).optional(),
-})
-export type Mission = z.infer<typeof MissionSchema>
+});
+export type Mission = z.infer<typeof MissionSchema>;
 
 // --- Agent State ---
 export const AgentStatusSchema = z.enum([
@@ -172,8 +186,8 @@ export const AgentStatusSchema = z.enum([
   'waiting',
   'offline',
   'error',
-])
-export type AgentStatus = z.infer<typeof AgentStatusSchema>
+]);
+export type AgentStatus = z.infer<typeof AgentStatusSchema>;
 
 export const AgentStateSchema = z.object({
   id: z.string(),
@@ -184,15 +198,15 @@ export const AgentStateSchema = z.object({
   completedMissions: z.array(z.string().uuid()).default([]),
   reputation: z.number().min(0).max(100).default(50),
   metadata: z.record(z.unknown()).optional(),
-})
-export type AgentState = z.infer<typeof AgentStateSchema>
+});
+export type AgentState = z.infer<typeof AgentStateSchema>;
 
 // --- Audit ---
-export const AuditSeveritySchema = z.enum(['info', 'warning', 'error', 'critical'])
-export type AuditSeverity = z.infer<typeof AuditSeveritySchema>
+export const AuditSeveritySchema = z.enum(['info', 'warning', 'error', 'critical']);
+export type AuditSeverity = z.infer<typeof AuditSeveritySchema>;
 
-export const AuditResultSchema = z.enum(['pass', 'fail', 'warn', 'skip'])
-export type AuditResult = z.infer<typeof AuditResultSchema>
+export const AuditResultSchema = z.enum(['pass', 'fail', 'warn', 'skip']);
+export type AuditResult = z.infer<typeof AuditResultSchema>;
 
 export const AuditEventSchema = z.object({
   id: z.string().uuid(),
@@ -205,8 +219,8 @@ export const AuditEventSchema = z.object({
   description: z.string(),
   details: z.record(z.unknown()).optional(),
   suggestions: z.array(z.string()).optional(),
-})
-export type AuditEvent = z.infer<typeof AuditEventSchema>
+});
+export type AuditEvent = z.infer<typeof AuditEventSchema>;
 
 // --- Quality ---
 export const QualityMetricSchema = z.object({
@@ -216,8 +230,8 @@ export const QualityMetricSchema = z.object({
   threshold: z.number().optional(),
   passed: z.boolean().optional(),
   timestamp: z.string().datetime().optional(),
-})
-export type QualityMetric = z.infer<typeof QualityMetricSchema>
+});
+export type QualityMetric = z.infer<typeof QualityMetricSchema>;
 
 // --- Learning ---
 export const LearningEventSchema = z.object({
@@ -228,8 +242,8 @@ export const LearningEventSchema = z.object({
   data: z.record(z.unknown()),
   confidence: z.number().min(0).max(1).default(0.5),
   applied: z.boolean().default(false),
-})
-export type LearningEvent = z.infer<typeof LearningEventSchema>
+});
+export type LearningEvent = z.infer<typeof LearningEventSchema>;
 
 // --- Compiler ---
 export const CompilerConfigSchema = z.object({
@@ -239,8 +253,8 @@ export const CompilerConfigSchema = z.object({
   validate: z.boolean().default(true),
   dryRun: z.boolean().default(false),
   verbose: z.boolean().default(false),
-})
-export type CompilerConfig = z.infer<typeof CompilerConfigSchema>
+});
+export type CompilerConfig = z.infer<typeof CompilerConfigSchema>;
 
 // --- SDK Config ---
 export const BehaviorOSConfigSchema = z.object({
@@ -273,20 +287,139 @@ export const BehaviorOSConfigSchema = z.object({
     .object({
       enabled: z.boolean().default(true),
       stages: z
-        .array(z.enum([
-          'static',
-          'architecture',
-          'security',
-          'performance',
-          'tests',
-          'coverage',
-          'contracts',
-          'docs',
-          'compliance',
-          'benchmarks',
-        ]))
+        .array(
+          z.enum([
+            'static',
+            'architecture',
+            'security',
+            'performance',
+            'tests',
+            'coverage',
+            'contracts',
+            'docs',
+            'compliance',
+            'benchmarks',
+          ]),
+        )
         .optional(),
     })
     .optional(),
-})
-export type BehaviorOSConfig = z.infer<typeof BehaviorOSConfigSchema>
+});
+export type BehaviorOSConfig = z.infer<typeof BehaviorOSConfigSchema>;
+
+// ============================================================
+// EAARG Extension — Enterprise Agent Architecture Review Guide
+// ============================================================
+
+export const DiscoveryQuestionSchema = z.object({
+  id: z.string(),
+  question: z.string(),
+  category: z.enum(['functional', 'non_functional', 'architecture', 'security', 'quality']),
+  required: z.boolean().default(true),
+  followUp: z.array(z.string()).optional(),
+});
+export type DiscoveryQuestion = z.infer<typeof DiscoveryQuestionSchema>;
+
+export const RequiredEvidenceSchema = z.object({
+  id: z.string(),
+  type: z.enum(['file', 'commit', 'test', 'report', 'log', 'diagram', 'config', 'manual']),
+  description: z.string(),
+  location: z.string().optional(),
+  required: z.boolean().default(true),
+});
+export type RequiredEvidence = z.infer<typeof RequiredEvidenceSchema>;
+
+export const LayerCriteriaSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  weight: z.number().min(0).max(1).default(1),
+});
+export type LayerCriteria = z.infer<typeof LayerCriteriaSchema>;
+
+export const ConversationProtocolSchema = z.object({
+  area: z.string(),
+  status: z.enum(['pending', 'in_progress', 'partial', 'complete', 'blocked']),
+  completionPercent: z.number().min(0).max(100),
+  completedItems: z.array(z.string()),
+  pendingItems: z.array(z.string()),
+  technicalDebts: z.array(z.string()),
+  risks: z.array(z.string()),
+  blockers: z.array(z.string()),
+  evidence: z.array(z.string()),
+  acceptanceCriteria: z.array(LayerCriteriaSchema),
+  nextActions: z.array(z.string()),
+  recommendation: z.enum(['proceed', 'fix', 'revalidate', 'approve_for_production']),
+});
+export type ConversationProtocol = z.infer<typeof ConversationProtocolSchema>;
+
+export const SkillReferenceSchema = z.object({
+  skillId: z.string(),
+  skillName: z.string(),
+  description: z.string(),
+  required: z.boolean().default(true),
+  weight: z.number().min(0).max(1).default(1),
+});
+export type SkillReference = z.infer<typeof SkillReferenceSchema>;
+
+export const EAARGStepSchema = WorkflowStepSchema.extend({
+  layer: z.number().min(1).max(18),
+  layerName: z.string(),
+  objectives: z.array(z.string()),
+  questions: z.array(DiscoveryQuestionSchema),
+  requiredEvidence: z.array(RequiredEvidenceSchema),
+  acceptanceCriteria: z.array(LayerCriteriaSchema),
+  rejectionCriteria: z.array(LayerCriteriaSchema),
+  checklist: z.array(z.string()),
+  nextSteps: z.array(z.string()),
+  skills: z.array(SkillReferenceSchema).default([]),
+});
+export type EAARGStep = z.infer<typeof EAARGStepSchema>;
+
+export const LayerResultSchema = z.object({
+  layer: z.number(),
+  layerName: z.string(),
+  status: z.enum(['pending', 'in_progress', 'pass', 'fail', 'skip']),
+  score: z.number().min(0).max(100),
+  protocol: ConversationProtocolSchema,
+  evidenceCollected: z.array(z.string()),
+  questionsAnswered: z.number(),
+  questionsTotal: z.number(),
+  criteriaMet: z.number(),
+  criteriaTotal: z.number(),
+  skillsUsed: z.array(z.string()).default([]),
+  skillsScore: z.number().min(0).max(100).optional(),
+  duration: z.number(),
+  timestamp: z.string().datetime(),
+});
+export type LayerResult = z.infer<typeof LayerResultSchema>;
+
+export const PipelineStateSchema = z.object({
+  id: z.string().uuid(),
+  dnaId: z.string(),
+  status: z.enum(['created', 'running', 'paused', 'completed', 'failed']),
+  currentLayer: z.number().optional(),
+  layers: z.array(LayerResultSchema),
+  startedAt: z.string().datetime().optional(),
+  completedAt: z.string().datetime().optional(),
+  overallScore: z.number().min(0).max(100),
+  overallStatus: z.enum(['pending', 'pass', 'fail', 'partial']),
+});
+export type PipelineState = z.infer<typeof PipelineStateSchema>;
+
+export const PipelineReportSchema = z.object({
+  pipelineId: z.string().uuid(),
+  dnaId: z.string(),
+  totalLayers: z.number(),
+  completedLayers: z.number(),
+  passedLayers: z.number(),
+  failedLayers: z.number(),
+  skippedLayers: z.number(),
+  overallScore: z.number().min(0).max(100),
+  overallStatus: z.enum(['pending', 'pass', 'fail', 'partial']),
+  layers: z.array(LayerResultSchema),
+  startedAt: z.string().datetime().optional(),
+  completedAt: z.string().datetime().optional(),
+  duration: z.number(),
+  timestamp: z.string().datetime(),
+});
+export type PipelineReport = z.infer<typeof PipelineReportSchema>;

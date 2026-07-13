@@ -1,0 +1,85 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "anthropic/claude-sonnet-4-5",
+  "small_model": "anthropic/claude-haiku-4-5",
+  "shell": "bash",
+  "formatter": {
+    "biome": {
+      "command": ["pnpm", "biome", "format", "--write", "$FILE"],
+      "extensions": [".ts", ".tsx", ".js", ".jsx", ".json", ".jsonc"]
+    }
+  },
+  "lsp": true,
+  "watcher": {
+    "ignore": ["node_modules/**", "dist/**", ".turbo/**", "*.d.ts", "pnpm-lock.yaml"]
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 8000
+  },
+  "permission": {
+    "*": "allow",
+    "bash": {
+      "*": "ask",
+      "pnpm build*": "allow",
+      "pnpm test*": "allow",
+      "pnpm lint*": "allow",
+      "pnpm typecheck*": "allow",
+      "pnpm dev*": "allow",
+      "pnpm format*": "allow",
+      "git status*": "allow",
+      "git log*": "allow",
+      "git diff*": "allow",
+      "git branch*": "allow",
+      "git stash*": "allow",
+      "git checkout*": "allow",
+      "git push*": "deny",
+      "git reset --hard*": "deny",
+      "rm -rf*": "deny"
+    },
+    "edit": "ask",
+    "external_directory": {
+      "~/**": "deny"
+    },
+    "skill": {
+      "*": "allow",
+      "behavioros-*": "allow"
+    }
+  },
+  "mcp": {
+    "behavioros": {
+      "type": "local",
+      "command": ["node", "packages/mcp-server/dist/server.js"],
+      "enabled": true,
+      "environment": {
+        "BEHAVIOROS_DNA_PATH": "./dnas"
+      }
+    }
+  },
+  "instructions": ["docs/**/*.md"],
+  "agent": {
+    "build": {
+      "permission": {
+        "bash": {
+          "*": "ask",
+          "pnpm *": "allow",
+          "git status*": "allow",
+          "git log*": "allow",
+          "git diff*": "allow"
+        }
+      }
+    },
+    "plan": {
+      "permission": {
+        "bash": {
+          "*": "ask",
+          "pnpm build*": "allow",
+          "pnpm test*": "allow",
+          "git status*": "allow",
+          "git log*": "allow"
+        }
+      }
+    }
+  }
+}

@@ -7,6 +7,11 @@
     "dev": "npx serve . -p 3000",
     "start": "npx serve . -p 3000"
   },
-  "keywords": ["behavioros", "ai-agents", "governance", "landing-page"],
+  "keywords": [
+    "behavioros",
+    "ai-agents",
+    "governance",
+    "landing-page"
+  ],
   "license": "MIT"
 }

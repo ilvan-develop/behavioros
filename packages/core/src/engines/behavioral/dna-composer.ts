@@ -1,54 +1,58 @@
-import type { DNAPackage, BehaviorPattern } from '@behavioros/schemas'
+import type { BehaviorPattern, DNAPackage } from '@behavioros/schemas';
 
 // ============================================================
 // DNA Composer — Combina e transforma padrões comportamentais
 // ============================================================
 
 export interface CompositionResult {
-  patterns: BehaviorPattern[]
+  patterns: BehaviorPattern[];
   metadata: {
-    sourceDNAs: string[]
-    totalPatterns: number
-    conflicts: string[]
-  }
+    sourceDNAs: string[];
+    totalPatterns: number;
+    conflicts: string[];
+  };
 }
 
 export class DNAComposer {
-  private compositions: Map<string, CompositionResult> = new Map()
+  private compositions: Map<string, CompositionResult> = new Map();
 
   /**
    * Compõe múltiplos pacotes DNA em um único conjunto de padrões
    */
-  compose(dnas: DNAPackage[], options?: { resolveConflicts?: 'first' | 'last' | 'merge' }): CompositionResult {
-    const resolveConflicts = options?.resolveConflicts ?? 'last'
-    const allPatterns: BehaviorPattern[] = []
-    const conflicts: string[] = []
-    const seen = new Map<string, BehaviorPattern>()
+  compose(
+    dnas: DNAPackage[],
+    options?: { resolveConflicts?: 'first' | 'last' | 'merge' },
+  ): CompositionResult {
+    const resolveConflicts = options?.resolveConflicts ?? 'last';
+    const allPatterns: BehaviorPattern[] = [];
+    const conflicts: string[] = [];
+    const seen = new Map<string, BehaviorPattern>();
 
     for (const dna of dnas) {
-      const patterns = dna.patterns ?? []
+      const patterns = dna.patterns ?? [];
       for (const pattern of patterns) {
         if (seen.has(pattern.id)) {
-          conflicts.push(`Conflict: pattern ${pattern.id} defined in multiple DNAs`)
+          conflicts.push(`Conflict: pattern ${pattern.id} defined in multiple DNAs`);
           switch (resolveConflicts) {
             case 'first':
               // Keep first — do nothing
-              break
+              break;
             case 'last':
-              seen.set(pattern.id, pattern)
-              break
-            case 'merge':
-              const existing = seen.get(pattern.id)!
-              seen.set(pattern.id, this.mergePatterns(existing, pattern))
-              break
+              seen.set(pattern.id, pattern);
+              break;
+            case 'merge': {
+              const existing = seen.get(pattern.id)!;
+              seen.set(pattern.id, this.mergePatterns(existing, pattern));
+              break;
+            }
           }
         } else {
-          seen.set(pattern.id, pattern)
+          seen.set(pattern.id, pattern);
         }
       }
     }
 
-    allPatterns.push(...seen.values())
+    allPatterns.push(...seen.values());
 
     return {
       patterns: allPatterns,
@@ -57,7 +61,7 @@ export class DNAComposer {
         totalPatterns: allPatterns.length,
         conflicts,
       },
-    }
+    };
   }
 
   /**
@@ -70,21 +74,21 @@ export class DNAComposer {
       actions: [...(base.actions ?? []), ...(override.actions ?? [])],
       conditions: [...(base.conditions ?? []), ...(override.conditions ?? [])],
       config: { ...base.config, ...override.config },
-    }
+    };
   }
 
   /**
    * Filtra padrões por tipo
    */
   filterByType(patterns: BehaviorPattern[], type: BehaviorPattern['type']): BehaviorPattern[] {
-    return patterns.filter((p) => p.type === type)
+    return patterns.filter((p) => p.type === type);
   }
 
   /**
    * Filtra padrões por trigger
    */
   filterByTrigger(patterns: BehaviorPattern[], trigger: string): BehaviorPattern[] {
-    return patterns.filter((p) => p.triggers?.some((t) => t.includes(trigger)))
+    return patterns.filter((p) => p.triggers?.some((t) => t.includes(trigger)));
   }
 
   /**
@@ -102,34 +106,36 @@ export class DNAComposer {
       learning: 3,
       communication: 2,
       custom: 1,
-    }
-    return [...patterns].sort((a, b) => (priority[b.type] ?? 0) - (priority[a.type] ?? 0))
+    };
+    return [...patterns].sort((a, b) => (priority[b.type] ?? 0) - (priority[a.type] ?? 0));
   }
 
   /**
    * Gera um resumo da composição
    */
   summary(result: CompositionResult): string {
-    const lines: string[] = []
-    lines.push(`Composition: ${result.metadata.sourceDNAs.length} DNAs → ${result.metadata.totalPatterns} patterns`)
+    const lines: string[] = [];
+    lines.push(
+      `Composition: ${result.metadata.sourceDNAs.length} DNAs → ${result.metadata.totalPatterns} patterns`,
+    );
 
-    const byType = new Map<string, number>()
+    const byType = new Map<string, number>();
     for (const pattern of result.patterns) {
-      byType.set(pattern.type, (byType.get(pattern.type) ?? 0) + 1)
+      byType.set(pattern.type, (byType.get(pattern.type) ?? 0) + 1);
     }
 
-    lines.push('By type:')
+    lines.push('By type:');
     for (const [type, count] of byType) {
-      lines.push(`  ${type}: ${count}`)
+      lines.push(`  ${type}: ${count}`);
     }
 
     if (result.metadata.conflicts.length > 0) {
-      lines.push(`\nConflicts: ${result.metadata.conflicts.length}`)
+      lines.push(`\nConflicts: ${result.metadata.conflicts.length}`);
       for (const conflict of result.metadata.conflicts) {
-        lines.push(`  ⚠️ ${conflict}`)
+        lines.push(`  ⚠️ ${conflict}`);
       }
     }
 
-    return lines.join('\n')
+    return lines.join('\n');
   }
 }

@@ -1,5 +1,5 @@
-import type { AuditEvent, AuditSeverity, AuditResult } from '@behavioros/schemas'
-import { randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto';
+import type { AuditEvent, AuditResult, AuditSeverity } from '@behavioros/schemas';
 
 // ============================================================
 // Audit Engine — Continuous Audit Pipeline (10 stages)
@@ -15,64 +15,58 @@ export type AuditStage =
   | 'contracts'
   | 'docs'
   | 'compliance'
-  | 'benchmarks'
+  | 'benchmarks';
 
 export interface AuditStageResult {
-  stage: AuditStage
-  result: AuditResult
-  score: number // 0-100
-  events: AuditEvent[]
-  duration: number // ms
+  stage: AuditStage;
+  result: AuditResult;
+  score: number; // 0-100
+  events: AuditEvent[];
+  duration: number; // ms
 }
 
 export interface AuditPipelineResult {
-  id: string
-  overall: AuditResult
-  score: number
-  stages: AuditStageResult[]
-  duration: number
-  timestamp: string
+  id: string;
+  overall: AuditResult;
+  score: number;
+  stages: AuditStageResult[];
+  duration: number;
+  timestamp: string;
 }
 
 export interface StageExecutor {
-  stage: AuditStage
-  name: string
-  execute: (context: AuditContext) => Promise<AuditStageResult>
+  stage: AuditStage;
+  name: string;
+  execute: (context: AuditContext) => Promise<AuditStageResult>;
 }
 
 export interface AuditContext {
-  projectPath: string
-  targetPath?: string
-  options?: Record<string, unknown>
+  projectPath: string;
+  targetPath?: string;
+  options?: Record<string, unknown>;
 }
 
 export class AuditEngine {
-  private stages: Map<AuditStage, StageExecutor> = new Map()
-  private history: AuditPipelineResult[] = []
-  private requiredStages: AuditStage[] = [
-    'static',
-    'security',
-    'tests',
-    'coverage',
-    'contracts',
-  ]
+  private stages: Map<AuditStage, StageExecutor> = new Map();
+  private history: AuditPipelineResult[] = [];
+  private requiredStages: AuditStage[] = ['static', 'security', 'tests', 'coverage', 'contracts'];
 
   constructor() {
-    this.registerDefaultStages()
+    this.registerDefaultStages();
   }
 
   /**
    * Executa o pipeline completo de auditoria
    */
   async execute(context: AuditContext, stages?: AuditStage[]): Promise<AuditPipelineResult> {
-    const pipelineId = randomUUID()
-    const targetStages = stages ?? this.requiredStages
-    const start = Date.now()
+    const pipelineId = randomUUID();
+    const targetStages = stages ?? this.requiredStages;
+    const start = Date.now();
 
-    const stageResults: AuditStageResult[] = []
+    const stageResults: AuditStageResult[] = [];
 
     for (const stageName of targetStages) {
-      const executor = this.stages.get(stageName)
+      const executor = this.stages.get(stageName);
       if (!executor) {
         stageResults.push({
           stage: stageName,
@@ -80,35 +74,37 @@ export class AuditEngine {
           score: 0,
           events: [],
           duration: 0,
-        })
-        continue
+        });
+        continue;
       }
 
-      const stageStart = Date.now()
+      const stageStart = Date.now();
       try {
-        const result = await executor.execute(context)
-        result.duration = Date.now() - stageStart
-        stageResults.push(result)
+        const result = await executor.execute(context);
+        result.duration = Date.now() - stageStart;
+        stageResults.push(result);
       } catch (error) {
         stageResults.push({
           stage: stageName,
           result: 'fail',
           score: 0,
-          events: [{
-            id: randomUUID(),
-            timestamp: new Date().toISOString(),
-            type: `audit:${stageName}:error`,
-            severity: 'error',
-            result: 'fail',
-            description: `Stage ${stageName} failed: ${error instanceof Error ? error.message : String(error)}`,
-          }],
+          events: [
+            {
+              id: randomUUID(),
+              timestamp: new Date().toISOString(),
+              type: `audit:${stageName}:error`,
+              severity: 'error',
+              result: 'fail',
+              description: `Stage ${stageName} failed: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
           duration: Date.now() - stageStart,
-        })
+        });
       }
     }
 
-    const overallScore = this.calculateOverallScore(stageResults)
-    const overall = this.determineOverallResult(stageResults)
+    const overallScore = this.calculateOverallScore(stageResults);
+    const overall = this.determineOverallResult(stageResults);
 
     const pipelineResult: AuditPipelineResult = {
       id: pipelineId,
@@ -117,47 +113,47 @@ export class AuditEngine {
       stages: stageResults,
       duration: Date.now() - start,
       timestamp: new Date().toISOString(),
-    }
+    };
 
-    this.history.push(pipelineResult)
-    return pipelineResult
+    this.history.push(pipelineResult);
+    return pipelineResult;
   }
 
   /**
    * Regista um executor de stage customizado
    */
   registerStage(executor: StageExecutor): void {
-    this.stages.set(executor.stage, executor)
+    this.stages.set(executor.stage, executor);
   }
 
   /**
    * Obtém o histórico de auditorias
    */
   getHistory(): AuditPipelineResult[] {
-    return [...this.history]
+    return [...this.history];
   }
 
   /**
    * Obtém a última auditoria
    */
   getLastAudit(): AuditPipelineResult | undefined {
-    return this.history[this.history.length - 1]
+    return this.history[this.history.length - 1];
   }
 
   private calculateOverallScore(stages: AuditStageResult[]): number {
-    if (stages.length === 0) return 0
-    const total = stages.reduce((sum, s) => sum + s.score, 0)
-    return Math.round(total / stages.length)
+    if (stages.length === 0) return 0;
+    const total = stages.reduce((sum, s) => sum + s.score, 0);
+    return Math.round(total / stages.length);
   }
 
   private determineOverallResult(stages: AuditStageResult[]): AuditResult {
-    const hasFailure = stages.some((s) => s.result === 'fail')
-    if (hasFailure) return 'fail'
+    const hasFailure = stages.some((s) => s.result === 'fail');
+    if (hasFailure) return 'fail';
 
-    const hasWarning = stages.some((s) => s.result === 'warn')
-    if (hasWarning) return 'warn'
+    const hasWarning = stages.some((s) => s.result === 'warn');
+    if (hasWarning) return 'warn';
 
-    return 'pass'
+    return 'pass';
   }
 
   private registerDefaultStages(): void {
@@ -173,9 +169,9 @@ export class AuditEngine {
           score: 100,
           events: [],
           duration: 0,
-        }
+        };
       },
-    })
+    });
 
     // Security stage
     this.stages.set('security', {
@@ -188,9 +184,9 @@ export class AuditEngine {
           score: 100,
           events: [],
           duration: 0,
-        }
+        };
       },
-    })
+    });
 
     // Tests stage
     this.stages.set('tests', {
@@ -203,9 +199,9 @@ export class AuditEngine {
           score: 100,
           events: [],
           duration: 0,
-        }
+        };
       },
-    })
+    });
 
     // Coverage stage
     this.stages.set('coverage', {
@@ -218,9 +214,9 @@ export class AuditEngine {
           score: 100,
           events: [],
           duration: 0,
-        }
+        };
       },
-    })
+    });
 
     // Contracts stage
     this.stages.set('contracts', {
@@ -233,24 +229,33 @@ export class AuditEngine {
           score: 100,
           events: [],
           duration: 0,
-        }
+        };
       },
-    })
+    });
   }
 
   /**
    * Resumo do pipeline
    */
   summary(result: AuditPipelineResult): string {
-    const lines: string[] = []
-    lines.push(`Audit Pipeline: ${result.id}`)
-    lines.push(`Overall: ${result.overall === 'pass' ? '✅' : result.overall === 'fail' ? '❌' : '⚠️'} (${result.score}/100)`)
-    lines.push(`Duration: ${result.duration}ms`)
-    lines.push(`Stages: ${result.stages.length}`)
+    const lines: string[] = [];
+    lines.push(`Audit Pipeline: ${result.id}`);
+    lines.push(
+      `Overall: ${result.overall === 'pass' ? '✅' : result.overall === 'fail' ? '❌' : '⚠️'} (${result.score}/100)`,
+    );
+    lines.push(`Duration: ${result.duration}ms`);
+    lines.push(`Stages: ${result.stages.length}`);
     for (const stage of result.stages) {
-      const icon = stage.result === 'pass' ? '✅' : stage.result === 'fail' ? '❌' : stage.result === 'skip' ? '⏭️' : '⚠️'
-      lines.push(`  ${icon} ${stage.stage}: ${stage.score}/100 (${stage.duration}ms)`)
+      const icon =
+        stage.result === 'pass'
+          ? '✅'
+          : stage.result === 'fail'
+            ? '❌'
+            : stage.result === 'skip'
+              ? '⏭️'
+              : '⚠️';
+      lines.push(`  ${icon} ${stage.stage}: ${stage.score}/100 (${stage.duration}ms)`);
     }
-    return lines.join('\n')
+    return lines.join('\n');
   }
 }

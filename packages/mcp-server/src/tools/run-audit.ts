@@ -1,5 +1,5 @@
-import { z } from 'zod'
-import { AuditEngine, type AuditStage } from '@behavioros/core'
+import { AuditEngine, type AuditStage } from '@behavioros/core';
+import { z } from 'zod';
 
 export const runAuditInput = z.object({
   projectPath: z.string().describe('Path to the project to audit'),
@@ -20,17 +20,17 @@ export const runAuditInput = z.object({
     )
     .optional()
     .describe('Optional list of audit stages to run'),
-})
+});
 
-export type RunAuditInput = z.infer<typeof runAuditInput>
+export type RunAuditInput = z.infer<typeof runAuditInput>;
 
 export async function runAudit(input: RunAuditInput) {
-  const auditEngine = new AuditEngine()
+  const auditEngine = new AuditEngine();
 
   const result = await auditEngine.execute(
     { projectPath: input.projectPath },
     input.stages as AuditStage[] | undefined,
-  )
+  );
 
   return {
     content: [
@@ -55,5 +55,5 @@ export async function runAudit(input: RunAuditInput) {
         ),
       },
     ],
-  }
+  };
 }

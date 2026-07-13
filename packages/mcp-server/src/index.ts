@@ -1,38 +1,103 @@
-export { createServer, getEngine, getServer } from './server.js'
+// CI/CD resources
+export { registerCICDResources } from './resources/cicd-resources.js';
+export { registerResources } from './resources.js';
+export { createServer, getEngine, getServer } from './server.js';
+// CI/CD tools
 export {
+  type ApproveLayerInput,
+  approveLayer,
+  approveLayerInput,
+  type CICDRecordLearningInput,
+  type CICDRunAuditInput,
+  cicdRecordLearning,
+  cicdRecordLearningInput,
+  cicdRunAudit,
+  cicdRunAuditInput,
+  type GetAuditHistoryInput,
+  type GetGateResultsInput,
+  type GetLearningReportInput,
+  type GetPipelineReportInput,
+  type GetPipelineStatusInput,
+  getAuditHistory,
+  getAuditHistoryInput,
+  getGateResults,
+  getGateResultsInput,
+  getLearningReport,
+  getLearningReportInput,
+  getPipelineReport,
+  getPipelineReportInput,
+  getPipelineStatus,
+  getPipelineStatusInput,
+  type StartPipelineInput,
+  startPipeline,
+  startPipelineInput,
+  type ValidateLayerInput,
+  validateLayer,
+  validateLayerInput,
+} from './tools/cicd-tools.js';
+export {
+  type CreateMissionInput,
   createMission,
   createMissionInput,
-  type CreateMissionInput,
-} from './tools/create-mission.js'
-export { getStatus } from './tools/get-status.js'
+} from './tools/create-mission.js';
 export {
-  updateProgress,
-  updateProgressInput,
-  type UpdateProgressInput,
-} from './tools/update-progress.js'
-export {
-  listAgents,
-  listAgentsInput,
-  type ListAgentsInput,
-} from './tools/list-agents.js'
-export {
-  listMissions,
-  listMissionsInput,
-  type ListMissionsInput,
-} from './tools/list-missions.js'
-export {
+  type EvaluateGovernanceInput,
   evaluateGovernance,
   evaluateGovernanceInput,
-  type EvaluateGovernanceInput,
-} from './tools/evaluate-governance.js'
+} from './tools/evaluate-governance.js';
+export { getStatus } from './tools/get-status.js';
+// Integration tools
 export {
+  type CheckFraudInput,
+  checkFraud,
+  checkFraudInput,
+  type DeployCanaryInput,
+  deployCanary,
+  deployCanaryInput,
+  type GetObservabilityMetricsInput,
+  type GetTrustScoreInput,
+  getObservabilityMetrics,
+  getObservabilityMetricsInput,
+  getTrustScore,
+  getTrustScoreInput,
+  type ReconcilePaymentsInput,
+  type RollbackDeploymentInput,
+  type RunComplianceInput,
+  reconcilePayments,
+  reconcilePaymentsInput,
+  rollbackDeployment,
+  rollbackDeploymentInput,
+  runCompliance,
+  runComplianceInput,
+  type SyncBrocolisOrdersInput,
+  syncBrocolisOrders,
+  syncBrocolisOrdersInput,
+  type ValidatePaymentInput,
+  validatePayment,
+  validatePaymentInput,
+} from './tools/integration-tools.js';
+export {
+  type ListAgentsInput,
+  listAgents,
+  listAgentsInput,
+} from './tools/list-agents.js';
+export {
+  type ListMissionsInput,
+  listMissions,
+  listMissionsInput,
+} from './tools/list-missions.js';
+export {
+  type RecordLearningInput,
   recordLearning,
   recordLearningInput,
-  type RecordLearningInput,
-} from './tools/record-learning.js'
+} from './tools/record-learning.js';
 export {
+  type RunAuditInput,
   runAudit,
   runAuditInput,
-  type RunAuditInput,
-} from './tools/run-audit.js'
-export { registerResources } from './resources.js'
+} from './tools/run-audit.js';
+export {
+  type UpdateProgressInput,
+  updateProgress,
+  updateProgressInput,
+} from './tools/update-progress.js';

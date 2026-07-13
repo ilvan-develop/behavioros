@@ -1,10 +1,7 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { BehaviorOSEngine } from '@behavioros/core'
+import type { BehaviorOSEngine } from '@behavioros/core';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-export function registerResources(
-  server: McpServer,
-  engine: BehaviorOSEngine,
-): void {
+export function registerResources(server: McpServer, engine: BehaviorOSEngine): void {
   server.registerResource(
     'missions',
     'behavioros://missions',
@@ -18,7 +15,7 @@ export function registerResources(
         },
       ],
     }),
-  )
+  );
 
   server.registerResource(
     'agents',
@@ -33,7 +30,7 @@ export function registerResources(
         },
       ],
     }),
-  )
+  );
 
   server.registerResource(
     'audit-log',
@@ -48,7 +45,7 @@ export function registerResources(
         },
       ],
     }),
-  )
+  );
 
   server.registerResource(
     'quality-metrics',
@@ -63,7 +60,7 @@ export function registerResources(
         },
       ],
     }),
-  )
+  );
 
   server.registerResource(
     'learning-events',
@@ -78,5 +75,5 @@ export function registerResources(
         },
       ],
     }),
-  )
+  );
 }

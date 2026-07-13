@@ -1,5 +1,5 @@
-import { z } from 'zod'
-import type { BehaviorOSEngine } from '@behavioros/core'
+import type { BehaviorOSEngine } from '@behavioros/core';
+import { z } from 'zod';
 
 export const listMissionsInput = z
   .object({
@@ -15,22 +15,19 @@ export const listMissionsInput = z
       .default(10)
       .describe('Maximum number of missions to return'),
   })
-  .optional()
+  .optional();
 
-export type ListMissionsInput = z.infer<typeof listMissionsInput>
+export type ListMissionsInput = z.infer<typeof listMissionsInput>;
 
-export async function listMissions(
-  engine: BehaviorOSEngine,
-  input?: ListMissionsInput,
-) {
-  let missions = engine.getAllMissions()
+export async function listMissions(engine: BehaviorOSEngine, input?: ListMissionsInput) {
+  let missions = engine.getAllMissions();
 
   if (input?.status) {
-    missions = missions.filter((m) => m.status === input.status)
+    missions = missions.filter((m) => m.status === input.status);
   }
 
-  const limit = input?.limit ?? 10
-  missions = missions.slice(0, limit)
+  const limit = input?.limit ?? 10;
+  missions = missions.slice(0, limit);
 
   return {
     content: [
@@ -39,5 +36,5 @@ export async function listMissions(
         text: JSON.stringify(missions, null, 2),
       },
     ],
-  }
+  };
 }

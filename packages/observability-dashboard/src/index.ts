@@ -1,0 +1,68 @@
+// @behavioros/observability-dashboard — Barrel Export
+
+export { AlertManager } from './alert-manager';
+// --- Dashboard Configurations ---
+export {
+  BehaviorOSDashboard,
+  BrocolisDashboard,
+  FinPayDashboard,
+  getAllAlertRules,
+  toGrafanaDashboard,
+  toPrometheusRules,
+  UnifiedDashboard,
+} from './dashboard-config';
+export type { MetricsCollectorConfig } from './metrics-collector';
+// --- Classes ---
+export { MetricsCollector } from './metrics-collector';
+// --- Types ---
+export type {
+  AggregationType,
+  Alert,
+  AlertChannel,
+  AlertCondition,
+  AlertHistory,
+  AlertHistoryFilters,
+  AlertResult,
+  AlertRule,
+  AlertSeverity,
+  AlertStatus,
+  BehaviorOSGovernance,
+  BehaviorOSLayers,
+  BehaviorOSLearning,
+  BehaviorOSMetrics,
+  BehaviorOSPipeline,
+  BehaviorOSQuality,
+  BrocolisApi,
+  BrocolisDeliveries,
+  BrocolisMetrics,
+  BrocolisOrders,
+  BrocolisPrescriptions,
+  BrocolisUsers,
+  DashboardConfig,
+  DashboardTemplate,
+  DashboardVariable,
+  DeploymentStatus,
+  DeploymentStatusType,
+  FinPayCompliance,
+  FinPayFraud,
+  FinPayMetrics,
+  FinPayOcr,
+  FinPayPayments,
+  FinPayTrust,
+  GrafanaDashboard,
+  GrafanaPanel,
+  GrafanaTarget,
+  GrafanaTemplate,
+  HealthLevel,
+  HealthStatus,
+  MetricDefinition,
+  MetricType,
+  PanelConfig,
+  PanelPosition,
+  PanelType,
+  PanelVisualization,
+  PrometheusAlertingRule,
+  PrometheusRuleGroup,
+  PrometheusRulesFile,
+  UnifiedMetrics,
+} from './types';

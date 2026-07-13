@@ -1,2 +1,6 @@
-export { GovernanceEngine } from './governance-engine'
-export type { GovernanceContext, GovernanceDecision, AuthorityLevelValue } from './governance-engine'
+export type {
+  AuthorityLevelValue,
+  GovernanceContext,
+  GovernanceDecision,
+} from './governance-engine';
+export { GovernanceEngine } from './governance-engine';

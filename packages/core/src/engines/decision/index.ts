@@ -1,2 +1,8 @@
-export { DecisionEngine } from './decision-engine'
-export type { DecisionContext, DecisionParticipant, DecisionOption, DecisionVote, DecisionResult } from './decision-engine'
+export type {
+  DecisionContext,
+  DecisionOption,
+  DecisionParticipant,
+  DecisionResult,
+  DecisionVote,
+} from './decision-engine';
+export { DecisionEngine } from './decision-engine';

@@ -1,11 +1,11 @@
-import type { BehaviorOSEngine } from '@behavioros/core'
+import type { BehaviorOSEngine } from '@behavioros/core';
 
 export async function getStatus(engine: BehaviorOSEngine) {
-  const stats = engine.getStats()
-  const agents = engine.getAllAgents()
-  const missions = engine.getAllMissions()
-  const governanceRules = engine.getGovernanceRules()
-  const qualityGates = engine.getQualityGates()
+  const stats = engine.getStats();
+  const agents = engine.getAllAgents();
+  const missions = engine.getAllMissions();
+  const governanceRules = engine.getGovernanceRules();
+  const qualityGates = engine.getQualityGates();
 
   const status = {
     ...stats,
@@ -18,7 +18,7 @@ export async function getStatus(engine: BehaviorOSEngine) {
     activeMissions: missions.filter((m) => m.status === 'executing').length,
     governanceRules: governanceRules.length,
     qualityGates: qualityGates.length,
-  }
+  };
 
   return {
     content: [
@@ -27,5 +27,5 @@ export async function getStatus(engine: BehaviorOSEngine) {
         text: JSON.stringify(status, null, 2),
       },
     ],
-  }
+  };
 }

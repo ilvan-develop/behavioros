@@ -1,16 +1,16 @@
-import type { Command } from 'commander'
-import { input, select, confirm } from '@inquirer/prompts'
-import { writeFileSync, existsSync } from 'node:fs'
-import chalk from 'chalk'
-import ora from 'ora'
+import { existsSync, writeFileSync } from 'node:fs';
+import { confirm, input, select } from '@inquirer/prompts';
+import chalk from 'chalk';
+import type { Command } from 'commander';
+import ora from 'ora';
 
 interface InitAnswers {
-  projectName: string
-  description: string
-  teamSize: string
-  governanceLevel: string
-  qualityGates: boolean
-  author: string
+  projectName: string;
+  description: string;
+  teamSize: string;
+  governanceLevel: string;
+  qualityGates: boolean;
+  author: string;
 }
 
 function buildYAML(answers: InitAnswers): string {
@@ -18,24 +18,25 @@ function buildYAML(answers: InitAnswers): string {
     small: 5,
     medium: 15,
     large: 50,
-  }
+  };
 
-  const maxAgents = teamSizeMap[answers.teamSize] ?? 10
+  const maxAgents = teamSizeMap[answers.teamSize] ?? 10;
 
-  const governanceRules = answers.governanceLevel === 'strict'
-    ? [
-        '  - id: gov-code-review\n    name: Code Review Required\n    level: critical\n    action: block\n    conditions:\n      - type:feature\n      - type:bugfix',
-        '  - id: gov-security-scan\n    name: Security Scan\n    level: high\n    action: block\n    conditions:\n      - type:security',
-        '  - id: gov-quality-gate\n    name: Quality Gate\n    level: high\n    action: block\n    conditions:\n      - type:feature',
-      ]
-    : answers.governanceLevel === 'standard'
+  const governanceRules =
+    answers.governanceLevel === 'strict'
       ? [
-          '  - id: gov-code-review\n    name: Code Review\n    level: medium\n    action: warn\n    conditions:\n      - type:feature',
-          '  - id: gov-quality-gate\n    name: Quality Gate\n    level: high\n    action: escalate\n    conditions:\n      - type:feature',
+          '  - id: gov-code-review\n    name: Code Review Required\n    level: critical\n    action: block\n    conditions:\n      - type:feature\n      - type:bugfix',
+          '  - id: gov-security-scan\n    name: Security Scan\n    level: high\n    action: block\n    conditions:\n      - type:security',
+          '  - id: gov-quality-gate\n    name: Quality Gate\n    level: high\n    action: block\n    conditions:\n      - type:feature',
         ]
-      : [
-          '  - id: gov-quality-gate\n    name: Quality Gate\n    level: medium\n    action: log\n    conditions:\n      - type:feature',
-        ]
+      : answers.governanceLevel === 'standard'
+        ? [
+            '  - id: gov-code-review\n    name: Code Review\n    level: medium\n    action: warn\n    conditions:\n      - type:feature',
+            '  - id: gov-quality-gate\n    name: Quality Gate\n    level: high\n    action: escalate\n    conditions:\n      - type:feature',
+          ]
+        : [
+            '  - id: gov-quality-gate\n    name: Quality Gate\n    level: medium\n    action: log\n    conditions:\n      - type:feature',
+          ];
 
   const qualityGates = answers.qualityGates
     ? [
@@ -43,13 +44,15 @@ function buildYAML(answers: InitAnswers): string {
         '  - id: qg-typecheck\n    name: Type Check\n    type: typecheck\n    pass: true',
         '  - id: qg-test-coverage\n    name: Test Coverage\n    type: test_coverage\n    threshold: 80',
       ]
-    : []
+    : [];
 
   const lines = [
     `id: ${answers.projectName}`,
     `name: ${answers.projectName}`,
     "version: '1.0.0'",
-    answers.description ? `description: ${answers.description}` : `description: BehaviorOS DNA package for ${answers.projectName}`,
+    answers.description
+      ? `description: ${answers.description}`
+      : `description: BehaviorOS DNA package for ${answers.projectName}`,
     `author: ${answers.author}`,
     '',
     'personas:',
@@ -79,16 +82,16 @@ function buildYAML(answers: InitAnswers): string {
     ...governanceRules,
     '',
     `# maxAgents: ${maxAgents}`,
-  ]
+  ];
 
   if (qualityGates.length > 0) {
-    lines.push('')
-    lines.push('quality:')
-    lines.push(...qualityGates)
+    lines.push('');
+    lines.push('quality:');
+    lines.push(...qualityGates);
   }
 
-  lines.push('')
-  return lines.join('\n')
+  lines.push('');
+  return lines.join('\n');
 }
 
 export function initCommand(program: Command): void {
@@ -96,20 +99,20 @@ export function initCommand(program: Command): void {
     .command('init')
     .description('Initialize a new BehaviorOS configuration in the current directory')
     .action(async () => {
-      const targetFile = 'behavioros.yaml'
+      const targetFile = 'behavioros.yaml';
 
       if (existsSync(targetFile)) {
         const overwrite = await confirm({
           message: `${targetFile} already exists. Overwrite?`,
           default: false,
-        })
+        });
         if (!overwrite) {
-          console.log(chalk.yellow('Aborted.'))
-          return
+          console.log(chalk.yellow('Aborted.'));
+          return;
         }
       }
 
-      console.log(chalk.bold('\n🧬 BehaviorOS Init Wizard\n'))
+      console.log(chalk.bold('\n🧬 BehaviorOS Init Wizard\n'));
 
       const answers: InitAnswers = {
         projectName: await input({
@@ -144,23 +147,23 @@ export function initCommand(program: Command): void {
           message: 'Include default quality gates (lint, typecheck, coverage)?',
           default: true,
         }),
-      }
+      };
 
-      const spinner = ora('Generating behavioros.yaml...').start()
+      const spinner = ora('Generating behavioros.yaml...').start();
 
       try {
-        const yaml = buildYAML(answers)
-        writeFileSync(targetFile, yaml, 'utf-8')
-        spinner.succeed(`Created ${targetFile}`)
-        console.log(chalk.green(`\n✅ BehaviorOS initialized successfully!\n`))
-        console.log(`  Next steps:`)
-        console.log(`    ${chalk.cyan('behavioros validate')}  — Validate your DNA config`)
-        console.log(`    ${chalk.cyan('behavioros compile')}   — Compile to generated files`)
-        console.log(`    ${chalk.cyan('behavioros status')}    — View project status\n`)
+        const yaml = buildYAML(answers);
+        writeFileSync(targetFile, yaml, 'utf-8');
+        spinner.succeed(`Created ${targetFile}`);
+        console.log(chalk.green(`\n✅ BehaviorOS initialized successfully!\n`));
+        console.log(`  Next steps:`);
+        console.log(`    ${chalk.cyan('behavioros validate')}  — Validate your DNA config`);
+        console.log(`    ${chalk.cyan('behavioros compile')}   — Compile to generated files`);
+        console.log(`    ${chalk.cyan('behavioros status')}    — View project status\n`);
       } catch (err) {
-        spinner.fail('Failed to create config')
-        console.error(chalk.red(String(err)))
-        process.exitCode = 1
+        spinner.fail('Failed to create config');
+        console.error(chalk.red(String(err)));
+        process.exitCode = 1;
       }
-    })
+    });
 }

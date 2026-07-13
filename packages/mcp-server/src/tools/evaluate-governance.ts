@@ -1,24 +1,15 @@
-import { z } from 'zod'
-import type { BehaviorOSEngine } from '@behavioros/core'
+import type { BehaviorOSEngine } from '@behavioros/core';
+import { z } from 'zod';
 
 export const evaluateGovernanceInput = z.object({
   action: z.string().describe('Action to evaluate against governance rules'),
-  context: z
-    .record(z.unknown())
-    .optional()
-    .describe('Optional context object for the action'),
-})
+  context: z.record(z.unknown()).optional().describe('Optional context object for the action'),
+});
 
-export type EvaluateGovernanceInput = z.infer<typeof evaluateGovernanceInput>
+export type EvaluateGovernanceInput = z.infer<typeof evaluateGovernanceInput>;
 
-export async function evaluateGovernance(
-  engine: BehaviorOSEngine,
-  input: EvaluateGovernanceInput,
-) {
-  const result = await engine.evaluateGovernance(
-    input.action,
-    input.context ?? {},
-  )
+export async function evaluateGovernance(engine: BehaviorOSEngine, input: EvaluateGovernanceInput) {
+  const result = await engine.evaluateGovernance(input.action, input.context ?? {});
 
   return {
     content: [
@@ -47,5 +38,5 @@ export async function evaluateGovernance(
         ),
       },
     ],
-  }
+  };
 }
