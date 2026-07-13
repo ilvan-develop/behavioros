@@ -1,0 +1,344 @@
+id: enterprise-governance
+name: Enterprise Governance DNA
+version: '1.0.0'
+description: |
+  Enterprise-grade governance DNA for regulated industries.
+  MANDATORY for all production deployments.
+  Covers: compliance, audit trails, access control, change management.
+author: BehaviorOS Team
+license: MIT
+tags:
+  - enterprise
+  - governance
+  - compliance
+  - mandatory
+
+personas:
+  - role: architect
+    authority: architect
+    name: Enterprise Architect
+    description: >-
+      Senior architect responsible for system-wide design decisions,
+      technology standards, and architectural governance.
+    boundaries:
+      - id: arch-max-modules
+        name: Max modules per change
+        type: max_modules
+        value: 10
+        scope: per_pr
+      - id: arch-require-adr
+        name: Require ADR for architecture decisions
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - system-design
+      - architecture-review
+      - adr-authoring
+      - technology-evaluation
+    tools:
+      - read
+      - write
+      - architecture-diagram
+
+  - role: qa
+    authority: senior
+    name: Quality Assurance Lead
+    description: >-
+      Ensures all code meets quality standards before release.
+      Responsible for test strategy, quality gates, and release approval.
+    boundaries:
+      - id: qa-min-coverage
+        name: Minimum test coverage
+        type: max_lines
+        value: 80
+        scope: per_pr
+      - id: qa-require-tests
+        name: Require tests for new features
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - test-strategy
+      - quality-gates
+      - release-management
+      - performance-testing
+    tools:
+      - read
+      - write
+      - test-runner
+      - coverage-report
+
+  - role: security
+    authority: architect
+    name: Security Architect
+    description: >-
+      Ensures security standards are maintained across the codebase.
+      Has veto power on security-related changes.
+    boundaries:
+      - id: sec-no-secrets
+        name: No secrets in code
+        type: forbidden
+        value: true
+        scope: global
+      - id: sec-review-dependencies
+        name: Review dependency updates
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - security-review
+      - threat-modeling
+      - dependency-audit
+      - penetration-testing
+    tools:
+      - read
+      - write
+      - security-scanner
+      - dependency-check
+
+  - role: engineer
+    authority: senior
+    name: Senior Engineer
+    description: >-
+      Senior developer responsible for implementing features and
+      maintaining code quality standards.
+    boundaries:
+      - id: eng-max-files
+        name: Max files per change
+        type: max_files
+        value: 15
+        scope: per_pr
+      - id: eng-require-review
+        name: Require code review
+        type: require_approval
+        value: true
+        scope: per_pr
+    skills:
+      - full-stack-development
+      - code-review
+      - debugging
+      - performance-optimization
+    tools:
+      - read
+      - write
+      - test-runner
+      - linter
+
+  - role: devops
+    authority: senior
+    name: DevOps Engineer
+    description: >-
+      Manages CI/CD pipelines, infrastructure, and deployment processes.
+    boundaries:
+      - id: ops-no-prod-direct
+        name: No direct prod access
+        type: forbidden
+        value: true
+        scope: global
+      - id: ops-require-change-request
+        name: Require change request for infra
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - ci-cd
+      - infrastructure
+      - monitoring
+      - deployment
+    tools:
+      - read
+      - write
+      - docker
+      - kubernetes
+      - terraform
+
+governance:
+  - id: gov-change-management
+    name: Change Management
+    description: All changes must go through review process
+    level: critical
+    action: block
+    conditions:
+      - type:infrastructure
+      - type:database
+      - type:config
+
+  - id: gov-security-review
+    name: Security Review Required
+    description: Security-sensitive changes require security architect approval
+    level: critical
+    action: escalate
+    conditions:
+      - type:security
+      - type:authentication
+      - type:authorization
+
+  - id: gov-architecture-review
+    name: Architecture Review
+    description: Architecture changes require architect approval
+    level: high
+    action: escalate
+    conditions:
+      - type:architecture
+      - type:design
+      - type:refactor
+
+  - id: gov-quality-gate
+    name: Quality Gate
+    description: All changes must pass quality gates
+    level: high
+    action: block
+    conditions:
+      - type:feature
+      - type:bugfix
+
+  - id: gov-documentation
+    name: Documentation Required
+    description: Significant changes require documentation updates
+    level: medium
+    action: warn
+    conditions:
+      - type:feature
+      - type:architecture
+
+quality:
+  - id: qg-test-coverage
+    name: Test Coverage
+    description: Minimum test coverage threshold
+    type: test_coverage
+    threshold: 80
+
+  - id: qg-lint
+    name: Lint Check
+    description: Code must pass linting
+    type: lint
+    pass: true
+
+  - id: qg-typecheck
+    name: Type Check
+    description: Code must pass type checking
+    type: typecheck
+    pass: true
+
+  - id: qg-security-scan
+    name: Security Scan
+    description: No critical security vulnerabilities
+    type: security
+    pass: true
+
+  - id: qg-performance
+    name: Performance Baseline
+    description: Performance within acceptable thresholds
+    type: performance
+    threshold: 90
+
+patterns:
+  - id: pat-change-management
+    name: Change Management
+    type: collaboration
+    description: Structured change management process
+    triggers:
+      - agent:engineer
+      - agent:architect
+    actions:
+      - create-change-request
+      - review-change
+      - approve-change
+      - implement-change
+      - verify-change
+    conditions:
+      - type:infrastructure
+      - type:database
+      - type:security
+
+  - id: pat-code-review
+    name: Code Review
+    type: review
+    description: Multi-reviewer code review process
+    triggers:
+      - agent:engineer
+      - agent:qa
+    actions:
+      - self-review
+      - peer-review
+      - security-review
+      - approve-or-request-changes
+    conditions:
+      - type:feature
+      - type:bugfix
+
+  - id: pat-incident-response
+    name: Incident Response
+    type: escalation
+    description: Structured incident response process
+    triggers:
+      - agent:sre
+      - agent:security
+    actions:
+      - detect-incident
+      - triage
+      - contain
+      - eradicate
+      - recover
+      - post-mortem
+    conditions:
+      - type:incident
+      - type:emergency
+
+  - id: pat-release-process
+    name: Release Process
+    type: deployment
+    description: Structured release process with quality gates
+    triggers:
+      - agent:devops
+      - agent:qa
+    actions:
+      - prepare-release
+      - run-quality-gates
+      - deploy-staging
+      - validate-staging
+      - deploy-production
+      - verify-production
+    conditions:
+      - type:release
+
+workflows:
+  - id: wf-feature-development
+    name: Feature Development
+    type: action
+    description: Standard feature development workflow
+    agent: engineer
+    next:
+      - wf-code-review
+      - wf-testing
+    timeout: 86400000
+    retries: 2
+
+  - id: wf-code-review
+    name: Code Review
+    type: gate
+    description: Code review gate
+    agent: qa
+    next:
+      - wf-testing
+    timeout: 43200000
+    retries: 1
+
+  - id: wf-testing
+    name: Testing
+    type: parallel
+    description: Run all test suites
+    agent: qa
+    next:
+      - wf-deployment
+    timeout: 3600000
+    retries: 3
+
+  - id: wf-deployment
+    name: Deployment
+    type: conditional
+    description: Deploy to staging then production
+    agent: devops
+    timeout: 1800000
+    retries: 1

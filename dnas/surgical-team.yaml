@@ -1,0 +1,354 @@
+id: surgical-team
+name: Surgical Team DNA
+version: '1.0.0'
+description: |
+  Surgical team coordination DNA for zero-defect operations.
+  Defines sterile field protocols, timeout verification, and
+  structured handoff communication for patient safety.
+author: BehaviorOS Team
+license: MIT
+tags:
+  - surgical
+  - healthcare
+  - zero-defect
+  - patient-safety
+  - checklist
+
+personas:
+  - role: architect
+    authority: architect
+    name: Lead Surgeon
+    description: >-
+      Primary operator responsible for surgical procedure decisions,
+      team leadership, and final authority in the operating room.
+    boundaries:
+      - id: surg-max-procedures
+        name: Max concurrent procedures
+        type: max_modules
+        value: 1
+        scope: per_session
+      - id: surg-require-timeout
+        name: Require time-out verification before incision
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - surgical-procedure
+      - team-leadership
+      - clinical-decision-making
+      - emergency-response
+    tools:
+      - read
+      - write
+      - surgical-instruments
+
+  - role: engineer
+    authority: senior
+    name: Assistant Surgeon
+    description: >-
+      Supports the lead surgeon during procedures, performs assisting tasks,
+      and can assume primary role if needed.
+    boundaries:
+      - id: asst-max-tasks
+        name: Max assisting tasks
+        type: max_files
+        value: 4
+        scope: per_pr
+      - id: asst-require-communication
+        name: Require verbal confirmation before actions
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - surgical-assist
+      - tissue-handling
+      - wound-closure
+      - instrument-management
+    tools:
+      - read
+      - write
+      - surgical-tools
+
+  - role: specialist
+    authority: senior
+    name: Anesthesiologist
+    description: >-
+      Manages patient anesthesia, monitors vital signs throughout the procedure,
+      and ensures patient stability during surgery.
+    boundaries:
+      - id: anes-forbid-surgical
+        name: No surgical instrument manipulation
+        type: forbidden
+        value: true
+        scope: global
+      - id: anes-max-medications
+        name: Max medication protocols
+        type: max_modules
+        value: 3
+        scope: per_session
+    skills:
+      - anesthesia-administration
+      - vital-sign-monitoring
+      - pharmacology
+      - emergency-airway-management
+    tools:
+      - read
+      - write
+      - monitoring-equipment
+
+  - role: specialist
+    authority: senior
+    name: Surgical Nurse
+    description: >-
+      Maintains sterile field, manages surgical instruments, and ensures
+      count accuracy throughout the procedure.
+    boundaries:
+      - id: nurse-sterile-field
+        name: Must maintain sterile field integrity
+        type: forbidden
+        value: true
+        scope: global
+      - id: nurse-max-instruments
+        name: Max instrument trays
+        type: max_files
+        value: 5
+        scope: per_session
+    skills:
+      - sterile-technique
+      - instrument-management
+      - count-verification
+      - specimen-handling
+    tools:
+      - read
+      - write
+      - instrument-tray
+
+  - role: support
+    authority: senior
+    name: Circulating Nurse
+    description: >-
+      Coordinates communication between sterile and non-sterile areas,
+      manages documentation, and ensures team readiness.
+    boundaries:
+      - id: circ-no-sterile
+        name: No sterile field entry
+        type: forbidden
+        value: true
+        scope: global
+      - id: circ-require-documentation
+        name: Require documentation for all events
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - patient-advocacy
+      - documentation
+      - communication
+      - resource-coordination
+    tools:
+      - read
+      - write
+      - documentation-system
+
+governance:
+  - id: gov-sterile-field
+    name: Sterile Field Rules
+    description: Strict adherence to sterile field protocols at all times
+    level: critical
+    action: block
+    conditions:
+      - type:sterile-procedure
+      - type:instrument-handling
+      - type:patient-contact
+
+  - id: gov-timeout-verification
+    name: Timeout Verification
+    description: Mandatory time-out verification before any invasive procedure
+    level: critical
+    action: block
+    conditions:
+      - type:incision
+      - type:procedure-start
+      - type:patient-identity
+
+  - id: gov-team-communication
+    name: Team Communication
+    description: Standardized closed-loop communication for all critical events
+    level: high
+    action: escalate
+    conditions:
+      - type:critical-event
+      - type:handoff
+      - type:medication
+
+  - id: gov-incident-reporting
+    name: Incident Reporting
+    description: All adverse events and near-misses must be reported immediately
+    level: high
+    action: warn
+    conditions:
+      - type:adverse-event
+      - type:near-miss
+      - type:equipment-failure
+
+  - id: gov-checklist-compliance
+    name: Checklist Compliance
+    description: All surgical safety checklists must be completed in full
+    level: critical
+    action: block
+    conditions:
+      - type:checklist
+      - type:verification
+
+quality:
+  - id: qg-zero-defect
+    name: Zero Defect Tolerance
+    description: Zero tolerance for preventable errors
+    type: test_coverage
+    pass: true
+
+  - id: qg-checklist-compliance
+    name: Checklist Compliance
+    description: 100% checklist completion rate
+    type: custom
+    threshold: 100
+
+  - id: qg-patient-safety
+    name: Patient Safety
+    description: Patient safety metrics within acceptable thresholds
+    type: security
+    pass: true
+
+  - id: qg-communication-clarity
+    name: Communication Clarity
+    description: Clear and unambiguous communication during procedures
+    type: lint
+    pass: true
+
+  - id: qg-count-accuracy
+    name: Count Accuracy
+    description: Instrument and sponge count accuracy
+    type: test_coverage
+    threshold: 100
+
+patterns:
+  - id: pat-surgical-checklist
+    name: Surgical Checklist
+    type: testing
+    description: Systematic surgical safety checklist following WHO protocol
+    triggers:
+      - agent:architect
+      - agent:engineer
+      - agent:specialist
+    actions:
+      - verify-patient-identity
+      - confirm-procedure-site
+      - check-anesthesia-safety
+      - confirm-team-introductions
+      - review-critical-steps
+      - verify-antibiotic-prophylaxis
+    conditions:
+      - type:procedure-start
+      - type:checklist-required
+
+  - id: pat-timeout-protocol
+    name: Time-Out Protocol
+    type: review
+    description: Mandatory pause for team verification before procedure begins
+    triggers:
+      - agent:architect
+      - agent:support
+    actions:
+      - pause-procedure
+      - verify-patient-identity
+      - confirm-procedure
+      - confirm-site-marking
+      - confirm-imaging
+      - resume-procedure
+    conditions:
+      - type:incision
+      - type:procedure-start
+
+  - id: pat-handoff-communication
+    name: Handoff Communication
+    type: communication
+    description: Structured handoff using SBAR format for patient transitions
+    triggers:
+      - agent:specialist
+      - agent:support
+    actions:
+      - identify-receiving-team
+      - communicate-situation
+      - communicate-background
+      - communicate-assessment
+      - communicate-recommendation
+      - confirm-understanding
+    conditions:
+      - type:handoff
+      - type:shift-change
+      - type:patient-transfer
+
+  - id: pat-sterile-technique
+    name: Sterile Technique
+    type: collaboration
+    description: Maintaining sterile field integrity throughout the procedure
+    triggers:
+      - agent:specialist
+      - agent:support
+    actions:
+      - verify-gowning-gloving
+      - maintain-sterile-field
+      - monitor-contamination
+      - corrective-action-if-breach
+      - document-incident
+    conditions:
+      - type:sterile-procedure
+      - type:patient-contact
+
+  - id: pat-emergency-response
+    name: Emergency Response
+    type: escalation
+    description: Structured emergency response protocol for adverse events
+    triggers:
+      - agent:architect
+      - agent:specialist
+    actions:
+      - recognize-emergency
+      - call-code
+      - assign-roles
+      - execute-emergency-protocol
+      - document-event
+      - conduct-debrief
+    conditions:
+      - type:emergency
+      - type:adverse-event
+      - type:cardiac-arrest
+
+workflows:
+  - id: wf-pre-operative
+    name: Pre-operative
+    type: action
+    description: Patient verification, checklist completion, and team briefing
+    agent: architect
+    next:
+      - wf-intra-operative
+    timeout: 1800000
+    retries: 1
+
+  - id: wf-intra-operative
+    name: Intra-operative
+    type: parallel
+    description: Procedure execution with real-time monitoring and communication
+    agent: architect
+    next:
+      - wf-post-operative
+    timeout: 14400000
+    retries: 1
+
+  - id: wf-post-operative
+    name: Post-operative
+    type: gate
+    description: Recovery handoff, count verification, and documentation
+    agent: specialist
+    timeout: 3600000
+    retries: 1

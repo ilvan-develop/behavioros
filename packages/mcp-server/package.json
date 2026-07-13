@@ -1,0 +1,30 @@
+{
+  "name": "@behavioros/mcp-server",
+  "version": "0.1.0",
+  "description": "BehaviorOS MCP Server — Model Context Protocol server for BehaviorOS",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "behavioros-mcp": "./dist/server.js"
+  },
+  "scripts": {
+    "build": "tsup src/server.ts src/index.ts --dts --format esm,cjs",
+    "dev": "tsx watch src/server.ts",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "tsup": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
+  },
+  "peerDependencies": {
+    "@behavioros/core": "workspace:*"
+  }
+}

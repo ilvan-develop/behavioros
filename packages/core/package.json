@@ -1,0 +1,51 @@
+{
+  "name": "@behavioros/core",
+  "version": "0.1.0",
+  "description": "BehaviorOS Core Engine — 7 behavioral engines for AI agent governance",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./behavioral": "./dist/engines/behavioral/index.js",
+    "./governance": "./dist/engines/governance/index.js",
+    "./decision": "./dist/engines/decision/index.js",
+    "./audit": "./dist/engines/audit/index.js",
+    "./quality": "./dist/engines/quality/index.js",
+    "./learning": "./dist/engines/learning/index.js",
+    "./mission": "./dist/engines/mission/index.js",
+    "./compiler": "./dist/compiler/index.js"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --dts --format esm,cjs",
+    "dev": "tsup src/index.ts --dts --format esm,cjs --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "latest",
+    "yaml": "latest",
+    "ajv": "latest",
+    "better-sqlite3": "latest",
+    "handlebars": "latest",
+    "glob": "latest",
+    "diff": "latest",
+    "eventemitter3": "latest",
+    "lru-cache": "latest",
+    "dotenv": "latest"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "latest",
+    "@types/diff": "latest",
+    "@types/node": "latest",
+    "tsup": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vitest": "latest",
+    "@vitest/coverage-v8": "latest"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  }
+}

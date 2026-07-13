@@ -1,0 +1,35 @@
+{
+  "name": "behavioros",
+  "private": true,
+  "version": "0.1.0",
+  "description": "The Operating System for Autonomous AI Teams",
+  "packageManager": "pnpm@11.6.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "test:watch": "vitest",
+    "lint": "biome check --write .",
+    "lint:check": "biome check .",
+    "typecheck": "turbo typecheck",
+    "format": "biome format --write .",
+    "clean": "turbo clean",
+    "clean:all": "turbo clean && rm -rf node_modules",
+    "changeset": "changeset",
+    "release": "changeset publish",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "latest",
+    "@changesets/cli": "latest",
+    "@commitlint/cli": "latest",
+    "@commitlint/config-conventional": "latest",
+    "husky": "latest",
+    "lint-staged": "latest",
+    "turbo": "latest"
+  }
+}

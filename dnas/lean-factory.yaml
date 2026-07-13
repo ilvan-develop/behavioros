@@ -1,0 +1,353 @@
+id: lean-factory
+name: Lean Factory DNA
+version: '1.0.0'
+description: |
+  Lean manufacturing DNA for continuous improvement operations.
+  Implements kaizen events, 5S methodology, value stream mapping,
+  and standard work patterns for operational excellence.
+author: BehaviorOS Team
+license: MIT
+tags:
+  - lean
+  - manufacturing
+  - kaizen
+  - continuous-improvement
+  - waste-elimination
+
+personas:
+  - role: manager
+    authority: director
+    name: Plant Manager
+    description: >-
+      Overall operations authority responsible for production targets,
+      resource allocation, and plant-wide performance metrics.
+    boundaries:
+      - id: pm-max-projects
+        name: Max concurrent improvement projects
+        type: max_modules
+        value: 5
+        scope: per_session
+      - id: pm-require-approval
+        name: Require approval for capital expenditure
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - operations-management
+      - strategic-planning
+      - performance-metrics
+      - lean-principles
+    tools:
+      - read
+      - write
+      - production-dashboard
+
+  - role: engineer
+    authority: senior
+    name: Production Engineer
+    description: >-
+      Designs and optimizes production processes, manages equipment,
+      and implements efficiency improvements on the production floor.
+    boundaries:
+      - id: pe-max-changes
+        name: Max process changes per cycle
+        type: max_files
+        value: 6
+        scope: per_pr
+      - id: pe-require-validation
+        name: Require validation before process changes
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - process-engineering
+      - equipment-optimization
+      - production-planning
+      - statistical-analysis
+    tools:
+      - read
+      - write
+      - cad-tools
+
+  - role: qa
+    authority: senior
+    name: Quality Inspector
+    description: >-
+      Ensures product quality through systematic inspection, testing,
+      and quality metric tracking across all production lines.
+    boundaries:
+      - id: qi-max-inspections
+        name: Max inspection points
+        type: max_files
+        value: 12
+        scope: per_pr
+      - id: qi-forbid-ship
+        name: No shipment without quality clearance
+        type: forbidden
+        value: true
+        scope: global
+    skills:
+      - quality-inspection
+      - statistical-process-control
+      - root-cause-analysis
+      - compliance-auditing
+    tools:
+      - read
+      - write
+      - measurement-tools
+
+  - role: specialist
+    authority: senior
+    name: Maintenance Technician
+    description: >-
+      Maintains equipment reliability through preventive and predictive
+      maintenance, minimizing unplanned downtime.
+    boundaries:
+      - id: mt-max-repairs
+        name: Max simultaneous repairs
+        type: max_files
+        value: 3
+        scope: per_session
+      - id: mt-require-lockout
+        name: Require lockout/tagout for maintenance
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - preventive-maintenance
+      - predictive-maintenance
+      - equipment-diagnostics
+      - safety-protocols
+    tools:
+      - read
+      - write
+      - diagnostic-equipment
+
+  - role: architect
+    authority: architect
+    name: Continuous Improvement Lead
+    description: >-
+      Drives kaizen events, facilitates value stream mapping, and
+      leads the organization's continuous improvement culture.
+    boundaries:
+      - id: ci-max-events
+        name: Max concurrent kaizen events
+        type: max_modules
+        value: 2
+        scope: per_session
+      - id: ci-require-data
+        name: Require data-driven justification
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - kaizen-facilitation
+      - value-stream-mapping
+      - 5s-methodology
+      - change-management
+    tools:
+      - read
+      - write
+      - process-mapping-tools
+
+governance:
+  - id: gov-kaizen-approval
+    name: Kaizen Approval
+    description: All kaizen events must be approved by CI lead and plant manager
+    level: high
+    action: escalate
+    conditions:
+      - type:kaizen
+      - type:process-change
+      - type:improvement
+
+  - id: gov-waste-elimination
+    name: Waste Elimination
+    description: Systematic identification and elimination of all eight wastes
+    level: medium
+    action: warn
+    conditions:
+      - type:waste-identification
+      - type:process-review
+
+  - id: gov-standard-work
+    name: Standard Work
+    description: All production processes must follow documented standard work
+    level: critical
+    action: block
+    conditions:
+      - type:production
+      - type:assembly
+      - type:quality-check
+
+  - id: gov-visual-management
+    name: Visual Management
+    description: All production areas must maintain visual management boards
+    level: medium
+    action: log
+    conditions:
+      - type:floor-management
+      - type:performance-display
+
+  - id: gov-safety-compliance
+    name: Safety Compliance
+    description: Zero tolerance for safety violations on the production floor
+    level: critical
+    action: block
+    conditions:
+      - type:safety
+      - type:ppe
+      - type:lockout-tagout
+
+quality:
+  - id: qg-first-pass-yield
+    name: First Pass Yield
+    description: Percentage of units passing quality on first attempt
+    type: test_coverage
+    threshold: 95
+
+  - id: qg-cycle-time
+    name: Cycle Time
+    description: Average production cycle time within target
+    type: performance
+    threshold: 90
+
+  - id: qg-defect-rate
+    name: Defect Rate
+    description: Defect rate below acceptable threshold
+    type: test_coverage
+    threshold: 98
+
+  - id: qg-oee
+    name: Overall Equipment Effectiveness
+    description: OEE metric combining availability, performance, and quality
+    type: performance
+    threshold: 85
+
+  - id: qg-5s-audit
+    name: 5S Audit Score
+    description: Minimum 5S audit score for all production areas
+    type: lint
+    threshold: 80
+
+patterns:
+  - id: pat-kaizen-event
+    name: Kaizen Event
+    type: learning
+    description: Structured rapid improvement event with cross-functional team
+    triggers:
+      - agent:architect
+      - agent:manager
+    actions:
+      - define-scope
+      - form-cross-functional-team
+      - collect-baseline-data
+      - conduct-improvement-workshop
+      - implement-changes
+      - measure-results
+      - standardize-new-process
+    conditions:
+      - type:improvement
+      - type:waste-reduction
+
+  - id: pat-5s-methodology
+    name: 5S Methodology
+    type: collaboration
+    description: Workplace organization methodology for efficiency and safety
+    triggers:
+      - agent:architect
+      - agent:specialist
+    actions:
+      - sort
+      - set-in-order
+      - shine
+      - standardize
+      - sustain
+    conditions:
+      - type:workplace-organization
+      - type:audit
+
+  - id: pat-value-stream-mapping
+    name: Value Stream Mapping
+    type: collaboration
+    description: End-to-end process visualization to identify waste and improvement opportunities
+    triggers:
+      - agent:architect
+      - agent:engineer
+    actions:
+      - map-current-state
+      - identify-waste
+      - design-future-state
+      - create-implementation-plan
+      - execute-improvements
+      - track-progress
+    conditions:
+      - type:process-analysis
+      - type:strategic-planning
+
+  - id: pat-root-cause-analysis
+    name: Root Cause Analysis
+    type: decision
+    description: Systematic problem-solving using 5-Why and Fishbone analysis
+    triggers:
+      - agent:qa
+      - agent:engineer
+    actions:
+      - define-problem
+      - collect-data
+      - identify-root-cause
+      - develop-corrective-actions
+      - implement-solutions
+      - verify-effectiveness
+    conditions:
+      - type:defect
+      - type:nonconformance
+      - type:customer-complaint
+
+  - id: pat-standard-work
+    name: Standard Work
+    type: collaboration
+    description: Documented best practices for consistent process execution
+    triggers:
+      - agent:engineer
+      - agent:qa
+    actions:
+      - analyze-current-process
+      - document-best-practices
+      - create-standard-work-sheets
+      - train-operators
+      - audit-compliance
+      - update-standards
+    conditions:
+      - type:new-process
+      - type:revision
+      - type:training
+
+workflows:
+  - id: wf-production-planning
+    name: Production Planning
+    type: action
+    description: Demand analysis, capacity planning, and schedule creation
+    agent: manager
+    next:
+      - wf-production-execution
+    timeout: 7200000
+    retries: 1
+
+  - id: wf-production-execution
+    name: Production Execution
+    type: parallel
+    description: Manufacturing operations with real-time quality monitoring
+    agent: engineer
+    next:
+      - wf-continuous-improvement
+    timeout: 28800000
+    retries: 2
+
+  - id: wf-continuous-improvement
+    name: Continuous Improvement
+    type: gate
+    description: Performance review, waste analysis, and kaizen event selection
+    agent: architect
+    timeout: 3600000
+    retries: 1

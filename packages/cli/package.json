@@ -1,0 +1,43 @@
+{
+  "name": "@behavioros/cli",
+  "version": "0.1.0",
+  "description": "BehaviorOS CLI — Command-line interface for BehaviorOS",
+  "bin": {
+    "behavioros": "./dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup src/bin.ts src/index.ts --dts --format esm,cjs",
+    "dev": "tsup src/bin.ts src/index.ts --dts --format esm,cjs --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "commander": "latest",
+    "chalk": "latest",
+    "ora": "latest",
+    "@inquirer/prompts": "latest",
+    "cli-table3": "latest",
+    "cosmiconfig": "latest",
+    "yaml": "latest",
+    "glob": "latest",
+    "dotenv": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "tsup": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
+  },
+  "peerDependencies": {
+    "@behavioros/core": "workspace:*",
+    "@behavioros/sdk": "workspace:*"
+  }
+}
