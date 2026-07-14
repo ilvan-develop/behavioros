@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/ilvan-develop/behavioros/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" /></a>
   <a href="https://github.com/ilvan-develop/behavioros/releases"><img src="https://img.shields.io/badge/version-0.1.0-green.svg" alt="Version" /></a>
-  <a href="#"><img src="https://img.shields.io/badge/tests-90%20passing-brightgreen.svg" alt="Tests" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/tests-395%20passing-brightgreen.svg" alt="Tests" /></a>
 </p>
 
 ---
@@ -55,29 +55,52 @@ npx @behavioros/cli status        # Show system status
 
 ## Architecture
 
+9-layer architecture where each layer is managed by a dedicated engine. Layers are evaluated bottom-up: DNA defines patterns, schemas validate types, and upper layers consume validated data.
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Mission Layer                         │
+│  Mission lifecycle: create → start → execute → complete  │
 ├─────────────────────────────────────────────────────────┤
 │                    Learning Layer                        │
+│  Record events → detect patterns → auto-apply fixes     │
 ├─────────────────────────────────────────────────────────┤
 │                    Quality Layer                         │
+│  Quality gates: coverage, lint, typecheck, security     │
 ├─────────────────────────────────────────────────────────┤
 │                    Audit Layer                           │
+│  Multi-stage pipeline: lint → typecheck → security →    │
+│  coverage → performance                                  │
 ├─────────────────────────────────────────────────────────┤
 │                    Decision Layer                        │
+│  Voting-based decisions with approval thresholds        │
 ├─────────────────────────────────────────────────────────┤
 │                   Governance Layer                       │
+│  Rule evaluation: block, escalate, warn, log            │
 ├─────────────────────────────────────────────────────────┤
 │                  Behavioral Layer                        │
+│  DNA loading, validation, composition                   │
 ├─────────────────────────────────────────────────────────┤
 │                    Schema Layer                          │
+│  Zod v4.4.3 schemas for all types                       │
 ├─────────────────────────────────────────────────────────┤
 │                   DNA Layer (YAML)                       │
+│  Personas, governance rules, quality gates, patterns,   │
+│  workflows                                              │
 └─────────────────────────────────────────────────────────┘
 ```
 
-Each layer is managed by a dedicated engine. The DNA layer defines behavioral patterns in YAML. The schema layer validates all types with Zod. Governance rules are evaluated before any action is taken.
+### 7 Engines
+
+| Engine | Responsibility |
+|---|---|
+| **Behavioral** | Loads DNA from YAML, validates against Zod schemas, composes multiple packages |
+| **Governance** | Evaluates actions against rules — block, escalate, warn, log |
+| **Decision** | Voting-based consensus with configurable quorum and approval thresholds |
+| **Audit** | Multi-stage pipeline: lint → typecheck → security → coverage → performance |
+| **Quality** | Enforces gates before actions proceed — coverage, lint, typecheck, security |
+| **Learning** | Records events, detects patterns, auto-applies known fixes |
+| **Mission** | Manages lifecycle: create → start → execute → complete/fail |
 
 ## Packages
 
@@ -88,8 +111,9 @@ Each layer is managed by a dedicated engine. The DNA layer defines behavioral pa
 | `@behavioros/sdk` | TypeScript SDK with `BehaviorOS` class for high-level integration | 0.1.0 |
 | `@behavioros/cli` | CLI with init, compile, validate, status, and version commands | 0.1.0 |
 | `@behavioros/dnas` | 4 pre-built DNA patterns (Enterprise, Military, Surgical, Lean) | 0.1.0 |
-| `@behavioros/mcp-server` | MCP server with 8 tools and 5 resources | 0.1.0 |
-| `behavioros-website` | Landing page | — |
+| `@behavioros/mcp-server` | MCP server with 36 tools and 5 resources | 0.1.0 |
+| `@behavioros/observability-dashboard` | Grafana dashboards, Prometheus rules, and alerting | 0.1.0 |
+| `@behavioros/finpay-integration` | FinPay + Brocolis integration example | 0.1.0 |
 
 ## DNA Catalog
 
@@ -147,7 +171,7 @@ console.log(status)
 
 ## MCP Server
 
-The MCP server exposes BehaviorOS to AI agents via the Model Context Protocol.
+The MCP server exposes BehaviorOS to AI agents via the Model Context Protocol — 36 tools across 8 categories.
 
 ### Setup
 
@@ -164,16 +188,81 @@ The MCP server exposes BehaviorOS to AI agents via the Model Context Protocol.
 
 ### Available Tools
 
+#### Mission
+
 | Tool | Description |
 |---|---|
-| `create-mission` | Create a new mission |
-| `get-status` | Get system status |
-| `update-progress` | Update mission progress |
-| `list-agents` | List all agents |
-| `list-missions` | List missions with filtering |
-| `evaluate-governance` | Evaluate action against governance rules |
+| `create-mission` | Create a new mission in BehaviorOS |
+| `update-progress` | Update the progress/status of a mission |
+| `list-missions` | List missions with optional filtering |
+| `list-agents` | List all agents in the system |
+| `get-status` | Get system status (missions, agents, audit events) |
+
+#### Governance
+
+| Tool | Description |
+|---|---|
+| `evaluate-governance` | Evaluate an action against governance rules |
+| `bos_select_dna` | Select optimal behavioral DNA pattern for a task context |
+| `bos_resolve_conflict` | Resolve a conflict between two agents or squads |
+| `bos_check_escalation` | Check if a situation should be escalated to human oversight |
+
+#### Audit
+
+| Tool | Description |
+|---|---|
+| `run-audit` | Run the audit pipeline on a project |
+| `bos_run_audit` | Run the continuous audit chain (commit → PR → merge → deploy) |
+| `bos_lsp_diagnostics` | Run LSP diagnostics (TypeScript + ESLint) on a project |
+| `bos_lsp_validate` | Quality gate — validate project passes LSP checks |
+
+#### Learning
+
+| Tool | Description |
+|---|---|
 | `record-learning` | Record a learning event |
-| `run-audit` | Run audit pipeline on a project |
+| `bos_get_insights` | Get behavioral pattern insights and system health |
+| `bos_resolve_truth` | Resolve DNA pattern + context7 docs for delegation |
+| `bos_list_patterns` | List all available behavioral DNA patterns in the catalog |
+
+#### Integration
+
+| Tool | Description |
+|---|---|
+| `sync-brocolis-orders` | Sync Brocolis orders with FinPay payments |
+| `validate-payment` | Validate a payment through FinPay pipeline |
+| `check-fraud` | Check for fraud signals in a payment |
+| `get-trust-score` | Get trust score for a payment |
+| `run-compliance` | Run compliance check (payment, data, audit) |
+| `reconcile-payments` | Reconcile payment ledger between Brocolis and FinPay |
+| `get-observability-metrics` | Get unified metrics from Brocolis, FinPay, and BehaviorOS |
+
+#### Deployment
+
+| Tool | Description |
+|---|---|
+| `deploy-canary` | Deploy canary version with quality gates |
+| `rollback-deployment` | Rollback deployment if quality gates fail |
+
+#### CI/CD
+
+| Tool | Description |
+|---|---|
+| `cicd-run-audit` | Run the audit pipeline (lint, typecheck, security, coverage) |
+| `cicd-get-audit-history` | Get historical audit results from CI/CD pipelines |
+| `cicd-record-learning` | Record a learning event from CI/CD pipeline |
+| `cicd-get-learning-report` | Get learning recommendations from CI/CD events |
+
+#### Pipeline
+
+| Tool | Description |
+|---|---|
+| `start-pipeline` | Start an EAARG pipeline for a project |
+| `get-pipeline-status` | Get current pipeline status and progress |
+| `validate-layer` | Validate a specific layer with evidence |
+| `approve-layer` | Approve a layer after manual review |
+| `get-pipeline-report` | Get full pipeline report with gate results |
+| `get-gate-results` | Get gate check results for a layer |
 
 ### Available Resources
 
@@ -184,6 +273,17 @@ The MCP server exposes BehaviorOS to AI agents via the Model Context Protocol.
 | Audit Log | `behavioros://audit-log` |
 | Quality Metrics | `behavioros://quality-metrics` |
 | Learning Events | `behavioros://learning-events` |
+
+## Test Results
+
+| Package | Tests |
+|---|---|
+| `@behavioros/core` | 164 passing |
+| `@behavioros/sdk` | 60 passing |
+| `@behavioros/finpay-integration` | 68 passing |
+| `@behavioros/observability-dashboard` | 65 passing |
+| `@behavioros/dnas` | 38 passing |
+| **Total** | **395 passing** |
 
 ## Contributing
 

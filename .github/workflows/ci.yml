@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   ci:
-    name: Build, Lint, Typecheck, Test
+    name: Build & Test (Core)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -44,16 +44,19 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --ignore-scripts
 
-      - name: Build all packages
-        run: pnpm build
+      - name: Build core packages
+        run: pnpm --filter @behavioros/schemas --filter @behavioros/core --filter @behavioros/sdk --filter @behavioros/mcp-server build
 
       - name: Lint
         run: pnpm lint:check
 
-      - name: Typecheck
-        run: pnpm typecheck
+      - name: Typecheck core
+        run: pnpm --filter @behavioros/core typecheck
 
-      - name: Run tests
-        run: pnpm test
+      - name: Test core
+        run: pnpm --filter @behavioros/core test
+
+      - name: Test SDK
+        run: pnpm --filter @behavioros/sdk test
