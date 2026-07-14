@@ -32,6 +32,7 @@ export async function evaluateGovernance(engine: BehaviorOSEngine, input: Evalua
               action: r.action,
               description: r.description,
             })),
+            ...(result.reason ? { reason: result.reason } : {}),
           },
           null,
           2,

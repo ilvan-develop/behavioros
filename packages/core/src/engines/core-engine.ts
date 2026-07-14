@@ -260,6 +260,7 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
         approved: true,
         violations: [] as GovernanceRule[],
         warnings: [] as GovernanceRule[],
+        reason: undefined as string | undefined,
       };
 
     const govContext: GovernanceContext = {
@@ -294,7 +295,12 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
       }
     }
 
-    return { approved: decision.allowed, violations, warnings };
+    return {
+      approved: decision.allowed,
+      violations,
+      warnings,
+      reason: decision.allowed ? undefined : decision.reason,
+    };
   }
 
   evaluateGovernanceDetailed(context: GovernanceContext) {
