@@ -1,6 +1,9 @@
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 import { config } from 'dotenv';
+
+const __dirname = resolve(fileURLToPath(import.meta.url), '..');
 
 config({ path: resolve(__dirname, '../../.env') });
 
@@ -80,22 +83,17 @@ export default defineConfig({
       },
     },
   ],
-  webServer: [
-    {
-      command: process.env.CI ? '' : 'pnpm --filter @behavioros/web dev',
-      url: baseURL,
-      reuseExistingServer: !process.env.CI,
-      cwd: resolve(__dirname, '../..'),
-      timeout: 120_000,
-    },
-    {
-      command: process.env.CI ? '' : 'pnpm --filter @behavioros/finpay-integration dev',
-      url: `${apiBaseURL}/health`,
-      reuseExistingServer: !process.env.CI,
-      cwd: resolve(__dirname, '../..'),
-      timeout: 120_000,
-    },
-  ],
+  webServer: process.env.CI
+    ? []
+    : [
+        {
+          command: 'pnpm --filter @behavioros/web dev',
+          url: baseURL,
+          reuseExistingServer: true,
+          cwd: resolve(__dirname, '../..'),
+          timeout: 120_000,
+        },
+      ],
   globalSetup: resolve(__dirname, 'src/helpers/global-setup.ts'),
   globalTeardown: resolve(__dirname, 'src/helpers/global-teardown.ts'),
 });

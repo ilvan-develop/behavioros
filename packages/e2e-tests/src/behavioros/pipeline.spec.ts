@@ -1,154 +1,180 @@
-import { expect, test } from '../fixtures/e2e-test-context';
+import { expect, test } from '@playwright/test';
 
-test.describe('BehaviorOS EAARG Pipeline', () => {
-  let pipelineId: string;
-  let dnaId: string;
+// ============================================================
+// BehaviorOS E2E Tests — Real functionality testing
+// ============================================================
 
-  test.beforeAll(async () => {
-    dnaId = `e2e-dna-${Date.now()}`;
+const API_BASE = process.env.BEHAVIOROS_API_URL ?? 'http://localhost:3000';
+
+test.describe('BehaviorOS API — Missions', () => {
+  let missionId: string;
+
+  test('GET /api/stats returns system status', async ({ request }) => {
+    const response = await request.get(`${API_BASE}/api/stats`);
+    expect(response.ok()).toBeTruthy();
+
+    const body = await response.json();
+    expect(body).toHaveProperty('status');
+    expect(body).toHaveProperty('stats');
+    expect(body.status).toHaveProperty('engine');
+    expect(body.status).toHaveProperty('dna');
   });
 
-  test('should start the EAARG pipeline', async ({ ctx }) => {
-    const response = await ctx.api.post('/api/v1/pipeline/start', {
+  test('POST /api/missions creates a mission', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/api/missions`, {
       data: {
-        dnaId,
-        options: {
-          startLayer: 1,
-          endLayer: 9,
-        },
+        title: `E2E Test Mission ${Date.now()}`,
+        description: 'Created by E2E test',
+        type: 'feature',
+        priority: 'high',
       },
     });
 
     expect(response.status()).toBe(201);
     const body = await response.json();
-    expect(body).toMatchObject({
-      id: expect.any(String),
-      dnaId,
-      status: 'running',
-      currentLayer: 1,
-    });
-    pipelineId = body.id;
+    expect(body).toHaveProperty('mission');
+    expect(body.mission).toHaveProperty('id');
+    expect(body.mission.title).toContain('E2E Test Mission');
+    expect(body.mission.status).toBe('draft');
+    missionId = body.mission.id;
   });
 
-  test('should validate each EAARG layer', async ({ ctx }) => {
-    const layers = [
-      { layer: 1, name: 'Business', evidence: ['ev-bus-1', 'ev-bus-2', 'ev-bus-3'] },
-      { layer: 2, name: 'Product', evidence: ['ev-prod-1', 'ev-prod-2'] },
-      { layer: 3, name: 'Requirements', evidence: ['ev-req-1', 'ev-req-2', 'ev-req-3'] },
-      { layer: 4, name: 'Architecture', evidence: ['ev-arch-1', 'ev-arch-2'] },
-      { layer: 5, name: 'Technology', evidence: ['ev-tech-1', 'ev-tech-2', 'ev-tech-3'] },
-      { layer: 6, name: 'Implementation', evidence: ['ev-impl-1', 'ev-impl-2'] },
-      { layer: 7, name: 'Quality', evidence: ['ev-qa-1', 'ev-qa-2', 'ev-qa-3'] },
-      { layer: 8, name: 'Governance', evidence: ['ev-gov-1', 'ev-gov-2'] },
-      { layer: 9, name: 'Operations', evidence: ['ev-ops-1', 'ev-ops-2', 'ev-ops-3'] },
-    ];
+  test('GET /api/missions returns mission list', async ({ request }) => {
+    const response = await request.get(`${API_BASE}/api/missions`);
+    expect(response.ok()).toBeTruthy();
 
-    for (const layer of layers) {
-      const response = await ctx.api.post(`/api/v1/pipeline/${pipelineId}/validate`, {
-        data: { layer: layer.layer, evidence: layer.evidence },
-      });
+    const body = await response.json();
+    expect(body).toHaveProperty('missions');
+    expect(Array.isArray(body.missions)).toBeTruthy();
+  });
 
-      expect(response.status()).toBe(200);
-      const result = await response.json();
+  test('POST /api/missions rejects invalid input', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/api/missions`, {
+      data: { title: '' },
+    });
 
-      expect(result).toMatchObject({
-        layer: layer.layer,
-        layerName: layer.name,
-        evidenceCollected: expect.any(Array),
-        score: expect.any(Number),
-      });
-      expect(result.score).toBeGreaterThanOrEqual(70);
-      expect(result.status).toBe('pass');
+    expect(response.status()).toBe(400);
+  });
+});
+
+test.describe('BehaviorOS API — Governance', () => {
+  test('GET /api/governance returns rules', async ({ request }) => {
+    const response = await request.get(`${API_BASE}/api/governance`);
+    expect(response.ok()).toBeTruthy();
+
+    const body = await response.json();
+    expect(body).toHaveProperty('rules');
+    expect(Array.isArray(body.rules)).toBeTruthy();
+    expect(body.rules.length).toBeGreaterThan(0);
+  });
+
+  test('POST /api/governance evaluates an action', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/api/governance`, {
+      data: {
+        action: 'deploy-production',
+        context: { type: 'deployment', agent: 'devops' },
+      },
+    });
+
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
+    expect(body).toHaveProperty('approved');
+    expect(typeof body.approved).toBe('boolean');
+  });
+});
+
+test.describe('BehaviorOS API — Quality', () => {
+  test('GET /api/quality returns gates', async ({ request }) => {
+    const response = await request.get(`${API_BASE}/api/quality`);
+    expect(response.ok()).toBeTruthy();
+
+    const body = await response.json();
+    expect(body).toHaveProperty('gates');
+    expect(Array.isArray(body.gates)).toBeTruthy();
+  });
+});
+
+test.describe('BehaviorOS API — Audit', () => {
+  test('GET /api/audit returns audit log', async ({ request }) => {
+    const response = await request.get(`${API_BASE}/api/audit`);
+    expect(response.ok()).toBeTruthy();
+
+    const body = await response.json();
+    expect(body).toHaveProperty('events');
+    expect(Array.isArray(body.events)).toBeTruthy();
+  });
+});
+
+test.describe('BehaviorOS API — Agents', () => {
+  test('GET /api/agents returns agent list', async ({ request }) => {
+    const response = await request.get(`${API_BASE}/api/agents`);
+    expect(response.ok()).toBeTruthy();
+
+    const body = await response.json();
+    expect(body).toHaveProperty('agents');
+    expect(Array.isArray(body.agents)).toBeTruthy();
+    expect(body.agents.length).toBeGreaterThan(0);
+  });
+});
+
+test.describe('BehaviorOS API — Pipeline', () => {
+  test('GET /api/pipeline returns pipeline status', async ({ request }) => {
+    const response = await request.get(`${API_BASE}/api/pipeline`);
+    expect(response.ok()).toBeTruthy();
+
+    const body = await response.json();
+    expect(body).toHaveProperty('state');
+    expect(body).toHaveProperty('progress');
+    expect(body).toHaveProperty('report');
+  });
+
+  test('POST /api/pipeline starts pipeline', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/api/pipeline`, {
+      data: { action: 'start' },
+    });
+
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
+    expect(body).toHaveProperty('state');
+    expect(body.state).toHaveProperty('status');
+    expect(['running', 'paused', 'created']).toContain(body.state.status);
+  });
+});
+
+test.describe('BehaviorOS API — DNAs', () => {
+  test('GET /api/dnas returns DNA patterns', async ({ request }) => {
+    const response = await request.get(`${API_BASE}/api/dnas`);
+    expect(response.ok()).toBeTruthy();
+
+    const body = await response.json();
+    expect(body).toHaveProperty('dnas');
+    expect(Array.isArray(body.dnas)).toBeTruthy();
+    expect(body.dnas.length).toBeGreaterThan(0);
+  });
+});
+
+test.describe('BehaviorOS Web Dashboard', () => {
+  test('homepage loads and shows dashboard', async ({ page }) => {
+    await page.goto(API_BASE);
+
+    // Wait for the page to load
+    await page.waitForLoadState('networkidle');
+
+    // Check that the page has a title or heading
+    const heading = page.locator('h1, h2, [class*="heading"]').first();
+    await expect(heading).toBeVisible();
+  });
+
+  test('navigation works', async ({ page }) => {
+    await page.goto(API_BASE);
+    await page.waitForLoadState('networkidle');
+
+    // Check for navigation links
+    const nav = page.locator('nav, [class*="sidebar"], [class*="nav"]').first();
+    if (await nav.isVisible()) {
+      const links = nav.locator('a');
+      const count = await links.count();
+      expect(count).toBeGreaterThan(0);
     }
-  });
-
-  test('should pause and resume the pipeline', async ({ ctx }) => {
-    const pauseResponse = await ctx.api.post(`/api/v1/pipeline/${pipelineId}/pause`);
-    expect(pauseResponse.status()).toBe(200);
-
-    const paused = await pauseResponse.json();
-    expect(paused.status).toBe('paused');
-
-    const resumeResponse = await ctx.api.post(`/api/v1/pipeline/${pipelineId}/resume`);
-    expect(resumeResponse.status()).toBe(200);
-
-    const resumed = await resumeResponse.json();
-    expect(resumed.status).toBe('running');
-  });
-
-  test('should generate a pipeline report', async ({ ctx }) => {
-    const response = await ctx.api.get(`/api/v1/pipeline/${pipelineId}/report`);
-    expect(response.status()).toBe(200);
-
-    const report = await response.json();
-    expect(report).toMatchObject({
-      pipelineId,
-      dnaId,
-      totalLayers: 9,
-      passedLayers: expect.any(Number),
-      overallScore: expect.any(Number),
-      overallStatus: expect.stringMatching(/^(pass|partial|fail)$/),
-      layers: expect.any(Array),
-    });
-    expect(report.layers).toHaveLength(report.passedLayers);
-    expect(report.overallScore).toBeGreaterThanOrEqual(0);
-    expect(report.overallScore).toBeLessThanOrEqual(100);
-  });
-
-  test('should complete the pipeline with learning events', async ({ ctx }) => {
-    const events = [
-      {
-        type: 'observation',
-        source: 'pipeline',
-        data: { pipelineId, layer: 1, finding: 'Business objectives clearly defined' },
-        confidence: 0.9,
-      },
-      {
-        type: 'pattern',
-        source: 'pipeline',
-        data: { pipelineId, layer: 3, pattern: 'Requirements traceability established' },
-        confidence: 0.85,
-      },
-      {
-        type: 'insight',
-        source: 'pipeline',
-        data: { pipelineId, layer: 5, insight: 'Cloud-native architecture recommended' },
-        confidence: 0.75,
-      },
-      {
-        type: 'feedback',
-        source: 'pipeline',
-        data: {
-          pipelineId,
-          layer: 7,
-          feedback: 'Test coverage meets threshold but can be improved',
-        },
-        confidence: 0.8,
-      },
-    ];
-
-    for (const event of events) {
-      const response = await ctx.api.post('/api/v1/learning/events', {
-        data: event,
-      });
-
-      expect(response.status()).toBe(201);
-      const created = await response.json();
-      expect(created).toMatchObject({
-        id: expect.any(String),
-        type: event.type,
-        source: event.source,
-      });
-    }
-
-    const reportResponse = await ctx.api.get('/api/v1/learning/report');
-    expect(reportResponse.status()).toBe(200);
-    const report = await reportResponse.json();
-    expect(report).toMatchObject({
-      totalEvents: expect.any(Number),
-      patterns: expect.any(Array),
-      recommendations: expect.any(Array),
-    });
-    expect(report.totalEvents).toBeGreaterThanOrEqual(events.length);
   });
 });

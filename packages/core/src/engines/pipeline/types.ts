@@ -1,8 +1,6 @@
 import type {
   ConversationProtocol,
   DNAPackage,
-  EAARGStep,
-  LayerResult,
   PipelineReport,
   PipelineState,
   SkillReference,

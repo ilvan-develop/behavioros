@@ -38,7 +38,7 @@ function buildAllEvidenceMap(dna: DNAPackage): Map<number, string[]> {
   return map;
 }
 
-const BROCOLIS_FINPAY_EVIDENCE: Record<number, string[]> = {
+const _BROCOLIS_FINPAY_EVIDENCE: Record<number, string[]> = {
   1: ['q1-1', 'q1-2', 'q1-3', 'q1-4', 'ev-1-1', 'ev-1-2'],
   2: ['q2-1', 'q2-2', 'q2-3', 'ev-2-1', 'ev-2-2'],
   3: ['q3-1', 'q3-2', 'q3-3', 'ev-3-1', 'ev-3-2'],

@@ -1,0 +1,184 @@
+meta:
+  version: "1.0.0"
+  preset: "mobile-app"
+  description: "Mobile app — LGPD, app-store-guidelines, offline-first, device-specific constraints"
+  inherits: "bos/schemas/governance-schema.yaml"
+  risk_level: medium
+
+compliance:
+  required_frameworks:
+    - name: "LGPD"
+      scope: "Brazilian data protection"
+      audit_frequency: "annual"
+    - name: "app-store-guidelines"
+      scope: "Apple App Store, Google Play policies"
+      audit_frequency: "per_release"
+    - name: "OWASP_Mobile_Top10"
+      scope: "mobile application security"
+      audit_frequency: "per_release"
+  extra_requirements:
+    - "Offline-first architecture for critical features"
+    - "Biometric authentication for sensitive operations"
+    - "Data encryption on device storage"
+    - "App Store review compliance check before submission"
+    - "Crash rate monitoring and alerting"
+    - "Push notification permission management"
+
+behavior_selector:
+  defaults:
+    feature: manufacturing
+    bug_fix: manufacturing
+    security: immune-system
+    incident: surgical-team
+    refactor: ant-colony
+    performance: mathematical-swarm
+    discovery: research-lab
+
+squads:
+  frontend:
+    swarm: bee-colony
+    rules:
+      - offline-first-critical-features
+      - push-notification-integration
+      - performance-budget-mobile
+      - smooth-animations-60fps
+      - battery-usage-optimization
+      - memory-management-aware
+      - responsive-to-all-screen-sizes
+    cannot_modify: ["apps/api/**", "packages/db/**", "k8s/**"]
+    description: "Offline-first, push notifications, performance-critical mobile UI"
+
+  backend:
+    swarm: manufacturing
+    rules:
+      - mobile-optimized-api-responses
+      - gzip-compression-for-all
+      - delta-sync-for-offline
+      - push-notification-service
+      - device-token-management
+      - api-versioning-for-versions
+      - caching-layer-for-mobile
+    cannot_modify: ["apps/web/**", "k8s/**"]
+    description: "Mobile-optimized APIs, delta sync, push notification service"
+
+  qa:
+    swarm: immune-system
+    rules:
+      - device-testing-matrix
+      - network-condition-simulation
+      - offline-mode-testing
+      - performance-profiling-mobile
+      - memory-leak-detection
+      - battery-impact-testing
+      - crash-reproduction-testing
+    authority: ["approve_release", "veto_deploy"]
+    description: "Device matrix, network conditions, offline mode, memory/battery testing"
+
+  security:
+    swarm: immune-system
+    rules:
+      - biometric-authentication-security
+      - device-storage-encryption
+      - certificate-pinning
+      - jailbreak-root-detection
+      - secure-keychain-usage
+      - app-store-security-compliance
+    authority: ["veto", "halt_deploy", "security_review"]
+    description: "Biometric auth, device encryption, certificate pinning, root detection"
+
+  devops:
+    swarm: surgical-team
+    rules:
+      - app-store-pipeline-automation
+      - ota-update-management
+      - beta-testing-distribution
+      - crash-reporting-setup
+      - analytics-integration
+      - version-management
+    description: "App Store pipeline, OTA updates, beta distribution, crash reporting"
+
+  platform:
+    swarm: octopus
+    rules:
+      - shared-mobile-components
+      - native-bridge-consistency
+      - dependency-audit-weekly
+      - monorepo-boundary-enforcement
+    description: "Shared mobile components, native bridge, monorepo governance"
+
+governance:
+  overrides:
+    architect:
+      schema_review: true
+      contract_review: true
+      required_for: ["api-contract-changes", "native-bridge-modifications"]
+      description: "Architect required for API contract and native bridge changes"
+
+  authority_overrides:
+    junior:
+      max_files_per_change: 2
+      max_packages: 1
+      can_deploy: false
+      can_approve: false
+      can_veto: false
+      can_modify_schema: false
+      can_change_contracts: false
+      escalation_required: true
+      restrictions: ["no-native-bridge-changes", "no-lead-on-offline-architecture"]
+    senior:
+      can_change_contracts: false
+      restrictions: ["requires-architect-for-native-bridge", "requires-review-for-offline-logic"]
+
+escalation:
+  overrides:
+    - trigger: "app_store_rejection"
+      action: "activate_surgical_team"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "App Store rejection halts release, surgical-team resolves"
+
+    - trigger: "crash_rate_increase"
+      action: "halt_all_activate_immune_system"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "Crash rate increase halts features, immune system investigates"
+
+    - trigger: "performance_degradation_mobile"
+      action: "halt_and_activate_mathematical_swarm"
+      timeout: "immediate"
+      retry: 1
+      severity: high
+      description: "Mobile performance regression halts features, swarm optimizes"
+
+    - trigger: "push_notification_failure"
+      action: "activate_surgical_team"
+      timeout: "5min"
+      retry: 3
+      severity: high
+      description: "Push notification failure escalates to surgical-team"
+
+    - trigger: "offline_sync_conflict"
+      action: "activate_surgical_team"
+      timeout: "5min"
+      retry: 2
+      severity: high
+      description: "Offline sync conflicts require surgical-team resolution"
+
+    - trigger: "biometric_auth_failure"
+      action: "activate_surgical_team"
+      timeout: "immediate"
+      retry: 1
+      severity: high
+      description: "Biometric auth failure blocks user access"
+
+    - trigger: "memory_leak_detected"
+      action: "halt_and_activate_mathematical_swarm"
+      timeout: "immediate"
+      retry: 1
+      severity: high
+      description: "Memory leak halts features, swarm optimizes memory usage"
+
+  inherits: "bos/schemas/governance-schema.yaml#escalation_matrix"
+  merge_strategy: "override_and_append"

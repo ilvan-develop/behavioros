@@ -1,11 +1,4 @@
-import type {
-  AgentPersona,
-  BehaviorPattern,
-  DNAPackage,
-  GovernanceRule,
-  QualityGate,
-  WorkflowStep,
-} from '@behavioros/schemas';
+import type { DNAPackage } from '@behavioros/schemas';
 
 // ============================================================
 // DNA Validator — Validação avançada de pacotes DNA
@@ -31,6 +24,7 @@ export interface ValidationWarning {
   severity: 'warning';
 }
 
+// biome-ignore lint/complexity/noStaticOnlyClass: static utility class pattern for DNA validation
 export class DNAValidator {
   /**
    * Validação completa de um pacote DNA
@@ -85,15 +79,15 @@ export class DNAValidator {
     const roles = new Set<string>();
     for (const persona of dna.personas) {
       // Check for duplicate roles
-      if (roles.has(persona.role)) {
+      if (roles.has(String(persona.role))) {
         warnings.push({
           code: 'DNA_DUPLICATE_ROLE',
           message: `Duplicate role: ${persona.role}`,
-          path: `personas.${persona.role}`,
+          path: `personas.${String(persona.role)}`,
           severity: 'warning',
         });
       }
-      roles.add(persona.role);
+      roles.add(String(persona.role));
 
       // Validate authority levels
       if (persona.authority === 'junior' && !persona.boundaries?.length) {
@@ -268,7 +262,7 @@ export class DNAValidator {
 
   private static validateCrossReferences(
     dna: DNAPackage,
-    errors: ValidationError[],
+    _errors: ValidationError[],
     warnings: ValidationWarning[],
   ): void {
     const agentRoles = new Set(dna.personas.map((p) => p.role));
@@ -293,7 +287,7 @@ export class DNAValidator {
 
   private static validateCompleteness(
     dna: DNAPackage,
-    errors: ValidationError[],
+    _errors: ValidationError[],
     warnings: ValidationWarning[],
   ): void {
     // Check metadata

@@ -15,6 +15,14 @@ import type {
 } from '@behavioros/schemas';
 import { MissionSchema } from '@behavioros/schemas';
 import EventEmitter from 'eventemitter3';
+import type { AuditContext, AuditPipelineResult, AuditStage } from './audit/audit-engine';
+// Real engines
+import { AuditEngine } from './audit/audit-engine';
+import type { AuthorityLevelValue, GovernanceContext } from './governance/governance-engine';
+import { GovernanceEngine } from './governance/governance-engine';
+import { LearningEngine } from './learning/learning-engine';
+import { MissionEngine } from './mission/mission-engine';
+import { QualityEngine } from './quality/quality-engine';
 
 // ============================================================
 // BehaviorOS Core Engine — Central Orchestrator
@@ -48,17 +56,37 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
   private agents: Map<string, AgentState> = new Map();
   private auditLog: AuditEvent[] = [];
   private qualityMetrics: QualityMetric[] = [];
-  private learningEvents: LearningEvent[] = [];
   private config: BehaviorOSEngineConfig;
+
+  // Real engine instances — public for advanced usage
+  public governanceEngine: GovernanceEngine;
+  public qualityEngine: QualityEngine;
+  public learningEngine: LearningEngine;
+  public missionEngine: MissionEngine;
+  public auditEngine: AuditEngine;
 
   constructor(config: BehaviorOSEngineConfig) {
     super();
     this.config = config;
     this.dna = config.dna;
+
+    // Instantiate real engines
+    this.governanceEngine = new GovernanceEngine(this.dna.governance ?? []);
+    this.qualityEngine = new QualityEngine(this.dna.quality ?? [], {
+      minScore: config.quality?.minCoverage ?? 80,
+    });
+    this.learningEngine = new LearningEngine({
+      persistPath: config.learning?.persistPath,
+      autoApply: config.learning?.autoApply,
+    });
+    this.missionEngine = new MissionEngine();
+    this.auditEngine = new AuditEngine();
+
     this.initializeAgents();
   }
 
   private initializeAgents(): void {
+    // 1. Register agents from personas
     for (const persona of this.dna.personas) {
       const agent: AgentState = {
         id: `agent-${persona.role}-${randomUUID().slice(0, 8)}`,
@@ -70,7 +98,27 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
       };
       this.agents.set(agent.id, agent);
     }
+
+    // 2. Register agents from agent_mapping (skip duplicates)
+    if (this.dna.agent_mapping) {
+      for (const mapping of Object.values(this.dna.agent_mapping)) {
+        for (const agentName of mapping.opencode_agents) {
+          if (this.agents.has(agentName)) continue;
+          const agent: AgentState = {
+            id: agentName,
+            role: mapping.role,
+            status: 'idle',
+            authority: mapping.authority,
+            completedMissions: [],
+            reputation: 50,
+          };
+          this.agents.set(agent.id, agent);
+        }
+      }
+    }
   }
+
+  // ─── Mission Management ────────────────────────────────────
 
   async createMission(input: {
     title: string;
@@ -182,15 +230,20 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
     return updated;
   }
 
-  private selectAgents(mission: Mission): AgentState[] {
+  private selectAgents(_mission: Mission): AgentState[] {
     const available = Array.from(this.agents.values()).filter((a) => a.status === 'idle');
     return available
       .sort((a, b) => b.reputation - a.reputation)
       .slice(0, Math.min(3, available.length));
   }
 
+  // ─── Agent Management ──────────────────────────────────────
+
   getAgent(id: string): AgentState | undefined {
     return this.agents.get(id);
+  }
+  getAgentByOpenCodeName(name: string): AgentState | undefined {
+    return Array.from(this.agents.values()).find((a) => a.id === name);
   }
   getAllAgents(): AgentState[] {
     return Array.from(this.agents.values());
@@ -198,6 +251,8 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
   getAgentsByRole(role: string): AgentState[] {
     return Array.from(this.agents.values()).filter((a) => a.role === role);
   }
+
+  // ─── Governance (delegates to real GovernanceEngine) ──────
 
   async evaluateGovernance(action: string, context: Record<string, unknown>) {
     if (!this.config.governance?.enabled)
@@ -207,62 +262,116 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
         warnings: [] as GovernanceRule[],
       };
 
-    const rules = this.dna.governance ?? [];
+    const govContext: GovernanceContext = {
+      agentId: (context.agentId as string) ?? 'system',
+      agentRole: (context.agentRole as string) ?? 'system',
+      agentAuthority: (context.agentAuthority as AuthorityLevelValue) ?? 'c-level',
+      action,
+      targetType: this.mapTargetType(context),
+      impact: this.mapImpact(context),
+      metadata: context,
+    };
+
+    const decision = this.governanceEngine.evaluate(govContext);
+    const applicableRules = this.governanceEngine.getApplicableRules(govContext);
+
     const violations: GovernanceRule[] = [];
     const warnings: GovernanceRule[] = [];
 
-    for (const rule of rules) {
-      if (rule.conditions?.some((c) => c.includes(action) || c.includes(String(context.type)))) {
-        if (rule.level === 'critical' || rule.level === 'high') {
-          violations.push(rule);
-          this.emit('governance:violation', rule, context);
-        } else {
-          warnings.push(rule);
-        }
+    for (const rule of applicableRules) {
+      if (rule.level === 'critical' || rule.level === 'high') {
+        violations.push(rule);
+        this.emit('governance:violation', rule, context);
+      } else {
+        warnings.push(rule);
       }
     }
 
-    return { approved: violations.length === 0, violations, warnings };
+    if (!decision.allowed && violations.length === 0) {
+      if (decision.rule) {
+        violations.push(decision.rule);
+        this.emit('governance:violation', decision.rule, context);
+      }
+    }
+
+    return { approved: decision.allowed, violations, warnings };
   }
+
+  evaluateGovernanceDetailed(context: GovernanceContext) {
+    return this.governanceEngine.evaluate(context);
+  }
+
+  private mapTargetType(context: Record<string, unknown>): GovernanceContext['targetType'] {
+    const type = String(context.targetType ?? context.type ?? '').toLowerCase();
+    // Direct match to GovernanceContext targetType enum
+    if (
+      (['file', 'module', 'service', 'config', 'infrastructure', 'database'] as string[]).includes(
+        type,
+      )
+    ) {
+      return type as GovernanceContext['targetType'];
+    }
+    // For DNA condition types (e.g. "security", "payment", "api"), return raw value.
+    // The real GovernanceEngine.ruleApplies() checks condition.includes(targetType),
+    // so "type:security".includes("security") === true.
+    return type as GovernanceContext['targetType'];
+  }
+
+  private mapImpact(context: Record<string, unknown>): GovernanceContext['impact'] {
+    const impact = String(context.impact ?? '').toLowerCase();
+    if ((['low', 'medium', 'high', 'critical'] as string[]).includes(impact)) {
+      return impact as GovernanceContext['impact'];
+    }
+    return 'medium';
+  }
+
+  // ─── Quality (delegates to real QualityEngine) ────────────
 
   async evaluateQuality(metrics: QualityMetric[]) {
     if (!this.config.quality?.enabled)
       return { passed: true, failedGates: [] as QualityGate[], metrics };
 
-    const gates = this.dna.quality ?? [];
-    const failedGates: QualityGate[] = [];
-    const enriched: QualityMetric[] = [];
+    const report = this.qualityEngine.evaluate(metrics);
 
-    for (const metric of metrics) {
-      const gate = gates.find((g) => g.name === metric.name);
-      const m = { ...metric, timestamp: new Date().toISOString() };
-      if (gate?.threshold !== undefined) {
-        m.threshold = gate.threshold;
-        m.passed = metric.value >= gate.threshold;
+    const failedGates: QualityGate[] = [];
+    for (const check of report.checks) {
+      if (!check.passed) {
+        const gate = this.dna.quality?.find((g) => g.name === check.gate);
+        if (gate) failedGates.push(gate);
       }
-      if (m.passed === false) failedGates.push(gate!);
-      enriched.push(m);
+    }
+
+    for (const m of report.metrics) {
       this.qualityMetrics.push(m);
       this.emit('quality:metric', m);
     }
 
-    return { passed: failedGates.length === 0, failedGates, metrics: enriched };
+    return { passed: report.passed, failedGates, metrics: report.metrics };
   }
 
+  // ─── Learning (delegates to real LearningEngine) ──────────
+
   async recordLearning(event: Omit<LearningEvent, 'id' | 'timestamp'>): Promise<LearningEvent> {
-    const enriched: LearningEvent = {
-      id: randomUUID(),
-      timestamp: new Date().toISOString(),
-      ...event,
-    };
-    this.learningEvents.push(enriched);
+    const enriched = this.learningEngine.record(event);
     this.emit('learning:event', enriched);
     return enriched;
   }
 
   getLearningEvents(): LearningEvent[] {
-    return [...this.learningEvents];
+    return this.learningEngine.getEvents();
   }
+
+  // ─── Audit (delegates to real AuditEngine) ────────────────
+
+  async runAudit(projectPath: string, stages?: AuditStage[]): Promise<AuditPipelineResult> {
+    return this.auditEngine.execute({ projectPath }, stages);
+  }
+
+  getAuditHistory(): AuditPipelineResult[] {
+    return this.auditEngine.getHistory();
+  }
+
+  // ─── Internal Audit Log ───────────────────────────────────
 
   private auditEvent(
     type: string,
@@ -288,6 +397,9 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
   getAuditLog(): AuditEvent[] {
     return [...this.auditLog];
   }
+
+  // ─── Query Methods ────────────────────────────────────────
+
   getMission(id: string): Mission | undefined {
     return this.missions.get(id);
   }
@@ -316,6 +428,8 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
     return (this.dna.quality ?? []).find((g) => g.name === name);
   }
 
+  // ─── Stats ────────────────────────────────────────────────
+
   getStats() {
     const missions: Record<string, number> = {};
     for (const m of this.missions.values()) missions[m.status] = (missions[m.status] || 0) + 1;
@@ -326,7 +440,7 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
       agents,
       auditEvents: this.auditLog.length,
       qualityMetrics: this.qualityMetrics.length,
-      learningEvents: this.learningEvents.length,
+      learningEvents: this.learningEngine.getEvents().length,
     };
   }
 }

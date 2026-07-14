@@ -2,6 +2,31 @@
 export { registerCICDResources } from './resources/cicd-resources.js';
 export { registerResources } from './resources.js';
 export { createServer, getEngine, getServer } from './server.js';
+export {
+  bosCheckEscalation,
+  bosCheckEscalationInput,
+} from './tools/bos-check-escalation.js';
+export {
+  bosGetInsights,
+  bosGetInsightsInput,
+} from './tools/bos-get-insights.js';
+export {
+  bosListPatterns,
+  bosListPatternsInput,
+} from './tools/bos-list-patterns.js';
+export {
+  bosResolveConflict,
+  bosResolveConflictInput,
+} from './tools/bos-resolve-conflict.js';
+export {
+  bosRunAudit,
+  bosRunAuditInput,
+} from './tools/bos-run-audit.js';
+// BOS Behavioral Tools
+export {
+  bosSelectDna,
+  bosSelectDnaInput,
+} from './tools/bos-select-dna.js';
 // CI/CD tools
 export {
   type ApproveLayerInput,

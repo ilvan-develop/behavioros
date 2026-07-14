@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -10,8 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { missions } from '@/lib/mock-data';
 import { formatRelativeTime } from '@/lib/utils';
+import type { Mission } from '@/types';
+
+interface MissionsResponse {
+  missions?: Mission[];
+  total?: number;
+}
 
 const statusVariant: Record<
   string,
@@ -32,6 +38,26 @@ const priorityVariant: Record<string, 'destructive' | 'warning' | 'secondary' | 
 };
 
 export function RecentMissions() {
+  const [missions, setMissions] = useState<Mission[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchMissions() {
+      try {
+        const res = await fetch('/api/missions');
+        if (res.ok) {
+          const data: MissionsResponse = await res.json();
+          setMissions(data.missions ?? []);
+        }
+      } catch {
+        // keep empty
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchMissions();
+  }, []);
+
   const recentMissions = missions.slice(0, 5);
 
   return (
@@ -43,34 +69,46 @@ export function RecentMissions() {
         </a>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Updated</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {recentMissions.map((mission) => (
-              <TableRow key={mission.id}>
-                <TableCell className="font-medium text-[#fafafa]">{mission.title}</TableCell>
-                <TableCell className="capitalize text-[#a1a1aa]">{mission.type}</TableCell>
-                <TableCell>
-                  <Badge variant={priorityVariant[mission.priority]}>{mission.priority}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={statusVariant[mission.status]}>{mission.status}</Badge>
-                </TableCell>
-                <TableCell className="text-[#a1a1aa]">
-                  {formatRelativeTime(mission.updatedAt)}
-                </TableCell>
-              </TableRow>
+        {loading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-10 w-full animate-pulse rounded bg-[#262626]" />
             ))}
-          </TableBody>
-        </Table>
+          </div>
+        ) : recentMissions.length === 0 ? (
+          <p className="text-sm text-[#a1a1aa] py-4 text-center">
+            No missions yet. Create one to get started.
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Priority</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Updated</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recentMissions.map((mission) => (
+                <TableRow key={mission.id}>
+                  <TableCell className="font-medium text-[#fafafa]">{mission.title}</TableCell>
+                  <TableCell className="capitalize text-[#a1a1aa]">{mission.type}</TableCell>
+                  <TableCell>
+                    <Badge variant={priorityVariant[mission.priority]}>{mission.priority}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant[mission.status]}>{mission.status}</Badge>
+                  </TableCell>
+                  <TableCell className="text-[#a1a1aa]">
+                    {formatRelativeTime(mission.updatedAt)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   );

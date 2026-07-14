@@ -11,7 +11,7 @@ import type {
   RequiredEvidence,
   SkillReference,
 } from '@behavioros/schemas';
-import { LayerResultSchema, PipelineStateSchema } from '@behavioros/schemas';
+import { LayerResultSchema } from '@behavioros/schemas';
 import EventEmitter from 'eventemitter3';
 import type {
   EvidenceValidationResult,
@@ -394,49 +394,6 @@ export class PipelineEngine extends EventEmitter<PipelineEngineEvents> {
     }
   }
 
-  private async executeLayer(step: EAARGStep): Promise<LayerExecutionResult> {
-    const questionsTotal = step.questions.length;
-    const questionsAnswered = 0;
-    const criteriaTotal = step.acceptanceCriteria.length;
-    const criteriaMet = 0;
-    const evidenceCollected: string[] = [];
-
-    // Emit evidence collection event
-    this.emit('evidence:collected', step.layer, evidenceCollected);
-
-    const score = this.calculateLayerScore(
-      questionsAnswered,
-      questionsTotal,
-      criteriaMet,
-      criteriaTotal,
-      false,
-    );
-    const protocol = this.buildProtocol(
-      step,
-      evidenceCollected,
-      questionsAnswered,
-      questionsTotal,
-      criteriaMet,
-      criteriaTotal,
-      'in_progress',
-    );
-
-    return {
-      layer: step.layer,
-      layerName: step.layerName,
-      status: 'in_progress',
-      score,
-      protocol,
-      evidenceCollected,
-      questionsAnswered,
-      questionsTotal,
-      criteriaMet,
-      criteriaTotal,
-      duration: 0,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
   private checkGates(step: EAARGStep, result: LayerExecutionResult): GateCheckResult {
     const failedGates: string[] = [];
     const warnings: string[] = [];
@@ -504,8 +461,8 @@ export class PipelineEngine extends EventEmitter<PipelineEngineEvents> {
     evidence: string[],
     questionsAnswered: number,
     questionsTotal: number,
-    criteriaMet: number,
-    criteriaTotal: number,
+    _criteriaMet: number,
+    _criteriaTotal: number,
     status: 'pending' | 'in_progress' | 'partial' | 'complete' | 'blocked',
   ): ConversationProtocol {
     const completionPercent =

@@ -72,6 +72,74 @@ The `@behavioros/mcp-server` exposes these tools to AI agents:
 - `evaluate_governance`, `run_audit`
 - `record_learning`
 
+## Agent Team — BehaviorOS DNA Wiring
+
+All agents in `.opencode/agents/` are wired to use BehaviorOS DNA selection before starting any task.
+
+### Agent Roster
+
+| Agent | File | Role | BehaviorOS DNA |
+|-------|------|------|----------------|
+| Orchestrator | `orchestrator.md` | Central coordinator, delegates to all agents | `bos_select_dna` → `bos_resolve_truth` → `create-mission` → delegate → `bos_run_audit` |
+| DNA Architect | `dna-architect.md` | Creates/modifies DNA YAML patterns | `bos_select_dna(taskType: feature/refactor, domain: infra)` |
+| Governance Reviewer | `governance-reviewer.md` | Reviews governance rules | `bos_select_dna(taskType: review/security, domain: infra)` |
+| Audit Analyst | `audit-analyst.md` | Runs audit pipelines | `bos_select_dna(taskType: review/deploy, domain: match context)` |
+| Quality Guardian | `quality-guardian.md` | Enforces quality gates | `bos_select_dna(taskType: review/bugfix, domain: match context)` |
+| Mission Controller | `mission-controller.md` | Manages mission lifecycle | `bos_select_dna(taskType: feature/deploy, domain: match context)` |
+
+### BehaviorOS Tools Available to All Agents
+
+Every agent has access to these BehaviorOS MCP tools:
+
+| Tool | Purpose | When to Use |
+|------|---------|-------------|
+| `bos_select_dna` | Select optimal DNA pattern for a task | Before starting ANY task |
+| `bos_resolve_truth` | Get DNA pattern + context7 docs for delegation | Before delegating |
+| `bos_run_audit` | Run audit pipeline (commit/PR/merge/deploy) | After completing work |
+| `bos_resolve_conflict` | Resolve agent conflicts | When agents disagree |
+| `bos_check_escalation` | Check if human approval needed | Before critical actions |
+| `bos_list_patterns` | List available DNA patterns | When discovering patterns |
+| `bos_get_insights` | Check pattern health and system status | When monitoring |
+| `create-mission` | Create a new mission | For mission lifecycle |
+| `update-progress` | Update mission status | For progress tracking |
+
+### Delegation Flow (Orchestrator)
+
+```
+User Request
+    ↓
+bos_select_dna(taskType, domain, riskLevel, complexity)
+    ↓  → returns: pattern_name, confidence, principles, forbidden_rules
+bos_resolve_truth(taskType, domain, riskLevel, complexity, agentId)
+    ↓  → returns: DNA pattern + context7 library docs
+create-mission(title, type, priority, description)
+    ↓  → returns: missionId
+Delegate to subagent (Task tool)
+    ↓  → inject: DNA pattern + principles + forbidden rules + docs
+Agent executes work
+    ↓
+bos_run_audit(trigger: commit|pr|merge|deploy_staging|deploy_production)
+    ↓  → returns: gate results
+update-progress(missionId, status: completed|failed)
+    ↓
+record-learning(type, source, data)
+```
+
+### Conflict Resolution
+
+When agents produce conflicting outputs:
+1. `bos_resolve_conflict(type, agentA, agentB, context)` → returns resolution strategy
+2. Types: `backend_vs_frontend`, `security_vs_feature`, `qa_vs_developer`, `devops_vs_backend`, `custom`
+
+### Escalation Rules
+
+`bos_check_escalation(trigger, context)` is called BEFORE:
+- Security vulnerability fixes
+- Payment system changes
+- Production deployments
+- Breaking API changes
+- Any `critical` risk level action
+
 ## Important Patterns
 
 - DNA validation happens before any engine uses a package
@@ -79,6 +147,9 @@ The `@behavioros/mcp-server` exposes these tools to AI agents:
 - Audit pipeline runs stages sequentially: lint → typecheck → security → coverage → performance
 - Missions follow lifecycle: created → in_progress → completed/failed
 - Learning events are recorded and patterns are auto-detected
+- Every agent runs `bos_select_dna` before starting work (mandatory)
+- Every agent runs `bos_run_audit` after completing work (mandatory)
+- Conflicts are resolved via `bos_resolve_conflict` before proceeding
 
 ## Testing
 

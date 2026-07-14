@@ -16,34 +16,35 @@
     "./compiler": "./dist/compiler/index.js"
   },
   "scripts": {
-    "build": "tsup src/index.ts --dts --format esm,cjs",
-    "dev": "tsup src/index.ts --dts --format esm,cjs --watch",
+    "build": "tsup src/index.ts --format esm,cjs",
+    "dev": "tsup src/index.ts --format esm,cjs --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "zod": "latest",
-    "yaml": "latest",
-    "ajv": "latest",
-    "better-sqlite3": "latest",
-    "handlebars": "latest",
-    "glob": "latest",
-    "diff": "latest",
-    "eventemitter3": "latest",
-    "lru-cache": "latest",
-    "dotenv": "latest"
+    "@behavioros/schemas": "workspace:*",
+    "zod": "^3.24.0",
+    "yaml": "^2.7.0",
+    "ajv": "^8.17.0",
+    "better-sqlite3": "^11.8.0",
+    "handlebars": "^4.7.0",
+    "glob": "^11.0.0",
+    "diff": "^7.0.0",
+    "eventemitter3": "^5.0.0",
+    "lru-cache": "^11.0.0",
+    "dotenv": "^16.4.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "latest",
-    "@types/diff": "latest",
-    "@types/node": "latest",
-    "tsup": "latest",
-    "tsx": "latest",
-    "typescript": "latest",
-    "vitest": "latest",
-    "@vitest/coverage-v8": "latest"
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/diff": "^7.0.0",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0",
+    "@vitest/coverage-v8": "^3.1.0"
   },
   "peerDependencies": {
     "typescript": ">=5.0.0"

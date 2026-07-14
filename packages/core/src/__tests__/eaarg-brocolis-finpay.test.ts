@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { DNAPackage, EAARGStep } from '@behavioros/schemas';
+import type { DNAPackage } from '@behavioros/schemas';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { parse as parseYaml } from 'yaml';
 import { PipelineEngine } from '../engines/pipeline/pipeline-engine';

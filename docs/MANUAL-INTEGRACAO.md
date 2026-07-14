@@ -16,7 +16,7 @@ BehaviorOS é um framework de governança comportamental para equipas de agentes
 - **Decision Engine** — Decisões por votação
 - **Learning Engine** — Registo de eventos e deteção de padrões
 - **Mission Engine** — Gestão de ciclo de vida de missões
-- **MCP Server** — 28 tools + 5 resources para agentes IA
+- **MCP Server** — 30 tools + 5 resources para agentes IA
 - **SDK** — API TypeScript de alto nível
 - **CLI** — Ferramenta de linha de comandos
 
@@ -28,7 +28,7 @@ BehaviorOS é um framework de governança comportamental para equipas de agentes
 ┌─────────────────────────────────────────────────────────┐
 │                    BehaviorOS Orchestrator                │
 │  PipelineEngine → Governance → Quality → Audit → Mission │
-│  MCP Server (28 tools + 5 resources) → Learning Engine   │
+│  MCP Server (30 tools + 5 resources) → Learning Engine   │
 ├─────────────────────────────────────────────────────────┤
 │                                                          │
 │  ┌────────────────────────────────────────────────────┐ │
@@ -108,6 +108,10 @@ Quality gates:
 - security: 100%
 - performance: 90%
 
+LSP tools (automáticas se typescript/eslint instalados):
+  - bos_lsp_diagnostics → diagnósticos real-time
+  - bos_lsp_validate → quality gate de código
+
 Patterns (adapta ao teu domínio):
 - payment-pipeline → pipeline de validação
 - api-versioning → versionamento de API
@@ -164,8 +168,10 @@ Configura o BehaviorOS MCP server para o projeto [NOME_DO_PROJETO].
 3. Cria .github/workflows/behavioros-merge-gate.yml:
    - Bloqueia merge se pipeline EAARG falhar
    - Verifica quality gates
-   - Verifica governance rules
+    - Verifica governance rules
 ```
+
+> **Nota:** O BehaviorOS inclui tools LSP (`bos_lsp_diagnostics`, `bos_lsp_validate`) que precisam de `typescript` e `eslint` instalados no projecto. Verifica a secção "LSP Requirements" abaixo.
 
 ---
 
@@ -442,6 +448,62 @@ docker-compose -f docker-compose.observability.yml up -d
 BEHAVIOROS_DNA_PATH=./behavioros.yaml
 BEHAVIOROS_PROJECT=[id-do-projeto]
 BEHAVIOROS_LOG_LEVEL=debug
+```
+
+---
+
+## LSP Requirements
+
+BehaviorOS inclui ferramentas LSP para diagnósticos de código. Para usar estas tools, o projecto precisa de ter:
+
+### Dependências Necessárias
+
+| Tool LSP | Dependência | Instalação |
+|----------|-------------|------------|
+| `bos_lsp_diagnostics` (TypeScript) | `typescript` | `pnpm add -D typescript` |
+| `bos_lsp_diagnostics` (ESLint) | `eslint` | `pnpm add -D eslint` |
+| `bos_lsp_diagnostics` (Biome) | `@biomejs/biome` | `pnpm add -D @biomejs/biome` |
+| `bos_lsp_validate` | Ambos acima | — |
+
+### Notas
+
+- Se o projecto não tiver `typescript` instalado, a tool `bos_lsp_diagnostics` retorna erro descritivo
+- Se o projecto não tiver `eslint` nem `biome` instalado, essa parte do diagnóstico é ignorada
+- O tool detecta automaticamente se o projecto usa ESLint ou Biome (via config files)
+- Para Biome: se `biome ci` falhar com erro interno, o tool retorna mensagem a sugerir correr em ficheiros individuais
+- As tools funcionam com qualquer stack que suporte `tsc --noEmit` + `eslint` ou `biome`
+
+### Tools LSP Disponíveis
+
+| Tool | Descrição | Uso |
+|------|-----------|-----|
+| `bos_lsp_diagnostics` | Corre TypeScript + ESLint/Biome, retorna diagnósticos estruturados | Feedback real-time após edits |
+| `bos_lsp_validate` | Quality gate — valida se projecto passa checks LSP | Antes de completar tarefas |
+
+### Exemplo de Utilização
+
+```typescript
+// Via MCP Server — TypeScript + ESLint
+await mcp.callTool('bos_lsp_diagnostics', {
+  projectPath: '/path/to/project',
+  tools: ['typescript', 'eslint'],
+  save: true,
+})
+
+// Via MCP Server — TypeScript + Biome
+await mcp.callTool('bos_lsp_diagnostics', {
+  projectPath: '/path/to/project',
+  tools: ['typescript', 'biome'],
+  save: true,
+})
+
+// Quality gate
+await mcp.callTool('bos_lsp_validate', {
+  projectPath: '/path/to/project',
+  failOnError: true,
+  maxErrors: 0,
+  maxWarnings: 10,
+})
 ```
 
 ---

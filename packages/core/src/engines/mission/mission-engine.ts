@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Mission, MissionPriority, MissionStatus } from '@behavioros/schemas';
+import type { Mission, MissionStatus } from '@behavioros/schemas';
 import { MissionSchema } from '@behavioros/schemas';
 
 // ============================================================

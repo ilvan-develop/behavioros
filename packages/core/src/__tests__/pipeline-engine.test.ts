@@ -1,4 +1,4 @@
-import type { DNAPackage, EAARGStep, WorkflowStep } from '@behavioros/schemas';
+import type { DNAPackage, WorkflowStep } from '@behavioros/schemas';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PipelineEngine } from '../engines/pipeline/pipeline-engine';
 

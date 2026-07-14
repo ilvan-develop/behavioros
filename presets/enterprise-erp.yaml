@@ -1,0 +1,201 @@
+meta:
+  version: "1.0.0"
+  preset: "enterprise-erp"
+  description: "Enterprise ERP — SOX/ISO27001/SOC2, complex business rules, workflow engine, compliance-heavy"
+  inherits: "bos/schemas/governance-schema.yaml"
+  risk_level: high
+
+compliance:
+  required_frameworks:
+    - name: "SOX"
+      scope: "financial controls, audit trail, separation of duties"
+      audit_frequency: "annual"
+    - name: "ISO27001"
+      scope: "information security management"
+      audit_frequency: "annual"
+    - name: "SOC2"
+      scope: "security, availability, confidentiality"
+      audit_frequency: "annual"
+    - name: "OWASP_Top10"
+      scope: "application security"
+      audit_frequency: "per_release"
+  extra_requirements:
+    - "Complete audit trail for every business transaction"
+    - "Separation of duties enforced at application level"
+    - "Workflow approval chains for critical operations"
+    - "Data integrity verification at every boundary"
+    - "Version control for all business rules"
+    - "Rollback capability for every state change"
+
+behavior_selector:
+  defaults:
+    feature: manufacturing
+    bug_fix: manufacturing
+    security: immune-system
+    incident: surgical-team
+    refactor: ant-colony
+    performance: mathematical-swarm
+    discovery: research-lab
+
+squads:
+  frontend:
+    swarm: bee-colony
+    rules:
+      - complex-form-patterns
+      - wizard-flows-for-multi-step
+      - offline-capable-for-critical-forms
+      - real-time-validation
+      - keyboard-navigation-for-power-users
+      - data-grid-with-export
+      - audit-trail-visualization
+    cannot_modify: ["apps/api/**", "packages/db/**", "k8s/**"]
+    description: "Complex forms, wizard flows, power-user shortcuts, audit visualization"
+
+  backend:
+    swarm: manufacturing
+    rules:
+      - complex-business-rules-engine
+      - workflow-engine-integration
+      - audit-everything
+      - idempotency-on-all-writes
+      - transaction-boundary-management
+      - separation-of-duties-enforcement
+      - data-integrity-checks-at-boundaries
+      - configuration-over-code-for-rules
+    cannot_modify: ["apps/web/**", "k8s/**"]
+    description: "Business rules engine, workflow, audit everything, separation of duties"
+
+  qa:
+    swarm: immune-system
+    rules:
+      - regression-testing-comprehensive
+      - data-integrity-verification
+      - workflow-state-testing
+      - business-rule-validation
+      - audit-trail-completeness
+      - performance-under-load
+      - edge-case-business-scenarios
+    authority: ["approve_release", "veto_deploy"]
+    description: "Comprehensive regression, data integrity, workflow state testing"
+
+  security:
+    swarm: immune-system
+    rules:
+      - access-control-enforcement
+      - audit-trail-integrity
+      - data-classification-enforcement
+      - separation-of-duties-verification
+      - encryption-at-rest-and-transit
+      - penetration-testing-quarterly
+      - compliance-evidence-collection
+    authority: ["veto", "halt_deploy", "security_review"]
+    description: "Access control, audit trail integrity, compliance enforcement"
+
+  devops:
+    swarm: surgical-team
+    rules:
+      - on-prem-deployment-support
+      - hybrid-cloud-flexibility
+      - infrastructure-as-code
+      - secrets-management-sops
+      - disaster-recovery-tested
+      - backup-verification-automated
+    description: "On-prem + hybrid cloud, disaster recovery, backup verification"
+
+  platform:
+    swarm: octopus
+    rules:
+      - shared-contracts-versioned
+      - business-rule-module-isolation
+      - dependency-audit-weekly
+      - monorepo-boundary-enforcement
+      - plugin-architecture-for-workflows
+    description: "Shared contracts, rule isolation, plugin architecture"
+
+governance:
+  overrides:
+    architect:
+      required_for: ["all-schema-changes", "business-rule-engine-changes", "workflow-modifications"]
+      description: "Architect required for ALL schema and business rule changes"
+    cto:
+      production_deploy_required: true
+      required_for: ["all-production-deploys", "infrastructure-changes", "compliance-configuration"]
+      description: "CTO required for ALL production deploys and compliance changes"
+    security:
+      can_veto: true
+      can_halt_deploy: true
+      description: "Security has veto on access control and audit trail changes"
+
+  authority_overrides:
+    junior:
+      max_files_per_change: 1
+      max_packages: 1
+      can_deploy: false
+      can_approve: false
+      can_veto: false
+      can_modify_schema: false
+      can_change_contracts: false
+      escalation_required: true
+      restrictions: ["no-lead-on-business-rules", "no-lead-on-workflow", "no-audit-trail-modifications"]
+    senior:
+      can_change_contracts: false
+      can_modify_schema: false
+      restrictions: ["requires-architect-for-business-rule-changes", "requires-review-for-audit-changes"]
+    architect:
+      required_for: ["all-schema-changes", "business-rule-modifications", "workflow-configuration", "audit-trail-changes", "contract-version-bumps"]
+    tech_lead:
+      required_for: ["production-deploys", "infrastructure-changes"]
+
+escalation:
+  overrides:
+    - trigger: "compliance_violation"
+      action: "halt_all_governance_review"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "Compliance violation halts everything, governance review required"
+
+    - trigger: "data_integrity_issue"
+      action: "halt_all_activate_immune_system"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "Data integrity issue halts all work, full immune response"
+
+    - trigger: "audit_trail_gap"
+      action: "halt_and_security_review"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "Missing audit trail entries are critical for SOX compliance"
+
+    - trigger: "workflow_state_corruption"
+      action: "halt_and_surgical_team"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "Workflow state corruption halts everything"
+
+    - trigger: "separation_of_duties_breach"
+      action: "halt_all_security_review"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "Separation of duties breach is a SOX violation"
+
+    - trigger: "business_rule_conflict"
+      action: "escalate_to_architect"
+      timeout: "15min"
+      retry: 1
+      severity: high
+      description: "Conflicting business rules require architect resolution"
+
+    - trigger: "performance_regression_under_load"
+      action: "halt_and_mathematical_swarm"
+      timeout: "immediate"
+      retry: 1
+      severity: high
+      description: "Performance regression under enterprise load halts features"
+
+  inherits: "bos/schemas/governance-schema.yaml#escalation_matrix"
+  merge_strategy: "override_and_append"

@@ -177,9 +177,9 @@ describe('MetricsCollector', () => {
     });
   });
 
-  describe('getUnifiedMetrics', () => {
+  describe('collectAll', () => {
     it('should return unified metrics from all platforms', async () => {
-      const unified = await collector.getUnifiedMetrics();
+      const unified = await collector.collectAll();
 
       expect(unified).toBeDefined();
       expect(unified.brocolis).toBeDefined();
@@ -189,14 +189,14 @@ describe('MetricsCollector', () => {
     });
 
     it('should have valid ISO timestamp', async () => {
-      const unified = await collector.getUnifiedMetrics();
+      const unified = await collector.collectAll();
       const parsed = new Date(unified.timestamp);
 
       expect(parsed.getTime()).not.toBeNaN();
     });
 
     it('should call all collection methods', async () => {
-      const unified = await collector.getUnifiedMetrics();
+      const unified = await collector.collectAll();
 
       expect(unified.brocolis.orders).toBeDefined();
       expect(unified.finpay.payments).toBeDefined();

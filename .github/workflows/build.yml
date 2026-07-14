@@ -1,0 +1,78 @@
+name: Build Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Verify Package Builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.6.0
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+        id: pnpm-cache
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm build
+
+      - name: Verify dist/ exists for all packages
+        shell: bash
+        run: |
+          echo "Checking dist/ output for all packages..."
+          FAILED=0
+          for pkg in packages/*/; do
+            pkg_name=$(basename "$pkg")
+            if [ -d "$pkg/dist" ]; then
+              file_count=$(find "$pkg/dist" -type f | wc -l)
+              if [ "$file_count" -gt 0 ]; then
+                echo "  ✓ $pkg_name/dist ($file_count files)"
+              else
+                echo "  ✗ $pkg_name/dist exists but is empty"
+                FAILED=1
+              fi
+            else
+              echo "  ✗ $pkg_name/dist does not exist"
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" -ne 0 ]; then
+            echo ""
+            echo "ERROR: One or more packages are missing dist/ output."
+            exit 1
+          fi
+          echo ""
+          echo "All packages have valid dist/ output."

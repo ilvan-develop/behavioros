@@ -1,0 +1,193 @@
+meta:
+  version: "1.0.0"
+  preset: "fintech"
+  description: "FinPay-style fintech SaaS — PCI-DSS, SOC2, financial transaction integrity"
+  inherits: "bos/schemas/governance-schema.yaml"
+  risk_level: critical
+
+compliance:
+  required_frameworks:
+    - name: "SOC2"
+      scope: "security, availability, confidentiality"
+      audit_frequency: "annual"
+    - name: "PCI-DSS"
+      scope: "cardholder data, payment processing"
+      audit_frequency: "quarterly"
+    - name: "ISO27001"
+      scope: "information security management"
+      audit_frequency: "annual"
+    - name: "OWASP_Top10"
+      scope: "application security"
+      audit_frequency: "per_release"
+  extra_requirements:
+    - "All financial mutations require idempotency keys"
+    - "Double-entry bookkeeping for all ledger operations"
+    - "PCI-DSS tokenization for all card data"
+    - "Real-time fraud detection hooks on payment endpoints"
+    - "Complete audit trail for every state mutation"
+
+behavior_selector:
+  defaults:
+    feature: manufacturing
+    bug_fix: manufacturing
+    security: immune-system
+    incident: surgical-team
+    refactor: ant-colony
+    performance: mathematical-swarm
+    discovery: research-lab
+
+squads:
+  frontend:
+    swarm: bee-colony
+    rules:
+      - real-time-payment-updates
+      - no-card-data-in-state
+      - optimistic-ui-for-transactions
+      - toast-notifications-for-payment-status
+    cannot_modify: ["apps/api/**", "packages/db/**", "k8s/**"]
+    description: "Payment UI, real-time status, zero card data exposure"
+
+  backend:
+    swarm: manufacturing
+    rules:
+      - idempotency-on-all-writes
+      - double-check-financial-calculations
+      - audit-trail-on-every-mutation
+      - no-unvalidated-payments
+      - circuit-breaker-on-external-providers
+      - retry-with-exponential-backoff
+    cannot_modify: ["apps/web/**", "k8s/**"]
+    description: "Payment processing, ledger, reconciliation, provider integrations"
+
+  qa:
+    swarm: immune-system
+    rules:
+      - test-network-failure-scenarios
+      - test-concurrent-payment-races
+      - test-rollback-and-reversal
+      - test-idempotency-under-retry
+      - zero-tolerance-on-payment-calculations
+      - load-test-payment-endpoints
+    authority: ["approve_release", "veto_deploy"]
+    description: "Financial correctness, failure injection, race conditions"
+
+  security:
+    swarm: immune-system
+    rules:
+      - pci-dss-compliance-enforcement
+      - tokenization-for-all-card-data
+      - penetration-test-before-release
+      - no-secrets-in-logs-or-code
+      - encrypt-at-rest-and-transit
+      - monitor-for-fraud-patterns
+    authority: ["veto", "halt_deploy", "security_review"]
+    description: "PCI-DSS, tokenization, fraud detection, threat modeling"
+
+  devops:
+    swarm: surgical-team
+    rules:
+      - rollback-first-on-every-deploy
+      - sops-encrypted-secrets
+      - blue-green-for-payment-services
+      - canary-deploy-non-payment
+      - infrastructure-as-code-only
+      - zero-downtime-migrations
+    description: "Encrypted secrets, rollback-first, blue-green payment services"
+
+  platform:
+    swarm: octopus
+    rules:
+      - enforce-monorepo-boundaries
+      - shared-contracts-versioned
+      - no-circular-dependencies
+      - dependency-audit-weekly
+    description: "Monorepo boundaries, contract versioning, dependency governance"
+
+governance:
+  overrides:
+    security:
+      can_veto: true
+      can_halt_deploy: true
+      description: "Security has veto and halt authority on all payment flows"
+    qa:
+      can_approve_release: true
+      can_veto_deploy: true
+      description: "QA must sign off before any production deployment"
+    architect:
+      schema_review: true
+      contract_review: true
+      description: "Architect required for all schema and contract changes"
+    cto:
+      production_deploy_required: true
+      description: "CTO approval required for all production deployments"
+
+  authority_overrides:
+    junior:
+      max_files_per_change: 1
+      max_packages: 1
+      can_deploy: false
+      can_approve: false
+      can_veto: false
+      can_modify_schema: false
+      can_change_contracts: false
+      escalation_required: true
+      restrictions: ["no-direct-payment-code", "no-lead-on-financial-features"]
+    senior:
+      can_change_contracts: false
+      restrictions: ["requires-architect-review-for-payment-changes"]
+    architect:
+      required_for: ["payment-schema-changes", "contract-version-bumps", "new-payment-provider-integration"]
+
+escalation:
+  overrides:
+    - trigger: "payment_failure"
+      action: "activate_surgical_team"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "Any payment failure escalates to surgical-team for immediate resolution"
+
+    - trigger: "security_vulnerability_detected"
+      action: "halt_all_activate_immune_system"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "Security vulnerability halts all work, immune system activates"
+
+    - trigger: "compliance_violation"
+      action: "halt_all_governance_review"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "Compliance violation halts work, governance review required"
+
+    - trigger: "financial_calculation_mismatch"
+      action: "halt_and_activate_surgical_team"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "Any financial calculation discrepancy halts everything"
+
+    - trigger: "idempotency_key_collision"
+      action: "halt_and_review"
+      timeout: "5min"
+      retry: 1
+      severity: high
+      description: "Idempotency collision requires investigation"
+
+    - trigger: "external_provider_timeout"
+      action: "circuit_breaker_fallback"
+      timeout: "30s"
+      retry: 3
+      severity: high
+      description: "External payment provider timeout triggers circuit breaker"
+
+    - trigger: "audit_trail_gap"
+      action: "halt_and_immune_system"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "Missing audit trail entries are critical, halt everything"
+
+  inherits: "bos/schemas/governance-schema.yaml#escalation_matrix"
+  merge_strategy: "override_and_append"

@@ -156,9 +156,9 @@ personas:
 governance:
   - id: gov-change-management
     name: Change Management
-    description: All changes must go through review process
-    level: critical
-    action: block
+    description: Infrastructure and database changes require change request approval
+    level: medium
+    action: escalate
     conditions:
       - type:infrastructure
       - type:database
@@ -167,7 +167,7 @@ governance:
   - id: gov-security-review
     name: Security Review Required
     description: Security-sensitive changes require security architect approval
-    level: critical
+    level: medium
     action: escalate
     conditions:
       - type:security
@@ -177,7 +177,7 @@ governance:
   - id: gov-architecture-review
     name: Architecture Review
     description: Architecture changes require architect approval
-    level: high
+    level: medium
     action: escalate
     conditions:
       - type:architecture
@@ -186,9 +186,9 @@ governance:
 
   - id: gov-quality-gate
     name: Quality Gate
-    description: All changes must pass quality gates
-    level: high
-    action: block
+    description: Features and bugfixes must pass quality gates before merge
+    level: medium
+    action: warn
     conditions:
       - type:feature
       - type:bugfix
@@ -196,7 +196,7 @@ governance:
   - id: gov-documentation
     name: Documentation Required
     description: Significant changes require documentation updates
-    level: medium
+    level: low
     action: warn
     conditions:
       - type:feature

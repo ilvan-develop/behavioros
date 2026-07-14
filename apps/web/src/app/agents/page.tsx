@@ -1,12 +1,18 @@
 'use client';
 
-import { Activity, Clock, Settings } from 'lucide-react';
+import { Activity, Clock, Settings, Users } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/layout/header';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { agents } from '@/lib/mock-data';
 import { cn, formatRelativeTime } from '@/lib/utils';
+import type { Agent } from '@/types';
+
+interface AgentsResponse {
+  agents?: Agent[];
+  total?: number;
+}
 
 const statusColor: Record<string, string> = {
   idle: 'bg-green-500',
@@ -22,88 +28,162 @@ const statusVariant: Record<string, 'success' | 'info' | 'destructive' | 'second
   offline: 'secondary',
 };
 
+const statusFilters = ['all', 'idle', 'working', 'blocked', 'offline'] as const;
+
 export default function AgentsPage() {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  const filteredAgents = useMemo(() => {
+    if (statusFilter === 'all') return agents;
+    return agents.filter((a) => a.status === statusFilter);
+  }, [agents, statusFilter]);
+
+  useEffect(() => {
+    async function fetchAgents() {
+      try {
+        const res = await fetch('/api/agents');
+        if (res.ok) {
+          const data: AgentsResponse = await res.json();
+          setAgents(data.agents ?? []);
+        }
+      } catch {
+        // keep empty
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAgents();
+  }, []);
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header title="Agents" description="Manage your autonomous AI agents" />
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {agents.map((agent) => (
-              <Card key={agent.id} className="hover:border-[#333] transition-colors">
-                <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                  <div className="flex items-center gap-3">
-                    <div className="text-3xl">{agent.avatar}</div>
-                    <div>
-                      <CardTitle className="text-base">{agent.name}</CardTitle>
-                      <p className="text-xs text-[#a1a1aa]">{agent.role}</p>
-                    </div>
-                  </div>
-                  <Badge variant={statusVariant[agent.status]}>
-                    <div
-                      className={cn('h-1.5 w-1.5 rounded-full mr-1', statusColor[agent.status])}
-                    />
-                    {agent.status}
-                  </Badge>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[#a1a1aa]">Authority</span>
-                      <span className="font-medium text-[#fafafa]">{agent.authority}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[#a1a1aa]">Missions</span>
-                      <span className="font-medium text-[#fafafa]">{agent.missionsCompleted}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[#a1a1aa]">Last Active</span>
-                      <span className="text-[#a1a1aa]">{formatRelativeTime(agent.lastActive)}</span>
-                    </div>
-                  </div>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="rounded-md border border-[#262626] bg-[#0a0a0a] px-3 py-2 text-sm text-[#fafafa] focus:border-[#0A7C4F] focus:outline-none"
+                >
+                  {statusFilters.map((s) => (
+                    <option key={s} value={s}>
+                      {s === 'all' ? 'All Statuses' : s.charAt(0).toUpperCase() + s.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <span className="text-sm text-[#a1a1aa]">
+                {loading ? 'Loading...' : `${filteredAgents.length} agents`}
+              </span>
+            </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[#a1a1aa]">Reputation</span>
-                      <span className="font-medium text-[#fafafa]">{agent.reputation}%</span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-[#262626]">
-                      <div
-                        className="h-full rounded-full bg-[#0A7C4F] animate-progress"
-                        style={{ width: `${agent.reputation}%` }}
-                      />
-                    </div>
-                  </div>
+            {loading ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-64 w-full animate-pulse rounded-lg border border-[#262626] bg-[#0a0a0a]"
+                  />
+                ))}
+              </div>
+            ) : filteredAgents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Users className="h-12 w-12 text-[#262626] mb-4" />
+                <p className="text-lg font-medium text-[#fafafa]">No agents found</p>
+                <p className="text-sm text-[#a1a1aa] mt-1">
+                  {agents.length === 0
+                    ? 'No agents have been registered yet.'
+                    : 'Try selecting a different status filter.'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredAgents.map((agent) => (
+                  <Card key={agent.id} className="hover:border-[#333] transition-colors">
+                    <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                      <div className="flex items-center gap-3">
+                        <div className="text-3xl">{agent.avatar}</div>
+                        <div>
+                          <CardTitle className="text-base">{agent.name}</CardTitle>
+                          <p className="text-xs text-[#a1a1aa]">{agent.role}</p>
+                        </div>
+                      </div>
+                      <Badge variant={statusVariant[agent.status]}>
+                        <div
+                          className={cn('h-1.5 w-1.5 rounded-full mr-1', statusColor[agent.status])}
+                        />
+                        {agent.status}
+                      </Badge>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-[#a1a1aa]">Authority</span>
+                          <span className="font-medium text-[#fafafa]">{agent.authority}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-[#a1a1aa]">Missions</span>
+                          <span className="font-medium text-[#fafafa]">
+                            {agent.missionsCompleted}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-[#a1a1aa]">Last Active</span>
+                          <span className="text-[#a1a1aa]">
+                            {formatRelativeTime(agent.lastActive)}
+                          </span>
+                        </div>
+                      </div>
 
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-[#a1a1aa]">Skills</p>
-                    <div className="flex flex-wrap gap-1">
-                      {agent.skills.map((skill) => (
-                        <Badge key={skill} variant="secondary" className="text-xs">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-[#a1a1aa]">Reputation</span>
+                          <span className="font-medium text-[#fafafa]">{agent.reputation}%</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-[#262626]">
+                          <div
+                            className="h-full rounded-full bg-[#0A7C4F] animate-progress"
+                            style={{ width: `${agent.reputation}%` }}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="flex gap-2 pt-2">
-                    <button className="flex items-center gap-1 rounded-md border border-[#262626] bg-transparent px-3 py-1.5 text-xs text-[#a1a1aa] hover:bg-[#1a1a1a] hover:text-[#fafafa] transition-colors">
-                      <Settings className="h-3 w-3" />
-                      Configure
-                    </button>
-                    <button className="flex items-center gap-1 rounded-md border border-[#262626] bg-transparent px-3 py-1.5 text-xs text-[#a1a1aa] hover:bg-[#1a1a1a] hover:text-[#fafafa] transition-colors">
-                      <Activity className="h-3 w-3" />
-                      Logs
-                    </button>
-                    <button className="flex items-center gap-1 rounded-md border border-[#262626] bg-transparent px-3 py-1.5 text-xs text-[#a1a1aa] hover:bg-[#1a1a1a] hover:text-[#fafafa] transition-colors">
-                      <Clock className="h-3 w-3" />
-                      History
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-[#a1a1aa]">Skills</p>
+                        <div className="flex flex-wrap gap-1">
+                          {agent.skills.map((skill) => (
+                            <Badge key={skill} variant="secondary" className="text-xs">
+                              {skill}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <button className="flex items-center gap-1 rounded-md border border-[#262626] bg-transparent px-3 py-1.5 text-xs text-[#a1a1aa] hover:bg-[#1a1a1a] hover:text-[#fafafa] transition-colors">
+                          <Settings className="h-3 w-3" />
+                          Configure
+                        </button>
+                        <button className="flex items-center gap-1 rounded-md border border-[#262626] bg-transparent px-3 py-1.5 text-xs text-[#a1a1aa] hover:bg-[#1a1a1a] hover:text-[#fafafa] transition-colors">
+                          <Activity className="h-3 w-3" />
+                          Logs
+                        </button>
+                        <button className="flex items-center gap-1 rounded-md border border-[#262626] bg-transparent px-3 py-1.5 text-xs text-[#a1a1aa] hover:bg-[#1a1a1a] hover:text-[#fafafa] transition-colors">
+                          <Clock className="h-3 w-3" />
+                          History
+                        </button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         </main>
       </div>

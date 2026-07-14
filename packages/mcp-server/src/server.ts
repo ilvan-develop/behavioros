@@ -1,10 +1,27 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { BehaviorOSEngine, DNALoader } from '@behavioros/core';
+import { resolve } from 'node:path';
+import {
+  AuditChain,
+  BehaviorOSEngine,
+  BehaviorSelector,
+  BosLearningEngine,
+  ConflictResolver,
+  DNALoader,
+  EscalationManager,
+} from '@behavioros/core';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerCICDResources } from './resources/cicd-resources.js';
 import { registerResources } from './resources.js';
+import { bosCheckEscalation, bosCheckEscalationInput } from './tools/bos-check-escalation.js';
+import { bosGetInsights, bosGetInsightsInput } from './tools/bos-get-insights.js';
+import { bosListPatterns, bosListPatternsInput } from './tools/bos-list-patterns.js';
+import { bosLspDiagnostics, bosLspDiagnosticsInput } from './tools/bos-lsp-diagnostics.js';
+import { bosLspValidate, bosLspValidateInput } from './tools/bos-lsp-validate.js';
+import { bosResolveConflict, bosResolveConflictInput } from './tools/bos-resolve-conflict.js';
+import { bosResolveTruth, bosResolveTruthInput } from './tools/bos-resolve-truth.js';
+import { bosRunAudit, bosRunAuditInput } from './tools/bos-run-audit.js';
+// BOS Behavioral Tools
+import { bosSelectDna, bosSelectDnaInput } from './tools/bos-select-dna.js';
 import {
   approveLayer,
   approveLayerInput,
@@ -58,8 +75,10 @@ import { recordLearning, recordLearningInput } from './tools/record-learning.js'
 import { runAudit, runAuditInput } from './tools/run-audit.js';
 import { updateProgress, updateProgressInput } from './tools/update-progress.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Safe __dirname — works in both CJS and ESM
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+const _globalDirname = typeof __dirname !== 'undefined' ? __dirname : undefined;
+const __dirname_safe = _globalDirname ?? resolve(process.cwd());
 
 let _engine: BehaviorOSEngine | null = null;
 let _server: McpServer | null = null;
@@ -82,7 +101,19 @@ export function createServer(): McpServer {
   if (_server) return _server;
 
   // Load enterprise governance DNA
-  const dnaPath = resolve(__dirname, '../../../dnas/enterprise-governance.yaml');
+  // Try multiple paths: env var, relative to cwd, relative to __dirname
+  const dnaEnvPath = process.env.BEHAVIOROS_DNA_PATH;
+  let dnaPath: string;
+
+  if (dnaEnvPath?.endsWith('.yaml')) {
+    dnaPath = resolve(process.cwd(), dnaEnvPath);
+  } else if (dnaEnvPath) {
+    // Directory — look for enterprise-governance.yaml inside
+    dnaPath = resolve(process.cwd(), dnaEnvPath, 'enterprise-governance.yaml');
+  } else {
+    dnaPath = resolve(process.cwd(), 'dnas/enterprise-governance.yaml');
+  }
+
   const loader = new DNALoader({ basePath: process.cwd() });
   const dna = loader.load(dnaPath);
 
@@ -160,6 +191,83 @@ export function createServer(): McpServer {
   // Register CI/CD engine references
   setCICDEngine(_engine);
   setIntegrationEngine(_engine);
+
+  // Initialize BOS behavioral engines
+  const bosProjectRoot = process.cwd();
+  const bosSelector = new BehaviorSelector(resolve(bosProjectRoot, 'packages/dnas/catalog'));
+  const bosConflictResolver = new ConflictResolver();
+  const bosEscalationManager = new EscalationManager();
+  if (dna.governance) {
+    bosEscalationManager.loadGovernanceRules(dna.governance);
+  }
+  const bosAuditChain = new AuditChain(bosProjectRoot);
+  const bosLearningEngine = new BosLearningEngine();
+
+  // Register BOS Behavioral tools
+  _server.tool(
+    'bos_select_dna',
+    'Select the optimal behavioral DNA pattern for a given task context. Returns pattern name, principles, forbidden rules, and confidence score.',
+    bosSelectDnaInput.shape,
+    async (args) => bosSelectDna(bosSelector, args),
+  );
+
+  _server.tool(
+    'bos_resolve_conflict',
+    'Resolve a conflict between two agents or squads. Returns resolution strategy and explanation.',
+    bosResolveConflictInput.shape,
+    async (args) => bosResolveConflict(bosConflictResolver, args),
+  );
+
+  _server.tool(
+    'bos_check_escalation',
+    'Check if a situation should be escalated to human oversight. Returns shouldEscalate, trigger, and reasoning.',
+    bosCheckEscalationInput.shape,
+    async (args) => bosCheckEscalation(bosEscalationManager, args),
+  );
+
+  _server.tool(
+    'bos_run_audit',
+    'Run the continuous audit chain for a given trigger (commit, PR, merge, staging, production). Returns gate results.',
+    bosRunAuditInput.shape,
+    async (args) => bosRunAudit(bosAuditChain, args),
+  );
+
+  _server.tool(
+    'bos_get_insights',
+    'Get behavioral pattern insights — which patterns are working, which need mutation, overall system health.',
+    bosGetInsightsInput.shape,
+    async () => bosGetInsights(bosLearningEngine),
+  );
+
+  _server.tool(
+    'bos_list_patterns',
+    'List all available behavioral DNA patterns in the catalog with their key properties.',
+    bosListPatternsInput.shape,
+    async () => bosListPatterns(bosSelector),
+  );
+
+  // Register BOS + Context7 Truth Source Integration
+  _server.tool(
+    'bos_resolve_truth',
+    'Resolve behavioral DNA pattern + truth sources (context7 docs) for a task. Returns DNA pattern, principles, and instructions to fetch up-to-date library documentation. Use this before every delegation to ensure agents act with correct DNA and current docs.',
+    bosResolveTruthInput.shape,
+    async (args) => bosResolveTruth(bosSelector, args),
+  );
+
+  // Register BOS LSP tools
+  _server.tool(
+    'bos_lsp_diagnostics',
+    'Run LSP diagnostics (TypeScript + ESLint) on a project and return structured results. Use for real-time feedback on code quality.',
+    bosLspDiagnosticsInput.shape,
+    async (args) => bosLspDiagnostics(args),
+  );
+
+  _server.tool(
+    'bos_lsp_validate',
+    'Validate a project passes LSP diagnostics (quality gate). Returns pass/fail with error/warning counts.',
+    bosLspValidateInput.shape,
+    async (args) => bosLspValidate(args),
+  );
 
   // Register CI/CD tools
   _server.tool(
@@ -304,7 +412,15 @@ export function createServer(): McpServer {
 }
 
 // --- CLI entry point ---
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('server.js')) {
+// Detect if this file is being executed directly (not imported)
+const _argv1 = process.argv[1] ?? '';
+const _isDirectExec =
+  _argv1.endsWith('/server.js') ||
+  _argv1.endsWith('/server.mjs') ||
+  _argv1.endsWith('\\server.js') ||
+  _argv1.endsWith('\\server.mjs');
+
+if (_isDirectExec || process.env.BEHAVIOROS_MCP_AUTO_START === 'true') {
   const server = createServer();
   const transport = new StdioServerTransport();
   server.connect(transport).catch((err) => {

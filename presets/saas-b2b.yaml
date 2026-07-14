@@ -1,0 +1,180 @@
+meta:
+  version: "1.0.0"
+  preset: "saas-b2b"
+  description: "B2B SaaS — SOC2/ISO27001, multi-tenant isolation, RBAC, enterprise integrations"
+  inherits: "bos/schemas/governance-schema.yaml"
+  risk_level: high
+
+compliance:
+  required_frameworks:
+    - name: "SOC2"
+      scope: "security, availability, confidentiality"
+      audit_frequency: "annual"
+    - name: "ISO27001"
+      scope: "information security management"
+      audit_frequency: "annual"
+    - name: "OWASP_Top10"
+      scope: "application security"
+      audit_frequency: "per_release"
+  extra_requirements:
+    - "Multi-tenant data isolation enforced at database level"
+    - "RBAC for all API endpoints and UI routes"
+    - "Audit trail for all tenant operations"
+    - "SSO/SAML integration support"
+    - "Tenant-scoped encryption keys"
+
+behavior_selector:
+  defaults:
+    feature: manufacturing
+    bug_fix: manufacturing
+    security: immune-system
+    incident: surgical-team
+    refactor: ant-colony
+    performance: mathematical-swarm
+    discovery: research-lab
+
+squads:
+  frontend:
+    swarm: bee-colony
+    rules:
+      - data-dense-UI-patterns
+      - export-functionality-for-all-data
+      - tenant-aware-component-library
+      - rbac-aware-navigation
+      - real-time-collaboration
+      - keyboard-shortcut-support
+    cannot_modify: ["apps/api/**", "packages/db/**", "k8s/**"]
+    description: "Data-dense UI, export, tenant-aware components, RBAC navigation"
+
+  backend:
+    swarm: manufacturing
+    rules:
+      - multi-tenant-isolation-at-db-level
+      - rbac-on-all-endpoints
+      - audit-trail-on-tenant-operations
+      - idempotency-on-writes
+      - tenant-scoped-data-access
+      - rate-limiting-per-tenant
+      - api-versioning-mandatory
+    cannot_modify: ["apps/web/**", "k8s/**"]
+    description: "Multi-tenant isolation, RBAC, audit trail, tenant-scoped operations"
+
+  qa:
+    swarm: immune-system
+    rules:
+      - integration-testing-cross-tenant
+      - contract-testing-api-first
+      - tenant-isolation-verification
+      - rbac-permission-testing
+      - data-leak-prevention-testing
+      - performance-testing-per-tenant
+    authority: ["approve_release", "veto_deploy"]
+    description: "Cross-tenant testing, contract testing, isolation verification"
+
+  security:
+    swarm: immune-system
+    rules:
+      - sso-saml-integration-security
+      - rbac-policy-enforcement
+      - tenant-data-isolation-audit
+      - api-key-rotation-enforcement
+      - encryption-at-rest-and-transit
+      - penetration-testing-quarterly
+    authority: ["veto", "halt_deploy", "security_review"]
+    description: "SSO/SAML, RBAC enforcement, tenant isolation audit"
+
+  devops:
+    swarm: surgical-team
+    rules:
+      - blue-green-deploys
+      - tenant-aware-routing
+      - infrastructure-as-code
+      - secrets-management-sops
+      - monitoring-per-tenant
+      - rollback-automated
+    description: "Blue-green deploys, tenant-aware routing, SOPS secrets"
+
+  platform:
+    swarm: octopus
+    rules:
+      - shared-contracts-versioned
+      - tenant-isolation-boundaries
+      - dependency-audit-weekly
+      - monorepo-boundary-enforcement
+    description: "Shared contracts, tenant isolation boundaries, monorepo governance"
+
+governance:
+  overrides:
+    security:
+      can_veto: true
+      can_halt_deploy: true
+      description: "Security has veto authority on tenant isolation issues"
+    architect:
+      schema_review: true
+      contract_review: true
+      required_for: ["schema-changes", "tenant-isolation-changes"]
+      description: "Architect required for all schema and tenant isolation changes"
+
+  authority_overrides:
+    junior:
+      max_files_per_change: 1
+      max_packages: 1
+      can_deploy: false
+      can_approve: false
+      can_veto: false
+      can_modify_schema: false
+      can_change_contracts: false
+      escalation_required: true
+      restrictions: ["no-lead-on-tenant-isolation", "no-lead-on-rbac-changes"]
+    senior:
+      can_change_contracts: false
+      restrictions: ["requires-architect-review-for-tenant-changes"]
+    architect:
+      required_for: ["schema-changes", "tenant-isolation-modifications", "rbac-policy-changes", "contract-version-bumps"]
+
+escalation:
+  overrides:
+    - trigger: "tenant_isolation_breach"
+      action: "halt_all_activate_immune_system"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "Tenant isolation breach halts everything, full immune response"
+
+    - trigger: "data_leak_between_tenants"
+      action: "halt_all_activate_incident_response"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "Cross-tenant data leak triggers incident response"
+
+    - trigger: "rbac_bypass_detected"
+      action: "halt_and_security_review"
+      timeout: "immediate"
+      retry: 0
+      severity: critical
+      description: "RBAC bypass halts work, security review required"
+
+    - trigger: "tenant_performance_degradation"
+      action: "activate_surgical_team"
+      timeout: "5min"
+      retry: 2
+      severity: high
+      description: "Single tenant performance issue escalates to surgical-team"
+
+    - trigger: "sso_authentication_failure"
+      action: "activate_surgical_team"
+      timeout: "5min"
+      retry: 3
+      severity: high
+      description: "SSO failure blocks tenant access, surgical-team resolves"
+
+    - trigger: "contract_breaking_change_proposed"
+      action: "require_architect_approval"
+      timeout: "15min"
+      retry: 1
+      severity: high
+      description: "Breaking API changes require architect review"
+
+  inherits: "bos/schemas/governance-schema.yaml#escalation_matrix"
+  merge_strategy: "override_and_append"

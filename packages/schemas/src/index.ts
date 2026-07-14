@@ -20,6 +20,8 @@ export const AgentRoleSchema = z.enum([
   'researcher',
   'support',
   'specialist',
+  'orchestrator',
+  'knowledge',
 ]);
 export type AgentRole = z.infer<typeof AgentRoleSchema>;
 
@@ -109,6 +111,81 @@ export const BehaviorPatternSchema = z.object({
 });
 export type BehaviorPattern = z.infer<typeof BehaviorPatternSchema>;
 
+// --- BOS DNA Behavioral Pattern (11 catalog patterns) ---
+
+export const PrincipleSchema = z.object({
+  id: z.string(),
+  statement: z.string(),
+  priority: z.enum(['must', 'should', 'maybe']),
+  rationale: z.string(),
+});
+export type Principle = z.infer<typeof PrincipleSchema>;
+
+export const ForbiddenActionSchema = z.object({
+  id: z.string(),
+  action: z.string(),
+  consequence: z.enum(['block', 'halt', 'escalate', 'warn']),
+  severity: z.enum(['low', 'medium', 'high', 'critical']),
+});
+export type ForbiddenAction = z.infer<typeof ForbiddenActionSchema>;
+
+export const PersonalitySchema = z
+  .object({
+    communication: z
+      .object({
+        type: z.string().optional(),
+        urgency: z.object({ default: z.string() }).optional(),
+        detail_level: z.object({ default: z.string() }).optional(),
+        tone: z.object({ default: z.string() }).optional(),
+      })
+      .optional(),
+    formality: z.string().optional(),
+    expressiveness: z.string().optional(),
+  })
+  .catchall(z.unknown());
+export type Personality = z.infer<typeof PersonalitySchema>;
+
+export const AutonomySchema = z.object({
+  can_decide: z.array(z.string()).optional(),
+  must_ask: z.array(z.string()).optional(),
+  never_do: z.array(z.string()).optional(),
+  escalation_triggers: z
+    .array(
+      z.object({
+        condition: z.string(),
+        action: z.string(),
+      }),
+    )
+    .optional(),
+});
+export type Autonomy = z.infer<typeof AutonomySchema>;
+
+export const DNABehavioralPatternSchema = z.object({
+  meta: z.object({
+    version: z.string(),
+    schema: z.string().optional(),
+    description: z.string().optional(),
+  }),
+  identity: z.object({
+    name: z.string(),
+    description: z.string(),
+    archetype: z.string(),
+    category: z.string(),
+    version: z.string().optional(),
+  }),
+  personality: PersonalitySchema.optional(),
+  principles: z.array(PrincipleSchema).optional(),
+  forbidden: z.array(ForbiddenActionSchema).optional(),
+  decision_model: z.record(z.unknown()).optional(),
+  communication: z.record(z.unknown()).optional(),
+  autonomy: AutonomySchema.optional(),
+  risk_tolerance: z.string().optional(),
+  parallelism: z.record(z.unknown()).optional(),
+  quality_gates: z.record(z.unknown()).optional(),
+  learning: z.record(z.unknown()).optional(),
+});
+export type DNABehavioralPattern = z.infer<typeof DNABehavioralPatternSchema>;
+
 export const WorkflowStepSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -124,6 +201,16 @@ export const WorkflowStepSchema = z.object({
 });
 export type WorkflowStep = z.infer<typeof WorkflowStepSchema>;
 
+export const AgentMappingSchema = z.record(
+  z.string(),
+  z.object({
+    role: AgentRoleSchema,
+    authority: AuthorityLevelSchema,
+    opencode_agents: z.array(z.string()),
+  }),
+);
+export type AgentMapping = z.infer<typeof AgentMappingSchema>;
+
 export const DNAPackageSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -137,6 +224,7 @@ export const DNAPackageSchema = z.object({
   quality: z.array(QualityGateSchema).optional(),
   patterns: z.array(BehaviorPatternSchema).optional(),
   workflows: z.array(WorkflowStepSchema).optional(),
+  agent_mapping: AgentMappingSchema.optional(),
   config: z.record(z.unknown()).optional(),
 });
 export type DNAPackage = z.infer<typeof DNAPackageSchema>;

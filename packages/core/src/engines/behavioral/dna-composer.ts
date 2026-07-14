@@ -14,8 +14,6 @@ export interface CompositionResult {
 }
 
 export class DNAComposer {
-  private compositions: Map<string, CompositionResult> = new Map();
-
   /**
    * Compõe múltiplos pacotes DNA em um único conjunto de padrões
    */
@@ -107,7 +105,9 @@ export class DNAComposer {
       communication: 2,
       custom: 1,
     };
-    return [...patterns].sort((a, b) => (priority[b.type] ?? 0) - (priority[a.type] ?? 0));
+    return [...patterns].sort(
+      (a, b) => (priority[String(b.type)] ?? 0) - (priority[String(a.type)] ?? 0),
+    );
   }
 
   /**
@@ -121,7 +121,7 @@ export class DNAComposer {
 
     const byType = new Map<string, number>();
     for (const pattern of result.patterns) {
-      byType.set(pattern.type, (byType.get(pattern.type) ?? 0) + 1);
+      byType.set(String(pattern.type), (byType.get(String(pattern.type)) ?? 0) + 1);
     }
 
     lines.push('By type:');

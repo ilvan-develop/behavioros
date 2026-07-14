@@ -1,5 +1,9 @@
+'use client';
+
 import { Activity, Bot, FileText, Target, TrendingDown, TrendingUp } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Agent, AuditEvent, Mission, QualityGate } from '@/types';
 
 interface StatCard {
   title: string;
@@ -9,38 +13,120 @@ interface StatCard {
   icon: React.ReactNode;
 }
 
-const stats: StatCard[] = [
+interface StatsResponse {
+  status?: {
+    engine: boolean;
+    dna?: string;
+    missions?: number;
+    agents?: number;
+    auditEvents?: number;
+    qualityMetrics?: number;
+  };
+  stats?: {
+    missions?: { total: number; completed: number; failed: number };
+    agents?: { total: number; active: number };
+    auditEvents?: number;
+    qualityMetrics?: number;
+  };
+  pipeline?: unknown;
+}
+
+const fallbackStats: StatCard[] = [
   {
     title: 'Total Missions',
-    value: 10,
-    change: '+2 this week',
+    value: 0,
+    change: '0 completed',
     trend: 'up',
     icon: <Target className="h-4 w-4" />,
   },
   {
     title: 'Active Agents',
-    value: '4/6',
-    change: '2 idle',
+    value: '0/0',
+    change: '0 idle',
     trend: 'up',
     icon: <Bot className="h-4 w-4" />,
   },
   {
     title: 'Quality Score',
-    value: '87%',
-    change: '+3% vs last week',
+    value: '—',
+    change: 'No data yet',
     trend: 'up',
     icon: <Activity className="h-4 w-4" />,
   },
   {
     title: 'Audit Events',
-    value: 20,
-    change: '3 critical',
-    trend: 'down',
+    value: 0,
+    change: '0 critical',
+    trend: 'up',
     icon: <FileText className="h-4 w-4" />,
   },
 ];
 
+function computeStats(data: StatsResponse): StatCard[] {
+  const s = data.stats;
+  const st = data.status;
+
+  const totalMissions = s?.missions?.total ?? st?.missions ?? 0;
+  const completedMissions = s?.missions?.completed ?? 0;
+  const totalAgents = s?.agents?.total ?? st?.agents ?? 0;
+  const activeAgents = s?.agents?.active ?? 0;
+  const idleAgents = totalAgents - activeAgents;
+  const totalAuditEvents = s?.auditEvents ?? st?.auditEvents ?? 0;
+  const qualityMetrics = st?.qualityMetrics ?? s?.qualityMetrics ?? 0;
+
+  return [
+    {
+      title: 'Total Missions',
+      value: totalMissions,
+      change: `${completedMissions} completed`,
+      trend: completedMissions > 0 ? 'up' : 'down',
+      icon: <Target className="h-4 w-4" />,
+    },
+    {
+      title: 'Active Agents',
+      value: `${activeAgents}/${totalAgents}`,
+      change: `${idleAgents} idle`,
+      trend: 'up',
+      icon: <Bot className="h-4 w-4" />,
+    },
+    {
+      title: 'Quality Score',
+      value: qualityMetrics > 0 ? `${qualityMetrics}%` : '—',
+      change: qualityMetrics > 0 ? `${qualityMetrics}% passing` : 'No metrics yet',
+      trend: qualityMetrics >= 80 ? 'up' : 'down',
+      icon: <Activity className="h-4 w-4" />,
+    },
+    {
+      title: 'Audit Events',
+      value: totalAuditEvents,
+      change: 'All time',
+      trend: 'up',
+      icon: <FileText className="h-4 w-4" />,
+    },
+  ];
+}
+
 export function StatsCards() {
+  const [stats, setStats] = useState<StatCard[]>(fallbackStats);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/stats');
+        if (res.ok) {
+          const data: StatsResponse = await res.json();
+          setStats(computeStats(data));
+        }
+      } catch {
+        // keep fallback
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchStats();
+  }, []);
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat) => (
@@ -50,15 +136,21 @@ export function StatsCards() {
             <div className="text-[#a1a1aa]">{stat.icon}</div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-[#fafafa]">{stat.value}</div>
-            <div className="flex items-center gap-1 text-xs text-[#a1a1aa]">
-              {stat.trend === 'up' ? (
-                <TrendingUp className="h-3 w-3 text-green-500" />
-              ) : (
-                <TrendingDown className="h-3 w-3 text-red-500" />
-              )}
-              <span>{stat.change}</span>
-            </div>
+            {loading ? (
+              <div className="h-8 w-16 animate-pulse rounded bg-[#262626]" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-[#fafafa]">{stat.value}</div>
+                <div className="flex items-center gap-1 text-xs text-[#a1a1aa]">
+                  {stat.trend === 'up' ? (
+                    <TrendingUp className="h-3 w-3 text-green-500" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 text-red-500" />
+                  )}
+                  <span>{stat.change}</span>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       ))}

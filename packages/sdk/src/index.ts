@@ -15,15 +15,11 @@ import {
   LearningEngine,
   type LearningReport,
   MissionEngine,
-  type MissionPlan,
-  type MissionProgress,
   PipelineEngine,
   type PipelineOptions,
   QualityEngine,
-  type QualityReport,
 } from '@behavioros/core';
 import type {
-  AuditEvent,
   DNAPackage,
   LayerResult,
   LearningEvent,
@@ -61,9 +57,7 @@ export interface BehaviorOSStatus {
 export class BehaviorOS {
   private engine: BehaviorOSEngine | null = null;
   private auditEngine: AuditEngine;
-  private qualityEngine: QualityEngine;
   private learningEngine: LearningEngine;
-  private missionEngine: MissionEngine;
   private decisionEngine: DecisionEngine;
   private governanceEngine: GovernanceEngine | null = null;
   private dna: DNAPackage | null = null;
