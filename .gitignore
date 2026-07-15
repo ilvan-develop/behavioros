@@ -14,3 +14,5 @@ finpay-*
 finpay-temp/
 generated/
 PITCH*.md
+dist/
+test-results/
