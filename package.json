@@ -31,5 +31,13 @@
     "husky": "^9.1.0",
     "lint-staged": "^15.4.0",
     "turbo": "^2.4.0"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "ignoreMissing": ["@behavioros/core"]
+    },
+    "overrides": {
+      "@behavioros/core": "workspace:*"
+    }
   }
 }

@@ -15,6 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@behavioros/core": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "zod": "^3.24.0"
   },
@@ -23,8 +24,5 @@
     "tsup": "^8.4.0",
     "typescript": "^5.8.0",
     "vitest": "^3.1.0"
-  },
-  "peerDependencies": {
-    "@behavioros/core": "workspace:*"
   }
 }
