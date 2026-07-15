@@ -97,3 +97,19 @@ export { QualityEngine } from './engines/quality/quality-engine';
 export type { PersistenceConfig } from './persistence/sqlite-store';
 // Persistence
 export { SQLiteStore } from './persistence/sqlite-store';
+export type { LayerMetrics } from './pipeline/interceptors/metrics-interceptor';
+export { MetricsInterceptor } from './pipeline/interceptors/metrics-interceptor';
+export { TimeoutInterceptor } from './pipeline/interceptors/timeout-interceptor';
+export { shouldSkipForConversational } from './pipeline/mode/conversational.adapter';
+export { shouldSkipForTransactional } from './pipeline/mode/transactional.adapter';
+// Pipeline Dispatcher
+export type {
+  DispatcherLayerResult,
+  PipelineDispatcherContext,
+} from './pipeline/pipeline-context';
+export { createDispatcherContext } from './pipeline/pipeline-context';
+export type {
+  PipelineDispatcherInterceptor,
+  PipelineDispatcherLayer,
+} from './pipeline/pipeline-dispatcher';
+export { PipelineDispatcher } from './pipeline/pipeline-dispatcher';
