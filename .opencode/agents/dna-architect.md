@@ -1,7 +1,6 @@
 ---
 description: Creates and modifies DNA YAML patterns following BehaviorOS schema conventions
 mode: subagent
-model: anthropic/claude-sonnet-4-5
 temperature: 0.2
 permission:
   edit: allow

@@ -1,7 +1,6 @@
 ---
 description: Runs and analyzes BehaviorOS audit pipeline results
 mode: subagent
-model: anthropic/claude-sonnet-4-5
 temperature: 0.1
 permission:
   edit: deny

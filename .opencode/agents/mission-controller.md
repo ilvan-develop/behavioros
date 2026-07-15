@@ -1,7 +1,6 @@
 ---
 description: Manages mission lifecycle: create, start, execute, complete, and track status
 mode: subagent
-model: anthropic/claude-sonnet-4-5
 temperature: 0.2
 permission:
   edit: allow
