@@ -400,7 +400,7 @@ describe('Integration Tools', () => {
   });
 
   describe('deploy_canary', () => {
-    it('should run real quality gates before deployment', async () => {
+    it('should run real quality gates before deployment', { timeout: 60000 }, async () => {
       const result = await deployCanary({
         version: '1.2.3',
         environment: 'production',

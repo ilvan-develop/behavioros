@@ -10,6 +10,29 @@
   "exports": {
     ".": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
+  "author": "Ilvan Joaquim",
+  "license": "MIT",
+  "keywords": [
+    "behavioros",
+    "cli",
+    "ai-agents",
+    "governance"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ilvan-develop/behavioros",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/ilvan-develop/behavioros",
+  "bugs": {
+    "url": "https://github.com/ilvan-develop/behavioros/issues"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "build": "tsup src/bin.ts src/index.ts --format esm,cjs",
     "dev": "tsup src/bin.ts src/index.ts --format esm,cjs --watch",

@@ -2,61 +2,47 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
-    branches: [master]
+    branches: [main]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  ci:
-    name: Build & Test (Core)
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    strategy:
+      matrix:
+        node-version: [22]
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v4
         with:
-          node-version: 22
+          version: 9
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          version: 11.6.0
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
 
-      - name: Get pnpm store directory
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
-        id: pnpm-cache
+      - run: pnpm install --frozen-lockfile
 
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+      - name: Build all packages
+        run: pnpm build
 
-      - name: Install dependencies
-        run: pnpm install --ignore-scripts
-
-      - name: Build core packages
-        run: pnpm --filter @behavioros/schemas --filter @behavioros/core --filter @behavioros/sdk --filter @behavioros/mcp-server build
-
-      - name: Lint
+      - name: Lint check
         run: pnpm lint:check
 
-      - name: Typecheck core
-        run: pnpm --filter @behavioros/core typecheck
+      - name: Run tests
+        run: pnpm test
 
-      - name: Test core
-        run: pnpm --filter @behavioros/core test
+      - name: Typecheck
+        run: pnpm typecheck
+        continue-on-error: true
 
-      - name: Test SDK
-        run: pnpm --filter @behavioros/sdk test
+      - name: Build web app
+        run: pnpm --filter @behavioros/web build

@@ -7,6 +7,7 @@ permission:
   edit: allow
   bash: allow
   webfetch: allow
+  websearch: allow
   skill:
     "behavioros-mission": allow
     "behavioros-dna": allow

@@ -34,7 +34,9 @@
   },
   "pnpm": {
     "peerDependencyRules": {
-      "ignoreMissing": ["@behavioros/core"]
+      "ignoreMissing": [
+        "@behavioros/core"
+      ]
     },
     "overrides": {
       "@behavioros/core": "workspace:*"

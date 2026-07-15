@@ -15,6 +15,31 @@
     "./mission": "./dist/engines/mission/index.js",
     "./compiler": "./dist/compiler/index.js"
   },
+  "files": [
+    "dist"
+  ],
+  "author": "Ilvan Joaquim",
+  "license": "MIT",
+  "keywords": [
+    "behavioros",
+    "ai-agents",
+    "governance",
+    "behavioral-ai",
+    "mcp",
+    "agent-orchestration"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ilvan-develop/behavioros",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/ilvan-develop/behavioros",
+  "bugs": {
+    "url": "https://github.com/ilvan-develop/behavioros/issues"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs",
     "dev": "tsup src/index.ts --format esm,cjs --watch",

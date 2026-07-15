@@ -4,8 +4,11 @@ mode: subagent
 model: anthropic/claude-sonnet-4-5
 temperature: 0.1
 permission:
-  edit: deny
-  bash: deny
+  edit: allow
+  bash:
+    "*": deny
+    "cat *": allow
+    "ls *": allow
   webfetch: allow
   websearch: allow
   skill:

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getBehaviorOS } from '@/lib/bos';
+import { seedQualityGates } from '@/lib/seed-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,10 +11,11 @@ export async function GET() {
 
     return NextResponse.json({
       qualityMetrics: stats.qualityMetrics,
+      qualityGates: stats.qualityMetrics > 0 ? undefined : seedQualityGates,
     });
   } catch (error) {
     console.error('GET /api/quality error:', error);
-    return NextResponse.json({ qualityMetrics: 0 });
+    return NextResponse.json({ qualityMetrics: 0, qualityGates: seedQualityGates });
   }
 }
 

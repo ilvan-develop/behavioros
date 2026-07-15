@@ -14,6 +14,10 @@
   <a href="#"><img src="https://img.shields.io/badge/tests-395%20passing-brightgreen.svg" alt="Tests" /></a>
 </p>
 
+<p align="center">
+  Created by <strong><a href="https://github.com/ilvan-develop">Ilvan Joaquim</a></strong> from Angola
+</p>
+
 ---
 
 BehaviorOS is a behavioral governance framework for AI agent teams. It provides a 9-layer architecture with 7 specialized engines, 4 pre-built DNA patterns, and an MCP server â€” giving you full control over how autonomous agents make decisions, follow governance rules, and learn from outcomes.
@@ -185,6 +189,65 @@ The MCP server exposes BehaviorOS to AI agents via the Model Context Protocol â€
   }
 }
 ```
+
+### Platform Setup
+
+#### Claude Desktop
+
+macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "behavioros": {
+      "command": "node",
+      "args": ["/absolute/path/to/behavioros/packages/mcp-server/dist/index.js"],
+      "env": {
+        "BEHAVIOROS_DNA_PATH": "./dnas/enterprise-governance.yaml"
+      }
+    }
+  }
+}
+```
+
+#### Cursor
+
+Create `.cursor/mcp.json` in your project root (already included in this repo).
+
+#### VS Code (GitHub Copilot)
+
+Create `.vscode/mcp.json` in your project root (already included in this repo).
+
+#### Windsurf
+
+Add to your Windsurf MCP configuration:
+
+```json
+{
+  "behavioros": {
+    "command": "node",
+    "args": ["packages/mcp-server/dist/index.js"],
+    "env": {
+      "BEHAVIOROS_DNA_PATH": "./dnas/enterprise-governance.yaml"
+    }
+  }
+}
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BEHAVIOROS_DNA_PATH` | Path to DNA YAML file | `./dnas/enterprise-governance.yaml` |
+| `BEHAVIOROS_PROJECT` | Project identifier | `default` |
+| `BEHAVIOROS_LOG_LEVEL` | Log level (debug, info, warn, error) | `info` |
+
+### Troubleshooting
+
+- **MCP server won't start:** Ensure Node.js >= 22 is installed and packages are built (`pnpm build`)
+- **DNA file not found:** Set `BEHAVIOROS_DNA_PATH` to an absolute path
+- **Tools not appearing:** Restart your AI agent after adding the MCP config
 
 ### Available Tools
 

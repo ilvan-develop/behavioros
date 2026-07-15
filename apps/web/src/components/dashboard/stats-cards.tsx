@@ -1,9 +1,9 @@
 'use client';
 
 import { Activity, Bot, FileText, Target, TrendingDown, TrendingUp } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Agent, AuditEvent, Mission, QualityGate } from '@/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useFetch } from '@/lib/hooks/use-api';
 
 interface StatCard {
   title: string;
@@ -107,41 +107,26 @@ function computeStats(data: StatsResponse): StatCard[] {
 }
 
 export function StatsCards() {
-  const [stats, setStats] = useState<StatCard[]>(fallbackStats);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const res = await fetch('/api/stats');
-        if (res.ok) {
-          const data: StatsResponse = await res.json();
-          setStats(computeStats(data));
-        }
-      } catch {
-        // keep fallback
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchStats();
-  }, []);
+  const { data, loading } = useFetch<StatsResponse>('/api/stats');
+  const stats = data ? computeStats(data) : fallbackStats;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat) => (
-        <Card key={stat.title} className="hover:border-[#333] transition-colors">
+        <Card key={stat.title} className="hover:border-border/60 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-[#a1a1aa]">{stat.title}</CardTitle>
-            <div className="text-[#a1a1aa]">{stat.icon}</div>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              {stat.title}
+            </CardTitle>
+            <div className="text-muted-foreground">{stat.icon}</div>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="h-8 w-16 animate-pulse rounded bg-[#262626]" />
+              <Skeleton className="h-8 w-16" />
             ) : (
               <>
-                <div className="text-2xl font-bold text-[#fafafa]">{stat.value}</div>
-                <div className="flex items-center gap-1 text-xs text-[#a1a1aa]">
+                <div className="text-2xl font-bold text-foreground">{stat.value}</div>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   {stat.trend === 'up' ? (
                     <TrendingUp className="h-3 w-3 text-green-500" />
                   ) : (

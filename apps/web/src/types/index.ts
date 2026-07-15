@@ -1,6 +1,13 @@
 export type MissionStatus = 'draft' | 'executing' | 'completed' | 'failed' | 'paused';
 export type MissionPriority = 'critical' | 'high' | 'medium' | 'low';
-export type MissionType = 'research' | 'build' | 'review' | 'deploy' | 'monitor';
+export type MissionType =
+  | 'feature'
+  | 'bugfix'
+  | 'refactor'
+  | 'research'
+  | 'incident'
+  | 'experiment'
+  | 'custom';
 
 export type AgentStatus = 'idle' | 'working' | 'blocked' | 'offline';
 

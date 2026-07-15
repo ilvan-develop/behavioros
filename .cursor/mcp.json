@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "behavioros": {
+      "command": "node",
+      "args": ["packages/mcp-server/dist/index.js"],
+      "env": {
+        "BEHAVIOROS_DNA_PATH": "./dnas/enterprise-governance.yaml",
+        "BEHAVIOROS_PROJECT": "default"
+      }
+    }
+  }
+}

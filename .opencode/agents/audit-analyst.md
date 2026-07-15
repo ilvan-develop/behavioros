@@ -12,7 +12,11 @@ permission:
     "pnpm typecheck*": allow
     "pnpm build*": allow
     "git status*": allow
+    "git log*": allow
+    "git diff*": allow
+    "npx @behavioros/cli*": allow
   webfetch: allow
+  websearch: allow
   skill:
     "behavioros-audit": allow
   behavioros:

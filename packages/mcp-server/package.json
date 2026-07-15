@@ -7,6 +7,38 @@
   "bin": {
     "behavioros-mcp": "./dist/server.js"
   },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "author": "Ilvan Joaquim",
+  "license": "MIT",
+  "keywords": [
+    "behavioros",
+    "mcp",
+    "mcp-server",
+    "ai-agents",
+    "governance",
+    "claude",
+    "cursor"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ilvan-develop/behavioros",
+    "directory": "packages/mcp-server"
+  },
+  "homepage": "https://github.com/ilvan-develop/behavioros",
+  "bugs": {
+    "url": "https://github.com/ilvan-develop/behavioros/issues"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "build": "tsup src/server.ts src/index.ts --format esm,cjs",
     "dev": "tsx watch src/server.ts",

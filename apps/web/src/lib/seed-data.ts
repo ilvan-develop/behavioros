@@ -1,0 +1,557 @@
+import type { Agent, AuditEvent, GovernanceRule, Mission, QualityGate } from '@/types';
+
+// ============================================================
+// Seed Data — Realistic demo data for BehaviorOS dashboard
+// ============================================================
+
+const now = new Date().toISOString();
+const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
+const daysAgo = (d: number) => new Date(Date.now() - d * 86400_000).toISOString();
+
+// ─── Missions ─────────────────────────────────────────────
+
+export const seedMissions: Mission[] = [
+  {
+    id: 'mission-001',
+    title: 'Implement OAuth2 + PKCE flow',
+    description: 'Add OAuth2 authentication with PKCE for the web dashboard and API access.',
+    type: 'feature',
+    priority: 'critical',
+    status: 'executing',
+    assignedTo: ['agent-engineer-001'],
+    createdAt: daysAgo(5),
+    updatedAt: hoursAgo(2),
+    progress: 72,
+    tags: ['auth', 'security', 'oauth2'],
+  },
+  {
+    id: 'mission-002',
+    title: 'Migrate database to PostgreSQL 17',
+    description: 'Upgrade from PostgreSQL 15 to 17 with zero-downtime migration strategy.',
+    type: 'feature',
+    priority: 'high',
+    status: 'executing',
+    assignedTo: ['agent-engineer-001', 'agent-devops-001'],
+    createdAt: daysAgo(12),
+    updatedAt: daysAgo(1),
+    progress: 45,
+    tags: ['database', 'migration', 'postgresql'],
+  },
+  {
+    id: 'mission-003',
+    title: 'Security audit Q3 2026',
+    description:
+      'Quarterly security audit covering OWASP Top 10, dependency scanning, and secrets detection.',
+    type: 'research',
+    priority: 'high',
+    status: 'completed',
+    assignedTo: ['agent-security-001'],
+    createdAt: daysAgo(30),
+    updatedAt: daysAgo(3),
+    progress: 100,
+    tags: ['security', 'audit', 'compliance'],
+  },
+  {
+    id: 'mission-004',
+    title: 'Fix payment reconciliation race condition',
+    description: 'Critical bug: concurrent webhook processing causes duplicate ledger entries.',
+    type: 'bugfix',
+    priority: 'critical',
+    status: 'completed',
+    assignedTo: ['agent-engineer-001'],
+    createdAt: daysAgo(7),
+    updatedAt: daysAgo(4),
+    progress: 100,
+    tags: ['payments', 'bugfix', 'critical'],
+  },
+  {
+    id: 'mission-005',
+    title: 'Refactor governance engine evaluation pipeline',
+    description:
+      'Optimize governance rule evaluation from O(n*m) to O(n) using indexed rule lookup.',
+    type: 'refactor',
+    priority: 'medium',
+    status: 'draft',
+    assignedTo: [],
+    createdAt: daysAgo(2),
+    updatedAt: daysAgo(2),
+    progress: 0,
+    tags: ['performance', 'governance', 'refactor'],
+  },
+  {
+    id: 'mission-006',
+    title: 'Implement real-time WebSocket notifications',
+    description: 'Add WebSocket support for live dashboard updates when missions change status.',
+    type: 'feature',
+    priority: 'medium',
+    status: 'executing',
+    assignedTo: ['agent-engineer-001'],
+    createdAt: daysAgo(8),
+    updatedAt: hoursAgo(6),
+    progress: 30,
+    tags: ['websocket', 'realtime', 'dashboard'],
+  },
+  {
+    id: 'mission-007',
+    title: 'EU AI Act compliance documentation',
+    description: 'Prepare documentation and audit trails for EU AI Act Article 11 requirements.',
+    type: 'feature',
+    priority: 'high',
+    status: 'executing',
+    assignedTo: ['agent-qa-001', 'agent-security-001'],
+    createdAt: daysAgo(15),
+    updatedAt: daysAgo(2),
+    progress: 60,
+    tags: ['compliance', 'eu-ai-act', 'documentation'],
+  },
+  {
+    id: 'mission-008',
+    title: 'Investigate Redis caching for governance rules',
+    description: 'Research: evaluate Redis caching layer to reduce governance evaluation latency.',
+    type: 'research',
+    priority: 'low',
+    status: 'failed',
+    assignedTo: ['agent-engineer-001'],
+    createdAt: daysAgo(20),
+    updatedAt: daysAgo(10),
+    progress: 15,
+    tags: ['research', 'caching', 'redis'],
+  },
+];
+
+// ─── Quality Gates ────────────────────────────────────────
+
+export const seedQualityGates: QualityGate[] = [
+  {
+    id: 'qg-001',
+    name: 'Test Coverage',
+    description: 'Minimum test coverage threshold for all packages',
+    status: 'pass',
+    metrics: [
+      { id: 'qm-001', name: 'Core Coverage', value: 87, threshold: 80, unit: '%', status: 'pass' },
+      { id: 'qm-002', name: 'SDK Coverage', value: 92, threshold: 80, unit: '%', status: 'pass' },
+      { id: 'qm-003', name: 'MCP Coverage', value: 78, threshold: 80, unit: '%', status: 'warn' },
+    ],
+  },
+  {
+    id: 'qg-002',
+    name: 'Lint Compliance',
+    description: 'Biome lint checks must pass with zero errors',
+    status: 'pass',
+    metrics: [
+      {
+        id: 'qm-004',
+        name: 'Biome Errors',
+        value: 0,
+        threshold: 0,
+        unit: 'errors',
+        status: 'pass',
+      },
+      {
+        id: 'qm-005',
+        name: 'Biome Warnings',
+        value: 3,
+        threshold: 10,
+        unit: 'warnings',
+        status: 'pass',
+      },
+    ],
+  },
+  {
+    id: 'qg-003',
+    name: 'TypeScript Safety',
+    description: 'Zero TypeScript compilation errors across all packages',
+    status: 'fail',
+    metrics: [
+      {
+        id: 'qm-006',
+        name: 'Type Errors (CLI)',
+        value: 4,
+        threshold: 0,
+        unit: 'errors',
+        status: 'fail',
+      },
+      {
+        id: 'qm-007',
+        name: 'Type Errors (DNAs)',
+        value: 2,
+        threshold: 0,
+        unit: 'errors',
+        status: 'fail',
+      },
+      {
+        id: 'qm-008',
+        name: 'Type Errors (SDK)',
+        value: 1,
+        threshold: 0,
+        unit: 'errors',
+        status: 'fail',
+      },
+    ],
+  },
+  {
+    id: 'qg-004',
+    name: 'Security Scan',
+    description: 'No known critical or high vulnerabilities',
+    status: 'pass',
+    metrics: [
+      {
+        id: 'qm-009',
+        name: 'Critical Vulnerabilities',
+        value: 0,
+        threshold: 0,
+        unit: 'vulns',
+        status: 'pass',
+      },
+      {
+        id: 'qm-010',
+        name: 'High Vulnerabilities',
+        value: 0,
+        threshold: 0,
+        unit: 'vulns',
+        status: 'pass',
+      },
+      {
+        id: 'qm-011',
+        name: 'Medium Vulnerabilities',
+        value: 2,
+        threshold: 5,
+        unit: 'vulns',
+        status: 'pass',
+      },
+    ],
+  },
+  {
+    id: 'qg-005',
+    name: 'Build Success',
+    description: 'All 9 packages must build without errors',
+    status: 'pass',
+    metrics: [
+      {
+        id: 'qm-012',
+        name: 'Packages Built',
+        value: 9,
+        threshold: 9,
+        unit: 'packages',
+        status: 'pass',
+      },
+      {
+        id: 'qm-013',
+        name: 'Build Time',
+        value: 45,
+        threshold: 120,
+        unit: 'seconds',
+        status: 'pass',
+      },
+    ],
+  },
+  {
+    id: 'qg-006',
+    name: 'Performance',
+    description: 'Web app performance metrics must meet thresholds',
+    status: 'warn',
+    metrics: [
+      {
+        id: 'qm-014',
+        name: 'First Contentful Paint',
+        value: 1.8,
+        threshold: 1.5,
+        unit: 'seconds',
+        status: 'warn',
+      },
+      {
+        id: 'qm-015',
+        name: 'Largest Contentful Paint',
+        value: 2.1,
+        threshold: 2.5,
+        unit: 'seconds',
+        status: 'pass',
+      },
+      {
+        id: 'qm-016',
+        name: 'Cumulative Layout Shift',
+        value: 0.05,
+        threshold: 0.1,
+        unit: 'score',
+        status: 'pass',
+      },
+    ],
+  },
+];
+
+// ─── Governance Rules ─────────────────────────────────────
+
+export const seedGovernanceRules: GovernanceRule[] = [
+  {
+    id: 'gov-001',
+    name: 'Payment System Changes',
+    description:
+      'All changes to payment processing require security architect review and human approval.',
+    level: 'critical',
+    action: 'block',
+    conditions: ['type:payment', 'type:financial', 'type:billing'],
+    scope: 'all',
+    enabled: true,
+    createdAt: daysAgo(60),
+  },
+  {
+    id: 'gov-002',
+    name: 'Security Vulnerability Review',
+    description: 'Security-sensitive changes require security architect sign-off before merge.',
+    level: 'critical',
+    action: 'escalate',
+    conditions: ['type:security', 'type:vulnerability', 'type:auth'],
+    scope: 'all',
+    enabled: true,
+    createdAt: daysAgo(45),
+  },
+  {
+    id: 'gov-003',
+    name: 'Architecture Changes',
+    description: 'Changes affecting system architecture require architect approval.',
+    level: 'high',
+    action: 'escalate',
+    conditions: ['type:architecture', 'type:breaking-change', 'type:api'],
+    scope: 'engineer,specialist',
+    enabled: true,
+    createdAt: daysAgo(30),
+  },
+  {
+    id: 'gov-004',
+    name: 'Database Schema Changes',
+    description: 'All database migrations require review and staged rollout plan.',
+    level: 'high',
+    action: 'block',
+    conditions: ['type:database', 'type:migration', 'type:schema'],
+    scope: 'engineer,devops',
+    enabled: true,
+    createdAt: daysAgo(25),
+  },
+  {
+    id: 'gov-005',
+    name: 'EU AI Act Compliance',
+    description:
+      'Changes to AI governance systems must maintain EU AI Act compliance documentation.',
+    level: 'critical',
+    action: 'block',
+    conditions: ['type:compliance', 'type:ai-governance', 'type:regulatory'],
+    scope: 'all',
+    enabled: true,
+    createdAt: daysAgo(20),
+  },
+  {
+    id: 'gov-006',
+    name: 'Dependency Updates',
+    description: 'Major version bumps of core dependencies require integration testing.',
+    level: 'medium',
+    action: 'warn',
+    conditions: ['type:dependency', 'type:upgrade'],
+    scope: 'engineer',
+    enabled: true,
+    createdAt: daysAgo(15),
+  },
+  {
+    id: 'gov-007',
+    name: 'Documentation Updates',
+    description: 'Significant feature changes should include documentation updates.',
+    level: 'low',
+    action: 'log',
+    conditions: ['type:feature', 'type:documentation'],
+    scope: 'all',
+    enabled: true,
+    createdAt: daysAgo(10),
+  },
+];
+
+// ─── Audit Events ─────────────────────────────────────────
+
+export const seedAuditEvents: AuditEvent[] = [
+  {
+    id: 'audit-001',
+    timestamp: hoursAgo(1),
+    type: 'lint/pass',
+    severity: 'info',
+    result: 'pass',
+    description: 'Biome lint check passed with 0 errors, 3 warnings',
+    agent: 'agent-qa-001',
+  },
+  {
+    id: 'audit-002',
+    timestamp: hoursAgo(1),
+    type: 'typecheck/fail',
+    severity: 'high',
+    result: 'fail',
+    description: 'TypeScript check failed: 7 errors across cli, dnas, sdk packages',
+    agent: 'agent-qa-001',
+  },
+  {
+    id: 'audit-003',
+    timestamp: hoursAgo(2),
+    type: 'security/pass',
+    severity: 'info',
+    result: 'pass',
+    description: 'Security scan completed: 0 critical, 0 high, 2 medium vulnerabilities',
+    agent: 'agent-security-001',
+  },
+  {
+    id: 'audit-004',
+    timestamp: hoursAgo(3),
+    type: 'governance/block',
+    severity: 'critical',
+    result: 'fail',
+    description: 'Payment endpoint modification blocked: requires security architect approval',
+    agent: 'agent-engineer-001',
+    mission: 'mission-004',
+  },
+  {
+    id: 'audit-005',
+    timestamp: hoursAgo(5),
+    type: 'quality/warn',
+    severity: 'medium',
+    result: 'warn',
+    description: 'MCP server test coverage at 78%, below 80% threshold',
+  },
+  {
+    id: 'audit-006',
+    timestamp: hoursAgo(8),
+    type: 'deploy/staging',
+    severity: 'info',
+    result: 'pass',
+    description: 'Staging deployment successful: all 9 packages built in 45s',
+    agent: 'agent-devops-001',
+    mission: 'mission-003',
+  },
+  {
+    id: 'audit-007',
+    timestamp: hoursAgo(12),
+    type: 'performance/warn',
+    severity: 'medium',
+    result: 'warn',
+    description: 'First Contentful Paint at 1.8s exceeds 1.5s threshold',
+  },
+  {
+    id: 'audit-008',
+    timestamp: daysAgo(1),
+    type: 'compliance/pass',
+    severity: 'info',
+    result: 'pass',
+    description: 'EU AI Act Article 11 compliance check passed',
+    agent: 'agent-security-001',
+    mission: 'mission-007',
+  },
+  {
+    id: 'audit-009',
+    timestamp: daysAgo(2),
+    type: 'coverage/fail',
+    severity: 'high',
+    result: 'fail',
+    description: 'Overall test coverage dropped below 80% after recent changes',
+  },
+  {
+    id: 'audit-010',
+    timestamp: daysAgo(3),
+    type: 'governance/escalate',
+    severity: 'high',
+    result: 'warn',
+    description: 'Architecture change proposal escalated to architect for review',
+    agent: 'agent-engineer-001',
+    mission: 'mission-002',
+  },
+  {
+    id: 'audit-011',
+    timestamp: daysAgo(4),
+    type: 'security/pass',
+    severity: 'info',
+    result: 'pass',
+    description: 'Dependency audit: no new vulnerabilities found in 247 packages',
+    agent: 'agent-security-001',
+  },
+  {
+    id: 'audit-012',
+    timestamp: daysAgo(5),
+    type: 'pipeline/pass',
+    severity: 'info',
+    result: 'pass',
+    description: 'EAARG pipeline completed: 9/9 layers passed, overall score 87/100',
+    mission: 'mission-003',
+  },
+  {
+    id: 'audit-013',
+    timestamp: daysAgo(7),
+    type: 'governance/block',
+    severity: 'critical',
+    result: 'fail',
+    description: 'Direct production access blocked: use CI/CD pipeline for deployments',
+    agent: 'agent-devops-001',
+  },
+  {
+    id: 'audit-014',
+    timestamp: daysAgo(10),
+    type: 'quality/pass',
+    severity: 'info',
+    result: 'pass',
+    description: 'Full quality gate evaluation: 5/6 gates passed',
+  },
+  {
+    id: 'audit-015',
+    timestamp: daysAgo(14),
+    type: 'architecture/pass',
+    severity: 'info',
+    result: 'pass',
+    description: 'Architecture review completed: 9-layer design approved',
+    agent: 'agent-architect-001',
+  },
+];
+
+// ─── Agents (enriched from SDK AgentState) ────────────────
+
+const roleAvatars: Record<string, string> = {
+  manager: '\u{1F451}',
+  architect: '\u{1F3D7}\uFE0F',
+  engineer: '\u{1F527}',
+  specialist: '\u{1F9E0}',
+  analyst: '\u{1F4CA}',
+  qa: '\u{2705}',
+  security: '\u{1F6E1}\uFE0F',
+  devops: '\u{2699}\uFE0F',
+  lead: '\u{1F46E}',
+  support: '\u{1F4AC}',
+};
+
+const roleSkillSets: Record<string, string[]> = {
+  manager: ['Leadership', 'Planning', 'Coordination'],
+  architect: ['System Design', 'Architecture', 'Decision Making'],
+  engineer: ['Implementation', 'Debugging', 'Code Review'],
+  specialist: ['Domain Expertise', 'Analysis', 'Problem Solving'],
+  analyst: ['Data Analysis', 'Research', 'Reporting'],
+  qa: ['Testing', 'Quality Assurance', 'Automation'],
+  security: ['Security Review', 'Vulnerability Analysis', 'Compliance'],
+  devops: ['CI/CD', 'Infrastructure', 'Monitoring'],
+  lead: ['Mentoring', 'Planning', 'Technical Leadership'],
+  support: ['Communication', 'Documentation', 'User Support'],
+};
+
+export function enrichAgent(sdkAgent: {
+  id: string;
+  role: string;
+  authority: string;
+  status: string;
+  reputation: number;
+  completedMissions?: string[];
+}): Agent {
+  return {
+    id: sdkAgent.id,
+    name: sdkAgent.id
+      .replace(/^agent-/, '')
+      .replace(/-[a-f0-9]{8}$/, '')
+      .replace(/-/g, ' '),
+    role: sdkAgent.role,
+    authority: sdkAgent.authority,
+    status: sdkAgent.status as Agent['status'],
+    reputation: sdkAgent.reputation,
+    skills: roleSkillSets[sdkAgent.role] ?? ['General'],
+    missionsCompleted: sdkAgent.completedMissions?.length ?? 0,
+    lastActive: new Date().toISOString(),
+    avatar: roleAvatars[sdkAgent.role] ?? '\u{1F916}',
+  };
+}

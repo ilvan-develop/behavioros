@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getBehaviorOS } from '@/lib/bos';
+import { seedMissions } from '@/lib/seed-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,13 +9,15 @@ export async function GET() {
     const bos = getBehaviorOS();
     const sdkMissions = bos.getAllMissions();
 
+    const missions = sdkMissions.length > 0 ? sdkMissions : seedMissions;
+
     return NextResponse.json({
-      missions: sdkMissions,
-      total: sdkMissions.length,
+      missions,
+      total: missions.length,
     });
   } catch (error) {
     console.error('GET /api/missions error:', error);
-    return NextResponse.json({ missions: [], total: 0 });
+    return NextResponse.json({ missions: seedMissions, total: seedMissions.length });
   }
 }
 

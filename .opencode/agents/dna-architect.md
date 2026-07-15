@@ -5,7 +5,12 @@ model: anthropic/claude-sonnet-4-5
 temperature: 0.2
 permission:
   edit: allow
-  bash: deny
+  bash:
+    "*": deny
+    "node -e*": allow
+    "npx yaml*": allow
+    "cat *": allow
+    "ls *": allow
   webfetch: allow
   websearch: allow
   skill:

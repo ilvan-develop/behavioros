@@ -1,1 +1,1 @@
-npm test
+pnpm --filter @behavioros/core --filter @behavioros/sdk --filter @behavioros/cli --filter @behavioros/dnas test

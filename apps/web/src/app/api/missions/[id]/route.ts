@@ -36,7 +36,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
-    let updated;
+    let updated: Awaited<ReturnType<typeof bos.startMission>> | undefined;
     switch (action) {
       case 'start':
         updated = await bos.startMission(id);

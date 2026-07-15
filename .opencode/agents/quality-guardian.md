@@ -4,14 +4,20 @@ mode: subagent
 model: anthropic/claude-sonnet-4-5
 temperature: 0.1
 permission:
-  edit: deny
+  edit: allow
   bash:
     "*": deny
     "pnpm test*": allow
     "pnpm lint*": allow
+    "pnpm lint:check*": allow
     "pnpm typecheck*": allow
+    "pnpm build*": allow
     "npx vitest*": allow
+    "npx biome*": allow
+    "cat *": allow
+    "ls *": allow
   webfetch: allow
+  websearch: allow
   skill:
     "behavioros-audit": allow
   behavioros:

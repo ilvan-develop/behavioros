@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import type { DNAPackage } from '@behavioros/schemas';
 import {
   AuditChain,
   BehaviorOSEngine,
@@ -115,7 +116,22 @@ export function createServer(): McpServer {
   }
 
   const loader = new DNALoader({ basePath: process.cwd() });
-  const dna = loader.load(dnaPath);
+  let dna: DNAPackage;
+  try {
+    dna = loader.load(dnaPath);
+  } catch {
+    console.warn(`[behavioros] DNA file not found at ${dnaPath}. Using built-in fallback.`);
+    const fallbackPath = resolve(process.cwd(), 'dnas/enterprise-governance.yaml');
+    try {
+      dna = loader.load(fallbackPath);
+    } catch {
+      console.warn(`[behavioros] Fallback DNA also not found. Initializing with minimal config.`);
+      throw new Error(
+        `Failed to load DNA from ${dnaPath} and fallback ${fallbackPath}. ` +
+          'Set BEHAVIOROS_DNA_PATH or place enterprise-governance.yaml in the dnas/ directory.',
+      );
+    }
+  }
 
   // Initialize engine
   _engine = new BehaviorOSEngine({
@@ -423,6 +439,16 @@ const _isDirectExec =
 if (_isDirectExec || process.env.BEHAVIOROS_MCP_AUTO_START === 'true') {
   const server = createServer();
   const transport = new StdioServerTransport();
+  process.on('SIGINT', async () => {
+    await server.close();
+    process.exit(0);
+  });
+
+  process.on('SIGTERM', async () => {
+    await server.close();
+    process.exit(0);
+  });
+
   server.connect(transport).catch((err) => {
     console.error('Failed to start MCP server:', err);
     process.exit(1);

@@ -33,22 +33,23 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'flex h-screen flex-col border-r border-[#262626] bg-[#0a0a0a] transition-all duration-300',
+        'flex h-screen flex-col border-r border-border bg-background transition-all duration-300',
         collapsed ? 'w-16' : 'w-64',
       )}
     >
-      <div className="flex h-14 items-center justify-between border-b border-[#262626] px-4">
+      <div className="flex h-14 items-center justify-between border-b border-border px-4">
         {!collapsed && (
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0A7C4F]">
-              <span className="text-sm font-bold text-white">B</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+              <span className="text-sm font-bold text-primary-foreground">B</span>
             </div>
-            <span className="text-sm font-semibold text-[#fafafa]">BehaviorOS</span>
+            <span className="text-sm font-semibold text-foreground">BehaviorOS</span>
           </Link>
         )}
         <button
+          type="button"
           onClick={() => setCollapsed(!collapsed)}
-          className="rounded-md p-1.5 text-[#a1a1aa] hover:bg-[#1a1a1a] hover:text-[#fafafa] transition-colors"
+          className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
@@ -64,8 +65,8 @@ export function Sidebar() {
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
                 isActive
-                  ? 'bg-[#0A7C4F]/10 text-[#0A7C4F]'
-                  : 'text-[#a1a1aa] hover:bg-[#1a1a1a] hover:text-[#fafafa]',
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                 collapsed && 'justify-center px-2',
               )}
             >
@@ -76,15 +77,15 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-[#262626] p-4">
+      <div className="border-t border-border p-4">
         {!collapsed && (
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1a1a1a]">
-              <span className="text-xs text-[#a1a1aa]">OS</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+              <span className="text-xs text-muted-foreground">OS</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-[#fafafa] truncate">Operator</p>
-              <p className="text-xs text-[#a1a1aa] truncate">admin@behavioros.ai</p>
+              <p className="text-xs font-medium text-foreground truncate">Operator</p>
+              <p className="text-xs text-muted-foreground truncate">admin@behavioros.ai</p>
             </div>
           </div>
         )}
