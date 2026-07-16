@@ -1,5 +1,9 @@
 export { run } from './bin.js';
 export { compileCommand } from './commands/compile.js';
+export { deployCommand } from './commands/deploy.js';
+export { diffCommand } from './commands/diff.js';
+export { driftCheckCommand } from './commands/drift-check.js';
 export { initCommand } from './commands/init.js';
+export { simulateCommand } from './commands/simulate.js';
 export { statusCommand } from './commands/status.js';
 export { validateCommand } from './commands/validate.js';

@@ -3,7 +3,11 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { Command } from 'commander';
 import { compileCommand } from './commands/compile.js';
+import { deployCommand } from './commands/deploy.js';
+import { diffCommand } from './commands/diff.js';
+import { driftCheckCommand } from './commands/drift-check.js';
 import { initCommand } from './commands/init.js';
+import { simulateCommand } from './commands/simulate.js';
 import { statusCommand } from './commands/status.js';
 import { validateCommand } from './commands/validate.js';
 
@@ -25,6 +29,10 @@ initCommand(program);
 compileCommand(program);
 validateCommand(program);
 statusCommand(program);
+diffCommand(program);
+simulateCommand(program);
+deployCommand(program);
+driftCheckCommand(program);
 
 export function run(argv = process.argv) {
   program.parse(argv);
