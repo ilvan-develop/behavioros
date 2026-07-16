@@ -146,18 +146,10 @@ export class GovernanceEngine {
             escalationRequired: rule.level === 'critical' || rule.level === 'high',
           };
         }
-        if (rule.action === 'require_approval') {
+        if (rule.action === 'escalate') {
           return {
             allowed: false,
             reason: `Approval required by governance rule: ${rule.name}`,
-            rule,
-            escalationRequired: true,
-          };
-        }
-        if (rule.action === 'escalate') {
-          return {
-            allowed: true,
-            reason: `Escalated by governance rule: ${rule.name}`,
             rule,
             escalationRequired: true,
           };

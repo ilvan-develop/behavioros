@@ -58,7 +58,7 @@ const createTestConfig = (): BehaviorOSEngineConfig => ({
   dna: createTestDNA(),
   governance: { enabled: true, level: 'standard', requireApproval: true, maxAgents: 10 },
   quality: { enabled: true, minCoverage: 80, enforceTypecheck: true, enforceLint: true },
-  learning: { enabled: true },
+  learning: { enabled: true, autoApply: false },
   audit: { enabled: true },
 });
 
@@ -155,6 +155,7 @@ describe('BehaviorOSEngine', () => {
       source: 'test',
       data: { message: 'test event' },
       confidence: 0.8,
+      applied: false,
     });
 
     expect(event.id).toBeDefined();

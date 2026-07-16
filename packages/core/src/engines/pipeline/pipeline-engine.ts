@@ -90,6 +90,8 @@ export class PipelineEngine extends EventEmitter<PipelineEngineEvents> {
       questionsTotal,
       criteriaMet: 0,
       criteriaTotal,
+      skillsUsed: [],
+      skillsScore: 0,
       duration: 0,
       timestamp: new Date().toISOString(),
     };
@@ -262,15 +264,27 @@ export class PipelineEngine extends EventEmitter<PipelineEngineEvents> {
       // Check if all layers are done
       const allLayersDone = this.state.layers.length >= this.eaargSteps.length;
       if (allLayersDone) {
+        const completed = this.state.layers.filter(
+          (l: LayerResult) => l.status !== 'pending' && l.status !== 'skip',
+        );
+        const overallScore =
+          completed.length > 0
+            ? Math.round(
+                completed.reduce((sum: number, l: LayerResult) => sum + l.score, 0) /
+                  completed.length,
+              )
+            : 0;
+
         this.state = {
           ...this.state,
           status: 'completed',
           completedAt: new Date().toISOString(),
+          overallScore,
           overallStatus: this.state.layers.every((l: LayerResult) => l.status === 'pass')
             ? 'pass'
             : 'partial',
         };
-        this.emit('pipeline:completed', this.state);
+        this.emit('pipeline:completed', this.getReport());
       } else {
         // Advance to next layer
         this.advanceToNextLayer();

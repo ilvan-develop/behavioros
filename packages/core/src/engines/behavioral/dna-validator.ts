@@ -272,7 +272,7 @@ export class DNAValidator {
       if (pattern.triggers) {
         for (const trigger of pattern.triggers) {
           // Simple check — can be extended
-          if (trigger.includes('agent:') && !agentRoles.has(trigger.replace('agent:', ''))) {
+          if (trigger.includes('agent:') && !agentRoles.has(trigger.replace('agent:', '') as any)) {
             warnings.push({
               code: 'DNA_PATTERN_REFERENCE',
               message: `Pattern ${pattern.id} references unknown agent: ${trigger}`,

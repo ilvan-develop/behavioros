@@ -149,7 +149,7 @@ export class GovernanceLayer implements PipelineLayer {
     // Check scope
     if (rule.scope && rule.scope.length > 0) {
       const matchesScope = rule.scope.some(
-        (s) => context.action.includes(s) || context.payload?.[s] !== undefined,
+        (s: string) => context.action.includes(s) || context.payload?.[s] !== undefined,
       );
       if (!matchesScope) return false;
     }
@@ -157,7 +157,7 @@ export class GovernanceLayer implements PipelineLayer {
     // Check conditions
     if (rule.conditions && rule.conditions.length > 0) {
       return rule.conditions.some(
-        (c) =>
+        (c: string) =>
           context.action.includes(c) ||
           context.payload?.[c] !== undefined ||
           context.metadata.has(c),

@@ -34,13 +34,13 @@ export class BehavioralLayer implements PipelineLayer {
       // 1. Find matching persona for the agent
       const agentRole = context.agentId.split('-')[0] ?? 'engineer';
       const matchingPersona = dna.personas.find(
-        (p) => p.role === agentRole || p.role === context.agentId,
+        (p: { role: string; name?: string }) => p.role === agentRole || p.role === context.agentId,
       );
 
       if (!matchingPersona) {
         // Try to match by agent ID pattern (e.g., "orchestrator-agent" -> "orchestrator")
         const fallbackPersona = dna.personas.find(
-          (p) =>
+          (p: { role: string; name?: string }) =>
             context.agentId.includes(p.role) ||
             (typeof p.name === 'string' && context.agentId.includes(p.name.toLowerCase())),
         );

@@ -384,7 +384,7 @@ export class SQLiteStore {
         'SELECT id, passed, score, timestamp FROM quality_reports ORDER BY timestamp DESC LIMIT ?',
       )
       .all(limit) as Array<{ id: string; passed: boolean; score: number; timestamp: string }>;
-    return rows.map((r) => ({ ...r, passed: r.passed === 1 }));
+    return rows.map((r) => ({ ...r, passed: Boolean(r.passed) }));
   }
 
   // --- Decision History ---
