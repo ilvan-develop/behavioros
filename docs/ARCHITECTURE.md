@@ -5,37 +5,112 @@
 BehaviorOS is built on a 9-layer architecture where each layer has a dedicated engine. Layers are evaluated bottom-up: DNA defines patterns, schemas validate types, and upper layers consume validated data.
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Mission Layer                         │
-│  Mission lifecycle: create → start → execute → complete  │
-├─────────────────────────────────────────────────────────┤
-│                    Learning Layer                        │
-│  Record events → detect patterns → auto-apply fixes     │
-├─────────────────────────────────────────────────────────┤
-│                    Quality Layer                         │
-│  Quality gates: coverage, lint, typecheck, security     │
-├─────────────────────────────────────────────────────────┤
-│                    Audit Layer                           │
-│  Multi-stage pipeline: lint → typecheck → security →    │
-│  coverage → performance                                  │
-├─────────────────────────────────────────────────────────┤
-│                    Decision Layer                        │
-│  Voting-based decisions with approval thresholds        │
-├─────────────────────────────────────────────────────────┤
-│                   Governance Layer                       │
-│  Rule evaluation: block, escalate, warn, log            │
-├─────────────────────────────────────────────────────────┤
-│                  Behavioral Layer                        │
-│  DNA loading, validation, composition                   │
-├─────────────────────────────────────────────────────────┤
-│                    Schema Layer                          │
-│  Zod v4.4.3 schemas for all types                       │
-├─────────────────────────────────────────────────────────┤
-│                   DNA Layer (YAML)                       │
-│  Personas, governance rules, quality gates, patterns,   │
-│  workflows                                              │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     Mission Layer                                │
+│  Mission lifecycle: create → start → execute → complete         │
+├─────────────────────────────────────────────────────────────────┤
+│                     Learning Layer                               │
+│  Record events → detect patterns → auto-apply fixes             │
+├─────────────────────────────────────────────────────────────────┤
+│                     Quality Layer                                │
+│  Quality gates: coverage, lint, typecheck, security             │
+├─────────────────────────────────────────────────────────────────┤
+│                     Audit Layer                                  │
+│  Multi-stage pipeline: lint → typecheck → security →            │
+│  coverage → performance                                          │
+├─────────────────────────────────────────────────────────────────┤
+│                     Decision Layer                               │
+│  Voting-based decisions with approval thresholds                │
+├─────────────────────────────────────────────────────────────────┤
+│                    Governance Layer                               │
+│  Rule evaluation: block, escalate, warn, log                    │
+├─────────────────────────────────────────────────────────────────┤
+│                   Domain-Invariants Layer                        │
+│  ACL boundaries, cross-DNA guards, permission matrix            │
+├─────────────────────────────────────────────────────────────────┤
+│                   Behavioral Layer                               │
+│  DNA loading, validation, composition                           │
+├─────────────────────────────────────────────────────────────────┤
+│                     Schema Layer                                 │
+│  Zod v4.4.3 schemas for all types                               │
+├─────────────────────────────────────────────────────────────────┤
+│                    DNA Layer (YAML)                              │
+│  Personas, governance rules, quality gates, patterns,           │
+│  workflows                                                      │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+## Pipeline Dispatcher
+
+The `PipelineDispatcher` orchestrates the 9-layer pipeline using the Chain of Responsibility pattern. Each layer is a handler in the chain, and interceptors wrap the pipeline for cross-cutting concerns.
+
+```
+Request → [Interceptors] → dna-loader → schema-validator → behavioral
+        → domain-invariants → governance → decision → quality
+        → audit-trail → learning → Response
+```
+
+### Chain of Responsibility
+
+Each layer implements a `PipelineHandler` interface:
+
+```typescript
+interface PipelineHandler {
+  name: string
+  handle(context: PipelineContext, next: () => Promise<void>): Promise<void>
+}
+
+interface PipelineContext {
+  dna: DNAPackage
+  schema: SchemaValidation
+  behavioral: BehavioralResult
+  domainInvariants: DomainCheck
+  governance: GovernanceResult
+  decision: DecisionResult
+  quality: QualityResult
+  auditTrail: AuditEntry[]
+  learning: LearningEvent[]
+}
+```
+
+Handlers execute sequentially. If a handler throws, the pipeline halts and the error propagates up. Short-circuit occurs when a handler calls `return` without calling `next()`.
+
+### Interceptors
+
+Interceptors wrap the entire pipeline for cross-cutting concerns:
+
+| Interceptor | Purpose | Behavior |
+|-------------|---------|----------|
+| **Timeout** | Prevent stuck pipelines | Aborts after configurable timeout (default: 30s) |
+| **Metrics** | Collect pipeline telemetry | Records duration, layer timings, error rates |
+| **Audit-Log** | External audit trail | Writes pipeline execution to persistent storage |
+
+Interceptors are composable:
+
+```typescript
+const pipeline = composeInterceptors([
+  new TimeoutInterceptor(30_000),
+  new MetricsInterceptor(metricsClient),
+  new AuditLogInterceptor(auditStore),
+], dnaPipeline)
+```
+
+### Mode Adapters
+
+The pipeline supports two execution modes via adapters:
+
+| Mode | Use Case | Behavior |
+|------|----------|----------|
+| **Conversational** | Interactive agent sessions | Faster feedback, partial evaluation, lazy layer execution |
+| **Transactional** | Autonomous batch operations | Full pipeline execution, strict validation, all layers evaluated |
+
+```typescript
+const adapter = mode === 'conversational'
+  ? new ConversationalAdapter(pipeline)
+  : new TransactionalAdapter(pipeline)
+```
+
+**Conversational mode** skips non-essential layers when the agent is in a read-only or exploratory state. **Transactional mode** always runs the full 9-layer pipeline.
 
 ## 7 Engines
 
@@ -120,6 +195,63 @@ Multi-step processes that chain patterns:
 - **timeout**: maximum execution time
 - **retries**: retry count on failure
 
+## Domain Isolation
+
+BehaviorOS applies Domain-Driven Design (DDD) principles with Anti-Corruption Layers (ACL) to isolate DNA packages and prevent cross-contamination between agent teams.
+
+### Boundaries
+
+| Boundary | Purpose | Enforcement |
+|----------|---------|-------------|
+| **DNABoundary** | Isolate DNA packages from each other | Schema validation, namespace prefixes |
+| **AgentBoundary** | Prevent agents from accessing unauthorized DNA | Permission matrix, role-based access |
+| **ExecutionBoundary** | Contain sandbox execution environments | Process isolation, resource limits |
+
+### Anti-Corruption Layers
+
+ACLs sit between boundaries and translate requests to prevent leaking domain concepts:
+
+| ACL | Source → Target | Translation |
+|-----|-----------------|-------------|
+| **AgentACL** | Agent actions → DNA governance | Validates agent authority before DNA evaluation |
+| **DataACL** | Cross-DNA data flow → Schema | Transforms and validates data between DNA contexts |
+| **EventACL** | Cross-DNA events → Learning | Filters and routes learning events by DNA scope |
+
+```typescript
+const acl = new AgentACL({
+  sourceDNA: 'payments',
+  targetDNA: 'shared-infra',
+  rules: [
+    { action: 'deploy', required: 'architect' },
+    { action: 'read', required: 'senior' },
+  ],
+})
+```
+
+### Permission Matrix
+
+Permissions are defined per DNA mode (conversational vs transactional):
+
+| DNA Mode | Read | Write | Execute | Deploy | Governance |
+|----------|------|-------|---------|--------|------------|
+| **Conversational** | Yes | Limited | Limited | No | Warn only |
+| **Transactional** | Yes | Yes | Yes | Yes | Full enforcement |
+
+### Cross-DNA Guard
+
+The `CrossDNAGuard` prevents unauthorized cross-DNA operations:
+
+- **Static analysis** at DNA load time detects cross-DNA references
+- **Runtime validation** blocks cross-DNA actions not in the permission matrix
+- **Audit logging** records all cross-DNA attempts for compliance
+- **Escalation** when agents attempt cross-DNA writes without approval
+
+```
+Agent Action → CrossDNAGuard → Permission Matrix → Allowed / Blocked
+                                ↓
+                           Audit Log (all attempts)
+```
+
 ## Governance Model
 
 The governance model follows a strict evaluation pipeline:
@@ -152,6 +284,186 @@ The learning system operates in three phases:
 2. **Detect** — Patterns are identified across recorded events
 3. **Apply** — Known fixes are automatically applied (optional)
 
+## Sandbox & Shadow Mode
+
+### SandboxEngine
+
+The `SandboxEngine` provides isolated execution environments for testing agent behaviors without affecting production systems.
+
+| Mode | Duration | Persistence | Use Case |
+|------|----------|-------------|----------|
+| **Ephemeral** | Single execution | None | Quick validation, one-shot tests |
+| **Persistent** | Session-based | File system | Extended development, debugging |
+| **Shadow** | Indefinite | Configurable | Long-running experiments, A/B testing |
+
+```typescript
+const sandbox = new SandboxEngine({
+  mode: 'ephemeral',
+  limits: {
+    memory: '512MB',
+    cpu: '1 core',
+    timeout: '30s',
+  },
+})
+
+const result = await sandbox.execute(agentAction, {
+  isolate: true,
+  capture: 'all',
+})
+```
+
+### Shadow Pipeline
+
+The Shadow Pipeline runs parallel to the production pipeline, capturing and comparing results without affecting live traffic.
+
+```
+Production Pipeline ──→ Live Results
+        │
+        ▼
+Shadow Pipeline ──→ Shadow Results ──→ Diff Engine ──→ Alert if divergence > threshold
+```
+
+**Key features:**
+- **Traffic capture** — Mirrors production requests to shadow environment
+- **Replay engine** — Replays captured traffic with different DNA configurations
+- **Diff analysis** — Compares production vs shadow results for anomalies
+- **Alert system** — Notifies when shadow results diverge beyond configurable threshold
+
+```typescript
+const shadow = new ShadowPipeline({
+  captureRate: 0.1, // 10% of traffic
+  diffThreshold: 0.05, // 5% divergence triggers alert
+  alertChannels: ['slack', 'email'],
+})
+
+await shadow.start()
+```
+
+### Canary Deploy
+
+BehaviorOS supports gradual rollout of DNA changes using canary deployments:
+
+```
+5% traffic → 25% traffic → 50% traffic → 100% traffic
+    │            │            │            │
+    ▼            ▼            ▼            ▼
+ Monitor     Monitor     Monitor     Full Rollout
+ 24 hours    48 hours    72 hours
+```
+
+| Stage | Traffic | Duration | Rollback Trigger |
+|-------|---------|----------|------------------|
+| **Stage 1** | 5% | 24 hours | Error rate > 1% or latency > 2x baseline |
+| **Stage 2** | 25% | 48 hours | Error rate > 0.5% or governance violations |
+| **Stage 3** | 50% | 72 hours | Quality gate failures or user complaints |
+| **Stage 4** | 100% | Permanent | Anomaly detection alerts |
+
+```typescript
+const canary = new CanaryDeploy({
+  dna: newDNA,
+  stages: [
+    { traffic: 5, duration: '24h', rollbackThreshold: { errorRate: 0.01 } },
+    { traffic: 25, duration: '48h', rollbackThreshold: { errorRate: 0.005 } },
+    { traffic: 50, duration: '72h', rollbackThreshold: { errorRate: 0.001 } },
+    { traffic: 100, duration: 'permanent' },
+  ],
+})
+
+await canary.start()
+```
+
+## Resilience
+
+BehaviorOS implements defense mechanisms to protect against runaway agents, excessive resource consumption, and cascading failures.
+
+### Rate Limiter
+
+The Rate Limiter controls agent action throughput using configurable algorithms:
+
+| Algorithm | Use Case | Behavior |
+|-----------|----------|----------|
+| **Token Bucket** | Burst-friendly workloads | Allows short bursts, refills at steady rate |
+| **Sliding Window** | Consistent rate limiting | Smooth distribution over time window |
+| **Adaptive** | Dynamic workloads | Adjusts limits based on system load |
+
+**Escalation Tiers:**
+
+| Utilization | Action | Effect |
+|-------------|--------|--------|
+| 0-80% | Normal | Full throughput |
+| 80-90% | Warning | Log warning, notify agent |
+| 90-100% | Throttle | Reduce throughput by 50% |
+| 100% | Block | Reject new actions, queue existing |
+
+```typescript
+const rateLimiter = new RateLimiter({
+  algorithm: 'adaptive',
+  limits: {
+    default: { requests: 100, window: '1m' },
+    critical: { requests: 50, window: '1m' },
+  },
+  escalation: {
+    warning: 0.8,
+    throttle: 0.9,
+    block: 1.0,
+  },
+})
+```
+
+### Circuit Breaker
+
+The Circuit Breaker prevents cascading failures by temporarily disabling failing agents:
+
+```
+Closed (normal) ──→ Open (failing) ──→ Half-Open (testing)
+      ↑                                      │
+      └──────────── Success ─────────────────┘
+```
+
+| State | Behavior | Duration |
+|-------|----------|----------|
+| **Closed** | Normal operation, counting failures | Until threshold reached |
+| **Open** | All requests rejected, fast-fail | Configurable cooldown (default: 30s) |
+| **Half-Open** | Limited requests to test recovery | Until success or failure threshold |
+
+```typescript
+const circuitBreaker = new CircuitBreaker({
+  failureThreshold: 5,
+  cooldown: '30s',
+  halfOpenRequests: 3,
+  monitoring: true,
+})
+```
+
+### Agent Isolation
+
+When an agent exhibits suspicious behavior, BehaviorOS can isolate it:
+
+**Suspicion Detection:**
+- Anomalous action patterns (frequency, type, targets)
+- Governance rule violations exceeding threshold
+- Resource consumption beyond limits
+- Unusual access patterns
+
+**Isolation Levels:**
+
+| Level | Action | Duration | Reinstatement |
+|-------|--------|----------|---------------|
+| **Watch** | Enhanced monitoring | 1 hour | Automatic if clean |
+| **Quarantine** | Restricted to read-only | 24 hours | Manual review required |
+| **Sandbox** | Full isolation | Until investigation | Security approval required |
+| **Ban** | Permanent removal | Indefinite | Manual override by admin |
+
+```typescript
+const isolation = new AgentIsolation({
+  suspicionThreshold: 3,
+  autoQuarantine: true,
+  notificationChannels: ['slack', 'security-team'],
+})
+
+await isolation.evaluate(agent, action)
+```
+
 ## MCP Integration
 
 The MCP server bridges BehaviorOS with AI agents via the Model Context Protocol:
@@ -160,3 +472,91 @@ The MCP server bridges BehaviorOS with AI agents via the Model Context Protocol:
 - **Resources**: 5 resources for data access
 - **Transport**: stdio (standard for local MCP servers)
 - **Engine**: Shares the same `BehaviorOSEngine` as the SDK
+
+## Package Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    @behavioros/schemas                           │
+│  Zod v4.4.3 schemas for all types                               │
+├─────────────────────────────────────────────────────────────────┤
+│                    @behavioros/core                              │
+│  7 engines + PipelineDispatcher + DomainIsolation               │
+│  Behavioral, Governance, Decision, Audit, Quality, Learning,    │
+│  Mission, Sandbox, Shadow, Deploy, Resilience, Domain           │
+├─────────────────────────────────────────────────────────────────┤
+│                    @behavioros/sdk                               │
+│  High-level TypeScript SDK (BehaviorOS class)                   │
+├─────────────────────────────────────────────────────────────────┤
+│                    @behavioros/cli                               │
+│  CLI: init, compile, validate, status, version                  │
+├─────────────────────────────────────────────────────────────────┤
+│                    @behavioros/mcp-server                        │
+│  MCP server (30+ tools, 5 resources, stdio transport)           │
+├─────────────────────────────────────────────────────────────────┤
+│                    @behavioros/dnas                              │
+│  Pre-built DNA pattern catalog (16 patterns)                    │
+├─────────────────────────────────────────────────────────────────┤
+│                    @behavioros/web                               │
+│  Next.js 15 dashboard (apps/web)                                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### New Packages
+
+| Package | Purpose |
+|---------|---------|
+| `@behavioros/sandbox` | Isolated execution environments (ephemeral, persistent, shadow) |
+| `@behavioros/shadow` | Shadow pipeline with traffic capture, replay, and diff analysis |
+| `@behavioros/deploy` | Canary deployment with gradual rollout and rollback triggers |
+| `@behavioros/resilience` | Rate limiter, circuit breaker, and agent isolation |
+| `@behavioros/domain` | DDD boundaries, ACLs, permission matrix, cross-DNA guard |
+
+### Engine Composition
+
+The `BehaviorOSEngine` composes all engines into a unified runtime:
+
+```typescript
+const engine = new BehaviorOSEngine({
+  dna: dnaPackage,
+  governance: { level: 'strict' },
+  quality: { minCoverage: 80 },
+  sandbox: { mode: 'ephemeral' },
+  shadow: { captureRate: 0.1 },
+  resilience: {
+    rateLimiter: { algorithm: 'adaptive' },
+    circuitBreaker: { failureThreshold: 5 },
+  },
+  domain: {
+    boundaries: ['payments', 'shared-infra'],
+    acl: { strictMode: true },
+  },
+})
+```
+
+### Interceptor Stack
+
+The pipeline uses composable interceptors for cross-cutting concerns:
+
+```
+Request
+  │
+  ▼
+┌─────────────────┐
+│ Timeout (30s)   │
+├─────────────────┤
+│ Metrics         │
+├─────────────────┤
+│ Audit-Log       │
+├─────────────────┤
+│ Rate Limiter    │
+├─────────────────┤
+│ Circuit Breaker │
+└────────┬────────┘
+         │
+         ▼
+  9-Layer Pipeline
+         │
+         ▼
+  Response + Audit Trail
+```
