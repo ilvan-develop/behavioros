@@ -137,7 +137,7 @@ export class AuditTrailLayer implements PipelineLayer {
       }
 
       // Verify entry hash
-      const recomputed = createHash('sha256')
+      const _recomputed = createHash('sha256')
         .update(
           JSON.stringify({
             pipelineId: entry.pipelineId,

@@ -412,6 +412,7 @@ describe('BehaviorOS', () => {
         source: 'test',
         data: { message: 'Learned something new' },
         confidence: 0.8,
+        applied: false,
       });
 
       expect(event).toBeDefined();
@@ -428,6 +429,8 @@ describe('BehaviorOS', () => {
         type: 'observation',
         source: 'manual',
         data: { note: 'observed pattern' },
+        confidence: 0.5,
+        applied: false,
       });
 
       expect(typeof event.id).toBe('string');
@@ -454,6 +457,7 @@ describe('BehaviorOS', () => {
         source: 'test',
         data: { key: 'value' },
         confidence: 0.9,
+        applied: false,
       });
 
       const report = bos.getLearningReport();
@@ -693,6 +697,7 @@ describe('BehaviorOS', () => {
         source: 'integration-test',
         data: { pattern: 'real-engine-test' },
         confidence: 0.95,
+        applied: false,
       });
       expect(event.id).toBeDefined();
       expect(typeof event.id).toBe('string');

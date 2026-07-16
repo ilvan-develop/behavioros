@@ -350,8 +350,8 @@ export class SandboxExecutor {
 
   private wrapWithMonitoring<TInput, TResult>(
     handler: (input: TInput) => Promise<TResult>,
-    sideEffects: SideEffect[],
-    executionId: string,
+    _sideEffects: SideEffect[],
+    _executionId: string,
   ): (input: TInput) => Promise<TResult> {
     return async (input: TInput): Promise<TResult> => {
       return handler(input);

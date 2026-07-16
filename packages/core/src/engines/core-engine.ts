@@ -15,7 +15,7 @@ import type {
 } from '@behavioros/schemas';
 import { MissionSchema } from '@behavioros/schemas';
 import EventEmitter from 'eventemitter3';
-import type { AuditContext, AuditPipelineResult, AuditStage } from './audit/audit-engine';
+import type { AuditPipelineResult, AuditStage } from './audit/audit-engine';
 // Real engines
 import { AuditEngine } from './audit/audit-engine';
 import type { AuthorityLevelValue, GovernanceContext } from './governance/governance-engine';

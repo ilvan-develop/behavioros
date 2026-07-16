@@ -1,5 +1,4 @@
 import { resolve } from 'node:path';
-import type { DNAPackage } from '@behavioros/schemas';
 import {
   AuditChain,
   BehaviorOSEngine,
@@ -9,6 +8,7 @@ import {
   DNALoader,
   EscalationManager,
 } from '@behavioros/core';
+import type { DNAPackage } from '@behavioros/schemas';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerCICDResources } from './resources/cicd-resources.js';
@@ -138,7 +138,7 @@ export function createServer(): McpServer {
     dna,
     governance: { enabled: true, level: 'standard', requireApproval: true, maxAgents: 10 },
     quality: { enabled: true, minCoverage: 80, enforceTypecheck: true, enforceLint: true },
-    learning: { enabled: true },
+    learning: { enabled: true, autoApply: false },
     audit: { enabled: true },
   });
 
@@ -172,15 +172,15 @@ export function createServer(): McpServer {
   _server.tool(
     'list-agents',
     'List all agents in the system',
-    listAgentsInput.shape,
-    async (args) => listAgents(_engine!, args),
+    (listAgentsInput as any).shape,
+    async (args: any) => listAgents(_engine!, args),
   );
 
   _server.tool(
     'list-missions',
     'List missions with optional filtering',
-    listMissionsInput.shape,
-    async (args) => listMissions(_engine!, args),
+    (listMissionsInput as any).shape,
+    async (args: any) => listMissions(_engine!, args),
   );
 
   _server.tool(
@@ -338,8 +338,8 @@ export function createServer(): McpServer {
   _server.tool(
     'cicd-get-audit-history',
     'Get historical audit results from CI/CD pipelines',
-    getAuditHistoryInput.shape,
-    async (args) => getAuditHistory(args),
+    (getAuditHistoryInput as any).shape,
+    async (args: any) => getAuditHistory(args),
   );
 
   _server.tool(
@@ -352,8 +352,8 @@ export function createServer(): McpServer {
   _server.tool(
     'cicd-get-learning-report',
     'Get learning recommendations from CI/CD events',
-    getLearningReportInput.shape,
-    async (args) => getLearningReport(args),
+    (getLearningReportInput as any).shape,
+    async (args: any) => getLearningReport(args),
   );
 
   // Register integration tools
@@ -402,8 +402,8 @@ export function createServer(): McpServer {
   _server.tool(
     'get-observability-metrics',
     'Get unified metrics from Brocolis, FinPay, and BehaviorOS',
-    getObservabilityMetricsInput.shape,
-    async (args) => getObservabilityMetrics(args),
+    (getObservabilityMetricsInput as any).shape,
+    async (args: any) => getObservabilityMetrics(args),
   );
 
   _server.tool(

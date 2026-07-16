@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type BosLspDiagnosticsInput, bosLspDiagnostics } from './bos-lsp-diagnostics.js';
+import { bosLspDiagnostics } from './bos-lsp-diagnostics.js';
 
 export const bosLspValidateInput = z.object({
   projectPath: z.string().describe('Path to the project root'),

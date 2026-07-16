@@ -112,7 +112,7 @@ function runBiome(projectPath: string, filePath?: string): LintResult {
     const biomeConfig = findBiomeConfig(projectPath);
     const configArgs = biomeConfig ? `--config-path "${projectPath}"` : '';
 
-    const result = execSync(
+    const _result = execSync(
       `npx @biomejs/biome ci ${configArgs} "${target}" --reporter=json 2>&1`,
       {
         cwd: projectPath,

@@ -66,12 +66,10 @@ export class BehaviorOS {
   constructor(config: BehaviorOSConfig = {}) {
     // Initialize engines
     this.auditEngine = new AuditEngine();
-    this.qualityEngine = new QualityEngine(config.quality?.enabled === false ? [] : undefined);
     this.learningEngine = new LearningEngine({
       persistPath: config.learning?.persistPath,
       autoApply: config.learning?.autoApply,
     });
-    this.missionEngine = new MissionEngine();
     this.decisionEngine = new DecisionEngine();
 
     // Load DNA if provided

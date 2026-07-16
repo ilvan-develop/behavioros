@@ -48,7 +48,7 @@ function createTestEngine(): BehaviorOSEngine {
     dna: testDNA,
     governance: { enabled: true, level: 'standard', requireApproval: true, maxAgents: 10 },
     quality: { enabled: true, minCoverage: 80, enforceTypecheck: true, enforceLint: true },
-    learning: { enabled: true },
+    learning: { enabled: true, autoApply: false },
     audit: { enabled: true },
   });
 }
@@ -66,11 +66,14 @@ function createTestServer(engine: BehaviorOSEngine): McpServer {
     updateProgressInput.shape,
     async (args) => updateProgress(engine, args),
   );
-  server.tool('list-agents', 'List agents', listAgentsInput.shape, async (args) =>
+  server.tool('list-agents', 'List agents', (listAgentsInput as any).shape, async (args: any) =>
     listAgents(engine, args),
   );
-  server.tool('list-missions', 'List missions', listMissionsInput.shape, async (args) =>
-    listMissions(engine, args),
+  server.tool(
+    'list-missions',
+    'List missions',
+    (listMissionsInput as any).shape,
+    async (args: any) => listMissions(engine, args),
   );
   server.tool(
     'evaluate-governance',
@@ -259,7 +262,8 @@ describe('MCP Server Tools', () => {
     await client.connect(clientTransport);
 
     const result = await client.readResource({ uri: 'behavioros://missions' });
-    const missions = JSON.parse(result.contents[0].text!);
+    const content = result.contents[0] as { text: string };
+    const missions = JSON.parse(content.text!);
 
     expect(missions).toHaveLength(1);
     expect(missions[0].title).toBe('Resource Test');

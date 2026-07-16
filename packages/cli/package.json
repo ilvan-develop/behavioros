@@ -53,6 +53,8 @@
     "dotenv": "^16.4.0"
   },
   "devDependencies": {
+    "@behavioros/core": "workspace:*",
+    "@behavioros/schemas": "workspace:*",
     "@types/node": "^22.0.0",
     "tsup": "^8.4.0",
     "tsx": "^4.19.0",

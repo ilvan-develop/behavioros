@@ -18,6 +18,7 @@ export async function recordLearning(engine: BehaviorOSEngine, input: RecordLear
     source: input.source,
     data: input.data,
     confidence: input.confidence,
+    applied: false,
   });
 
   return {

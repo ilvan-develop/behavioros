@@ -48,7 +48,7 @@ function createTestEngine(): BehaviorOSEngine {
     dna: testDNA,
     governance: { enabled: true, level: 'standard', requireApproval: true, maxAgents: 10 },
     quality: { enabled: true, minCoverage: 80, enforceTypecheck: true, enforceLint: true },
-    learning: { enabled: true },
+    learning: { enabled: true, autoApply: false },
     audit: { enabled: true },
   });
 }

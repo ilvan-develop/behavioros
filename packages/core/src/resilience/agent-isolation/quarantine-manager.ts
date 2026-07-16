@@ -214,7 +214,7 @@ export class QuarantineManager {
 
   forceReleaseAll(): number {
     let count = 0;
-    for (const [agentId, entry] of this.entries) {
+    for (const [_agentId, entry] of this.entries) {
       if (entry.status === 'active') {
         entry.status = 'released';
         entry.releasedAt = new Date().toISOString();
@@ -264,7 +264,7 @@ export class QuarantineManager {
 
   private checkExpiredEntries(): void {
     const now = new Date();
-    for (const [agentId, entry] of this.entries) {
+    for (const [_agentId, entry] of this.entries) {
       if (entry.status !== 'active') continue;
 
       if (now >= new Date(entry.expiresAt)) {

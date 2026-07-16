@@ -1127,6 +1127,7 @@ export async function rollbackDeployment(input: RollbackDeploymentInput) {
           reason: input.reason,
         },
         confidence: 0.9,
+        applied: false,
       });
     } catch {
       // Best-effort

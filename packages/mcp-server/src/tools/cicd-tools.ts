@@ -628,6 +628,7 @@ export async function cicdRecordLearning(input: CICDRecordLearningInput) {
         source: input.source,
         data: { content: input.content, impact: input.impact, pipelineId: input.pipelineId },
         confidence: input.impact === 'critical' ? 0.95 : input.impact === 'high' ? 0.8 : 0.5,
+        applied: false,
       });
     } catch {
       // Core engine recording is best-effort
