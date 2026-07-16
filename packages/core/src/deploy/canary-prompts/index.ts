@@ -9,11 +9,11 @@ export type {
   DriftDetection,
 } from './canary-prompt.schema';
 export {
+  CanaryPromptBatchResultSchema,
   CanaryPromptCategorySchema,
   CanaryPromptCreateSchema,
   CanaryPromptDefinitionSchema,
   CanaryPromptResultSchema,
-  CanaryPromptBatchResultSchema,
   DriftDetectionSchema,
 } from './canary-prompt.schema';
 

@@ -52,28 +52,44 @@ Request → [Interceptors] → dna-loader → schema-validator → behavioral
 
 ### Chain of Responsibility
 
-Each layer implements a `PipelineHandler` interface:
+Each layer implements a `PipelineDispatcherLayer` interface:
 
 ```typescript
-interface PipelineHandler {
+interface PipelineDispatcherLayer {
+  id: string
   name: string
-  handle(context: PipelineContext, next: () => Promise<void>): Promise<void>
+  execute(context: PipelineDispatcherContext): Promise<DispatcherLayerResult>
+  shouldExecute?(context: PipelineDispatcherContext): boolean
 }
 
-interface PipelineContext {
-  dna: DNAPackage
-  schema: SchemaValidation
-  behavioral: BehavioralResult
-  domainInvariants: DomainCheck
-  governance: GovernanceResult
-  decision: DecisionResult
-  quality: QualityResult
-  auditTrail: AuditEntry[]
-  learning: LearningEvent[]
+interface DispatcherLayerResult {
+  layerId: string
+  layerName: string
+  passed: boolean
+  score: number
+  duration: number
+  details: Record<string, unknown>
+  error?: string
+}
+
+interface PipelineDispatcherContext {
+  readonly id: string
+  readonly dnaId: string
+  readonly dnaMode: 'conversational' | 'transactional' | 'hybrid'
+  readonly agentId: string
+  readonly agentAuthority: string
+  readonly action: string
+  readonly payload: Record<string, unknown>
+  readonly metadata: Map<string, unknown>
+  readonly startTime: number
+  layerResults: DispatcherLayerResult[]
+  currentLayerIndex: number
+  failed: boolean
+  error?: Error
 }
 ```
 
-Handlers execute sequentially. If a handler throws, the pipeline halts and the error propagates up. Short-circuit occurs when a handler calls `return` without calling `next()`.
+Layers execute sequentially. If a layer throws, the pipeline halts and the error propagates up. Layers 1-4 (structural layers) use fail-fast: if one fails, subsequent structural layers are skipped. Layers 7-9 never block the pipeline.
 
 ### Interceptors
 
@@ -97,7 +113,7 @@ const pipeline = composeInterceptors([
 
 ### Mode Adapters
 
-The pipeline supports two execution modes via adapters:
+The pipeline supports two execution modes via functions that determine whether a layer should be skipped:
 
 | Mode | Use Case | Behavior |
 |------|----------|----------|
@@ -105,12 +121,13 @@ The pipeline supports two execution modes via adapters:
 | **Transactional** | Autonomous batch operations | Full pipeline execution, strict validation, all layers evaluated |
 
 ```typescript
-const adapter = mode === 'conversational'
-  ? new ConversationalAdapter(pipeline)
-  : new TransactionalAdapter(pipeline)
+import { shouldSkipForConversational, shouldSkipForTransactional } from '@behavioros/core'
+
+// Assign to layer.shouldExecute to control skipping
+layer.shouldExecute = (ctx) => shouldSkipForConversational(ctx.id)
 ```
 
-**Conversational mode** skips non-essential layers when the agent is in a read-only or exploratory state. **Transactional mode** always runs the full 9-layer pipeline.
+**Conversational mode** skips non-essential layers when the agent is in a read-only or exploratory state via `shouldSkipForConversational(layerId)`. **Transactional mode** always runs the full 9-layer pipeline via `shouldSkipForTransactional(_layerId)` which always returns `false`.
 
 ## 7 Engines
 
@@ -359,17 +376,16 @@ BehaviorOS supports gradual rollout of DNA changes using canary deployments:
 | **Stage 4** | 100% | Permanent | Anomaly detection alerts |
 
 ```typescript
-const canary = new CanaryDeploy({
-  dna: newDNA,
-  stages: [
-    { traffic: 5, duration: '24h', rollbackThreshold: { errorRate: 0.01 } },
-    { traffic: 25, duration: '48h', rollbackThreshold: { errorRate: 0.005 } },
-    { traffic: 50, duration: '72h', rollbackThreshold: { errorRate: 0.001 } },
-    { traffic: 100, duration: 'permanent' },
-  ],
+const canary = new CanaryDeployer({
+  stages,
+  globalDriftThreshold: 0.3,
 })
 
-await canary.start()
+await canary.startDeployment({
+  stableVersion: '1.0.0',
+  canaryVersion: '1.1.0',
+  projectName: 'my-project',
+})
 ```
 
 ## Resilience
@@ -437,38 +453,59 @@ const circuitBreaker = new CircuitBreaker({
 
 ### Agent Isolation
 
-When an agent exhibits suspicious behavior, BehaviorOS can isolate it:
+When an agent exhibits suspicious behavior, BehaviorOS can isolate it using four specialized classes:
 
-**Suspicion Detection:**
-- Anomalous action patterns (frequency, type, targets)
-- Governance rule violations exceeding threshold
-- Resource consumption beyond limits
-- Unusual access patterns
+#### SuspicionDetector
 
-**Isolation Levels:**
-
-| Level | Action | Duration | Reinstatement |
-|-------|--------|----------|---------------|
-| **Watch** | Enhanced monitoring | 1 hour | Automatic if clean |
-| **Quarantine** | Restricted to read-only | 24 hours | Manual review required |
-| **Sandbox** | Full isolation | Until investigation | Security approval required |
-| **Ban** | Permanent removal | Indefinite | Manual override by admin |
+Detects anomalous agent behavior through configurable thresholds and pattern analysis.
 
 ```typescript
-const isolation = new AgentIsolation({
+const detector = new SuspicionDetector({
   suspicionThreshold: 3,
   autoQuarantine: true,
-  notificationChannels: ['slack', 'security-team'],
 })
 
-await isolation.evaluate(agent, action)
+await detector.evaluate(agent, action)
+```
+
+#### QuarantineManager
+
+Manages quarantined agents with automatic release and manual review workflows.
+
+```typescript
+const manager = new QuarantineManager({
+  maxQuarantinedAgents: 10,
+  autoReleaseAfterMs: 24 * 60 * 60 * 1000,
+})
+```
+
+#### SandboxExecutor
+
+Provides isolated execution environments for suspect agents under investigation.
+
+```typescript
+const executor = new SandboxExecutor({
+  maxConcurrentSandboxes: 5,
+  timeoutMs: 30 * 60 * 1000,
+})
+```
+
+#### ForensicCollector
+
+Collects and stores forensic evidence for agent investigations and compliance audits.
+
+```typescript
+const collector = new ForensicCollector({
+  maxEntries: 1000,
+  retentionDays: 90,
+})
 ```
 
 ## MCP Integration
 
 The MCP server bridges BehaviorOS with AI agents via the Model Context Protocol:
 
-- **Tools**: 8 tools for direct agent interaction
+- **Tools**: 36 tools for direct agent interaction
 - **Resources**: 5 resources for data access
 - **Transport**: stdio (standard for local MCP servers)
 - **Engine**: Shares the same `BehaviorOSEngine` as the SDK
@@ -481,18 +518,19 @@ The MCP server bridges BehaviorOS with AI agents via the Model Context Protocol:
 │  Zod v4.4.3 schemas for all types                               │
 ├─────────────────────────────────────────────────────────────────┤
 │                    @behavioros/core                              │
-│  7 engines + PipelineDispatcher + DomainIsolation               │
+│  7 engines + PipelineDispatcher + internal modules               │
 │  Behavioral, Governance, Decision, Audit, Quality, Learning,    │
-│  Mission, Sandbox, Shadow, Deploy, Resilience, Domain           │
+│  Mission + Sandbox, Shadow, Deploy, Resilience, Domain           │
 ├─────────────────────────────────────────────────────────────────┤
 │                    @behavioros/sdk                               │
 │  High-level TypeScript SDK (BehaviorOS class)                   │
 ├─────────────────────────────────────────────────────────────────┤
 │                    @behavioros/cli                               │
-│  CLI: init, compile, validate, status, version                  │
+│  CLI: init, compile, validate, status, version, diff,           │
+│  simulate, deploy, drift-check                                  │
 ├─────────────────────────────────────────────────────────────────┤
 │                    @behavioros/mcp-server                        │
-│  MCP server (30+ tools, 5 resources, stdio transport)           │
+│  MCP server (36 tools, 5 resources, stdio transport)            │
 ├─────────────────────────────────────────────────────────────────┤
 │                    @behavioros/dnas                              │
 │  Pre-built DNA pattern catalog (16 patterns)                    │
@@ -502,15 +540,17 @@ The MCP server bridges BehaviorOS with AI agents via the Model Context Protocol:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### New Packages
+### Internal Modules
 
-| Package | Purpose |
-|---------|---------|
-| `@behavioros/sandbox` | Isolated execution environments (ephemeral, persistent, shadow) |
-| `@behavioros/shadow` | Shadow pipeline with traffic capture, replay, and diff analysis |
-| `@behavioros/deploy` | Canary deployment with gradual rollout and rollback triggers |
-| `@behavioros/resilience` | Rate limiter, circuit breaker, and agent isolation |
-| `@behavioros/domain` | DDD boundaries, ACLs, permission matrix, cross-DNA guard |
+The following modules are internal to `@behavioros/core` (not standalone packages):
+
+| Module | Purpose |
+|--------|---------|
+| Sandbox | Isolated execution environments (ephemeral, persistent, shadow) |
+| Shadow | Shadow pipeline with traffic capture, replay, and diff analysis |
+| Deploy | Canary deployment with gradual rollout and rollback triggers |
+| Resilience | Rate limiter, circuit breaker, and agent isolation |
+| Domain | DDD boundaries, ACLs, permission matrix, cross-DNA guard |
 
 ### Engine Composition
 

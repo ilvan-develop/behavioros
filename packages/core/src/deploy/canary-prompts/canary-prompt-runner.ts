@@ -1,10 +1,10 @@
-import { CanaryPromptResultSchema, DriftDetectionSchema } from './canary-prompt.schema';
 import type {
   CanaryPromptBatchResult,
   CanaryPromptDefinition,
   CanaryPromptResult,
   DriftDetection,
 } from './canary-prompt.schema';
+import { CanaryPromptResultSchema, DriftDetectionSchema } from './canary-prompt.schema';
 
 // ============================================================
 // Canary Prompt Runner — Execute prompts and detect drift

@@ -8,7 +8,11 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
   },
   "files": [
     "dist"
@@ -62,7 +66,6 @@
     "vitest": "^3.1.0"
   },
   "peerDependencies": {
-    "@behavioros/core": "workspace:*",
-    "@behavioros/sdk": "workspace:*"
+    "@behavioros/core": "workspace:*"
   }
 }

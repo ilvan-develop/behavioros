@@ -20,11 +20,11 @@ Enterprise-grade governance for regulated industries. Covers compliance, audit t
 
 ### Governance Rules
 
-- **Change Management** (critical/block) — All infrastructure, database, and config changes require review
-- **Security Review** (critical/escalate) — Security-sensitive changes require security architect approval
-- **Architecture Review** (high/escalate) — Architecture changes require architect approval
-- **Quality Gate** (high/block) — All feature and bugfix changes must pass quality gates
-- **Documentation** (medium/warn) — Significant changes require documentation updates
+- **Change Management** (medium/escalate) — Infrastructure and database changes require change request approval
+- **Security Review Required** (medium/escalate) — Security-sensitive changes require security architect approval
+- **Architecture Review** (medium/escalate) — Architecture changes require architect approval
+- **Quality Gate** (medium/warn) — Features and bugfixes must pass quality gates before merge
+- **Documentation Required** (low/warn) — Significant changes require documentation updates
 
 ### Quality Gates
 
@@ -137,6 +137,71 @@ Continuous improvement operations. Kaizen events, 5S methodology, value stream m
 | Defect Rate | 98% minimum |
 | Overall Equipment Effectiveness | 85% minimum |
 | 5S Audit Score | 80% minimum |
+
+---
+
+## Enterprise Agent Architecture Review Guide (EAARG)
+
+18-layer framework for comprehensive AI agent architecture review. Each layer maps to specialized enterprise skills.
+
+### Personas
+
+| Role | Authority | Name |
+|---|---|---|
+| Architect | Architect | Enterprise Architect |
+| Engineer | Senior | Senior Engineer |
+| QA | Senior | QA Lead |
+| Security | Architect | Security Architect |
+| DevOps | Senior | DevOps Engineer |
+
+### Governance Rules
+
+- **Change Management EAARG** (critical/block) — Architecture and infrastructure changes require review
+- **Security Review** (critical/escalate) — Security-sensitive changes require security architect approval
+- **Quality Gate** (high/block) — Features and bugfixes must pass quality gates
+
+### Quality Gates
+
+| Gate | Threshold |
+|---|---|
+| Test Coverage | 80% minimum |
+| Lint | 100 threshold |
+| Typecheck | 100 threshold |
+| Security Scan | 100 threshold |
+| Performance | 90 threshold |
+
+### Workflow Layers
+
+The EAARG defines 18 sequential review layers, each with specific objectives, questions, required evidence, and acceptance criteria:
+
+| Layer | Name | Agent | Skills |
+|---|---|---|---|
+| 1 | Business | Architect | Enterprise Product, Enterprise Executive |
+| 2 | Product | Architect | Enterprise Product, Enterprise UX Research |
+| 3 | Requirements | Architect | Enterprise Product, Enterprise UX Research |
+| 4 | Architecture | Architect | Enterprise Architecture |
+| 5 | Frontend | Engineer | Enterprise Frontend, Enterprise Design QA, Enterprise Visual Design |
+| 6 | Backend | Engineer | Enterprise Backend |
+| 7 | APIs | Engineer | Enterprise Backend |
+| 8 | Data | Engineer | Enterprise Database |
+| 9 | Security | Security | Enterprise Security |
+| 10 | Infrastructure | DevOps | Enterprise DevOps |
+| 11 | DevOps | DevOps | Enterprise DevOps, Enterprise QA |
+| 12 | QA | QA | Enterprise QA |
+| 13 | Performance | Engineer | Enterprise Performance |
+| 14 | Observability | DevOps | Enterprise DevOps, Enterprise Documentation |
+| 15 | Documentation | Engineer | Enterprise Documentation |
+| 16 | AI Governance | Architect | Enterprise AI Engineering |
+| 17 | Enterprise Readiness | Architect | Enterprise Architecture, Enterprise Executive |
+| 18 | Production Readiness | DevOps | Enterprise DevOps, Enterprise QA |
+
+Each layer includes:
+- **Objectives** — What needs to be validated
+- **Questions** — Required questions to answer
+- **Required Evidence** — Documents, tests, or diagrams needed
+- **Acceptance Criteria** — Pass/fail conditions
+- **Rejection Criteria** — Automatic failure conditions
+- **Checklist** — Manual verification items
 
 ---
 

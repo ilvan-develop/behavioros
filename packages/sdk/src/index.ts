@@ -20,13 +20,23 @@ import {
   QualityEngine,
 } from '@behavioros/core';
 import type {
+  AgentPersona,
+  AgentRole,
+  AgentStatus,
+  AuditResult,
+  AuditSeverity,
+  AuthorityLevel,
+  BoundaryRule,
   DNAPackage,
   LayerResult,
   LearningEvent,
   Mission,
+  MissionPriority,
+  MissionStatus,
   PipelineReport,
   PipelineState,
   QualityMetric,
+  VotingStrategy,
 } from '@behavioros/schemas';
 
 // ============================================================
@@ -370,9 +380,16 @@ export {
   type ValidationResult,
 } from '@behavioros/core';
 export type {
+  AgentPersona,
+  AgentRole,
   AgentState,
+  AgentStatus,
   AuditEvent,
+  AuditResult,
+  AuditSeverity,
+  AuthorityLevel,
   BehaviorPattern,
+  BoundaryRule,
   ConversationProtocol,
   DiscoveryQuestion,
   DNAPackage,
@@ -382,9 +399,12 @@ export type {
   LayerResult,
   LearningEvent,
   Mission,
+  MissionPriority,
+  MissionStatus,
   PipelineReport,
   PipelineState,
   QualityGate,
   QualityMetric,
   RequiredEvidence,
+  VotingStrategy,
 } from '@behavioros/schemas';

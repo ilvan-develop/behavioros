@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import {
-  CanaryPromptCreateSchema,
-  CanaryPromptDefinitionSchema,
   type CanaryPromptCategory,
   type CanaryPromptCreate,
+  CanaryPromptCreateSchema,
   type CanaryPromptDefinition,
+  CanaryPromptDefinitionSchema,
 } from './canary-prompt.schema';
 
 // ============================================================

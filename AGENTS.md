@@ -27,7 +27,7 @@ DNA Layer (YAML)    → Personas, governance rules, quality gates, patterns, wor
 | `@behavioros/sdk` | High-level TypeScript SDK (`BehaviorOS` class) |
 | `@behavioros/cli` | CLI: init, compile, validate, status, version |
 | `@behavioros/dnas` | Pre-built DNA YAML pattern catalog |
-| `@behavioros/mcp-server` | MCP server (8 tools + 5 resources, stdio transport) |
+| `@behavioros/mcp-server` | MCP server (36 tools + 5 resources, stdio transport) |
 | `@behavioros/web` | Next.js 15 dashboard (apps/web) |
 
 ## Dev Commands
@@ -67,10 +67,10 @@ DNA packages define behavioral patterns in YAML with these sections:
 ## MCP Server Tools
 
 The `@behavioros/mcp-server` exposes these tools to AI agents:
-- `create_mission`, `list_missions`, `update_progress`
-- `list_agents`, `get_status`
-- `evaluate_governance`, `run_audit`
-- `record_learning`
+- `create-mission`, `list-missions`, `update-progress`
+- `list-agents`, `get-status`
+- `evaluate-governance`, `run-audit`
+- `record-learning`
 
 ## Agent Team — BehaviorOS DNA Wiring
 

@@ -1,3 +1,3 @@
-export { getTracer, resetTracer, SpanStatusCode } from './tracing';
+export { traceLayer, tracePipeline } from './pipeline-tracer';
 export type { Span, SpanAttributes } from './tracing';
-export { tracePipeline, traceLayer } from './pipeline-tracer';
+export { getTracer, resetTracer, SpanStatusCode } from './tracing';
