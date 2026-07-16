@@ -1,5 +1,9 @@
 export type { AuditChainReport, AuditResult, AuditStep } from './audit-chain';
 export { AuditChain } from './audit-chain';
+export { AuditChainVerifier } from './audit-chain/audit-chain-verifier';
+export type { AuditEntry, AuditEntryPayload } from './audit-chain/audit-entry.interface';
+export { HashChain } from './audit-chain/hash-chain';
+export type { VerificationResult } from './audit-chain/verification-result.interface';
 export type { DnaSelection, TaskContext } from './behavior-selector';
 // BOS Behavioral Engines
 export { BehaviorSelector } from './behavior-selector';
