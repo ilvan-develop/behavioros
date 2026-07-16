@@ -37,6 +37,13 @@ export class SQLiteStore {
 
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('foreign_keys = ON');
+
+    // Verify database integrity on startup
+    const integrity = this.db.pragma('integrity_check') as Array<{ integrity_check: string }>;
+    if (integrity[0]?.integrity_check !== 'ok') {
+      throw new Error('SQLite integrity check failed — database may be corrupted');
+    }
+
     this.initialize();
   }
 
@@ -473,7 +480,15 @@ export class SQLiteStore {
     this.db.exec('VACUUM');
   }
 
-  clearAll(): void {
+  periodicIntegrityCheck(): boolean {
+    const result = this.db.pragma('integrity_check') as Array<{ integrity_check: string }>;
+    return result[0]?.integrity_check === 'ok';
+  }
+
+  clearAll(authorized: boolean = false): void {
+    if (!authorized) {
+      throw new Error('clearAll() requires explicit authorization');
+    }
     this.db.exec(`
       DELETE FROM missions;
       DELETE FROM agents;
@@ -486,5 +501,12 @@ export class SQLiteStore {
       DELETE FROM decision_history;
       DELETE FROM kv_store;
     `);
+  }
+
+  confirmClearAll(confirmationToken: string): void {
+    if (confirmationToken !== 'CONFIRM_CLEAR_ALL') {
+      throw new Error('Invalid confirmation token for clearAll()');
+    }
+    this.clearAll(true);
   }
 }

@@ -219,7 +219,7 @@ export const DNAPackageSchema = z.object({
   author: z.string().optional(),
   license: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  personas: z.array(AgentPersonaSchema),
+  personas: z.array(AgentPersonaSchema).min(1),
   governance: z.array(GovernanceRuleSchema).optional(),
   quality: z.array(QualityGateSchema).optional(),
   patterns: z.array(BehaviorPatternSchema).optional(),

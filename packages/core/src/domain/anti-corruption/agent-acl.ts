@@ -7,6 +7,19 @@ import type { ACLResult, AntiCorruptionLayer } from './acl.interface';
 const MALICIOUS_PATTERNS = ['DROP', 'DELETE', 'TRUNCATE', 'EXEC', 'UNION'];
 const SENSITIVE_FIELDS = ['password', 'secret', 'token', 'key'];
 
+const ALLOWED_ACTIONS = [
+  'read',
+  'write',
+  'execute',
+  'deploy',
+  'review',
+  'create',
+  'update',
+  'delete',
+  'query',
+  'export',
+] as const;
+
 export class AgentACL implements AntiCorruptionLayer {
   readonly id = 'agent-acl';
   readonly name = 'Agent Anti-Corruption Layer';
@@ -16,6 +29,15 @@ export class AgentACL implements AntiCorruptionLayer {
       return { passed: false, reason: 'Missing required fields: agentId, action' };
     }
 
+    // Primary defense: allowlist — only known-good actions are permitted
+    if (!ALLOWED_ACTIONS.includes(input.action as (typeof ALLOWED_ACTIONS)[number])) {
+      return {
+        passed: false,
+        reason: `Action '${input.action}' is not in the allowlist: [${ALLOWED_ACTIONS.join(', ')}]`,
+      };
+    }
+
+    // Secondary defense: blocklist — detect malicious patterns in payload
     const payloadStr = JSON.stringify(input.payload ?? {}).toUpperCase();
     const detected = MALICIOUS_PATTERNS.filter((pattern) => payloadStr.includes(pattern));
 

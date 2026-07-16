@@ -31,6 +31,8 @@ export interface LearningPattern {
 export interface LearningLayerOptions {
   autoDetectPatterns?: boolean;
   minConfidence?: number;
+  maxEntries?: number;
+  maxPatterns?: number;
 }
 
 export class LearningLayer implements PipelineLayer {
@@ -42,10 +44,14 @@ export class LearningLayer implements PipelineLayer {
   private patterns: LearningPattern[] = [];
   private autoDetect: boolean;
   private minConfidence: number;
+  private maxEntries: number;
+  private maxPatterns: number;
 
   constructor(options: LearningLayerOptions = {}) {
     this.autoDetect = options.autoDetectPatterns ?? true;
     this.minConfidence = options.minConfidence ?? 0.5;
+    this.maxEntries = options.maxEntries ?? 10_000;
+    this.maxPatterns = options.maxPatterns ?? 1_000;
   }
 
   shouldExecute(_context: PipelineDispatcherContext): boolean {
@@ -88,6 +94,15 @@ export class LearningLayer implements PipelineLayer {
       };
 
       this.entries.push(entry);
+
+      // Evict oldest entries if over capacity (FIFO)
+      if (this.entries.length > this.maxEntries) {
+        const evicted = this.entries.length - this.maxEntries;
+        this.entries = this.entries.slice(-this.maxEntries);
+        console.warn(
+          `[LearningLayer] Evicted ${evicted} old entries (capacity: ${this.maxEntries})`,
+        );
+      }
 
       // 2. Auto-detect patterns
       if (this.autoDetect) {
@@ -224,6 +239,15 @@ export class LearningLayer implements PipelineLayer {
       existing.lastDetected = pattern.lastDetected;
     } else {
       this.patterns.push(pattern);
+    }
+
+    // Evict oldest patterns if over capacity (FIFO)
+    if (this.patterns.length > this.maxPatterns) {
+      const evicted = this.patterns.length - this.maxPatterns;
+      this.patterns = this.patterns.slice(-this.maxPatterns);
+      console.warn(
+        `[LearningLayer] Evicted ${evicted} old patterns (capacity: ${this.maxPatterns})`,
+      );
     }
   }
 

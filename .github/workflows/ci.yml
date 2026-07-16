@@ -42,7 +42,6 @@ jobs:
 
       - name: Typecheck
         run: pnpm typecheck
-        continue-on-error: true
 
       - name: Build web app
         run: pnpm --filter @behavioros/web build

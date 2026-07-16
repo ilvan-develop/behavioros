@@ -29,6 +29,9 @@ export interface AuditEntry {
 
   /** Optional metadata (e.g. branch, environment, pipeline run ID). */
   metadata: Record<string, unknown>;
+
+  /** Optional HMAC-SHA256 signature when a signing key is provided. */
+  signature?: string;
 }
 
 /**

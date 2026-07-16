@@ -1,5 +1,9 @@
 import type { DNAPackage, GovernanceRule } from '@behavioros/schemas';
-import { GovernanceEngine } from '../../engines/governance/governance-engine';
+import {
+  type AuthorityLevelValue,
+  GovernanceEngine,
+} from '../../engines/governance/governance-engine';
+import { Logger } from '../../shared/logger';
 import type { DispatcherLayerResult, PipelineDispatcherContext } from '../pipeline-context';
 import type { PipelineLayer } from './layer.interface';
 
@@ -21,12 +25,31 @@ export class GovernanceLayer implements PipelineLayer {
 
   private engine: GovernanceEngine | undefined;
   private strict: boolean;
+  private bypassAttempts = new Map<string, number>();
+  private logger = new Logger('governance');
 
   constructor(options: GovernanceLayerOptions = {}) {
     this.strict = options.strict ?? false;
     if (options.governanceEngine) {
       this.engine = options.governanceEngine;
     }
+  }
+
+  private recordBypass(agentId: string, reason: string) {
+    const count = (this.bypassAttempts.get(agentId) || 0) + 1;
+    this.bypassAttempts.set(agentId, count);
+    if (count > 3) {
+      this.logger.error(`Agent ${agentId} has ${count} governance bypass attempts`, {
+        agentId,
+        bypassCount: count,
+        reason,
+        severity: 'security',
+      });
+    }
+  }
+
+  private getBypassCount(agentId: string): number {
+    return this.bypassAttempts.get(agentId) || 0;
   }
 
   shouldExecute(_context: PipelineDispatcherContext): boolean {
@@ -64,6 +87,44 @@ export class GovernanceLayer implements PipelineLayer {
         allowed: boolean;
         reason: string;
       }> = [];
+
+      // Authority verification: warn if not verified against signed token
+      if (!context.verifiedAuthority) {
+        decisions.push({
+          rule: 'authority-verification',
+          action: 'warn',
+          allowed: true,
+          reason: `Authority for agent '${context.agentId}' is self-declared (not verified against signed token)`,
+        });
+      }
+
+      // Validate agent authority is in the known authority list
+      const knownAuthorities: AuthorityLevelValue[] = [
+        'junior',
+        'senior',
+        'architect',
+        'lead',
+        'director',
+        'vp',
+        'c-level',
+      ];
+      if (!knownAuthorities.includes(context.agentAuthority as AuthorityLevelValue)) {
+        return {
+          layerId: this.id,
+          layerName: this.name,
+          passed: this.strict ? false : true,
+          score: 0,
+          duration: Date.now() - start,
+          details: {
+            rulesEvaluated: 0,
+            rulesMatched: 0,
+            blocked: true,
+            escalationRequired: false,
+            decisions: [],
+          },
+          error: `Rejected: unknown authority level '${context.agentAuthority}'`,
+        };
+      }
 
       let blocked = false;
       let escalationRequired = false;
@@ -114,6 +175,11 @@ export class GovernanceLayer implements PipelineLayer {
         }
       }
 
+      if (escalationRequired) {
+        const agentId = (context.metadata.get('agentId') as string) || 'unknown';
+        this.recordBypass(agentId, `Escalation triggered by governance rules`);
+      }
+
       const passed = this.strict ? !blocked : true;
       const score = blocked ? 0 : escalationRequired ? 60 : decisions.length === 0 ? 70 : 100;
 
@@ -129,6 +195,9 @@ export class GovernanceLayer implements PipelineLayer {
           blocked,
           escalationRequired,
           decisions,
+          bypassAttempts: escalationRequired
+            ? this.getBypassCount((context.metadata.get('agentId') as string) || 'unknown')
+            : 0,
         },
         error: passed ? undefined : blockReason,
       };

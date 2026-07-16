@@ -186,6 +186,8 @@ export type {
   PipelineDispatcherLayer,
 } from './pipeline/pipeline-dispatcher';
 export { PipelineDispatcher } from './pipeline/pipeline-dispatcher';
+export type { LayerMetricEntry, PipelineMetrics } from './pipeline/telemetry/metrics';
+export { MetricsCollector } from './pipeline/telemetry/metrics';
 // Resilience — Agent Isolation
 export type {
   AgentBehaviorSnapshot,
@@ -246,3 +248,6 @@ export type { CollectedResponse } from './sandbox/simulation/response-collector'
 export { ResponseCollector } from './sandbox/simulation/response-collector';
 export type { TrafficCapture } from './sandbox/simulation/traffic-replay';
 export { TrafficReplay } from './sandbox/simulation/traffic-replay';
+export type { LogEntry } from './shared/logger';
+// Shared — Logger
+export { Logger } from './shared/logger';

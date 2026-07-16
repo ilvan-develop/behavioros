@@ -31,6 +31,7 @@ export class AuditTrailLayer implements PipelineLayer {
 
   private trail: AuditTrailEntry[] = [];
   private maxEntries: number;
+  private lastVerifiedIndex = -1;
 
   constructor(options: AuditTrailLayerOptions = {}) {
     this.maxEntries = options.maxEntries ?? 10_000;
@@ -83,10 +84,12 @@ export class AuditTrailLayer implements PipelineLayer {
 
       // Trim if over max (keeps head, drops oldest)
       if (this.trail.length > this.maxEntries) {
+        const trimAmount = this.trail.length - this.maxEntries;
         this.trail = this.trail.slice(-this.maxEntries);
+        this.lastVerifiedIndex = Math.max(-1, this.lastVerifiedIndex - trimAmount);
       }
 
-      // Verify chain integrity
+      // Verify chain integrity (incremental)
       const chainValid = this.verifyChain();
 
       // NEVER blocks
@@ -122,7 +125,8 @@ export class AuditTrailLayer implements PipelineLayer {
   }
 
   verifyChain(): boolean {
-    for (let i = 0; i < this.trail.length; i++) {
+    const start = this.lastVerifiedIndex + 1;
+    for (let i = start; i < this.trail.length; i++) {
       const entry = this.trail[i];
 
       // Verify link to previous
@@ -136,27 +140,13 @@ export class AuditTrailLayer implements PipelineLayer {
         }
       }
 
-      // Verify entry hash
-      const _recomputed = createHash('sha256')
-        .update(
-          JSON.stringify({
-            pipelineId: entry.pipelineId,
-            layerIndex: entry.layerIndex,
-            action: entry.action,
-            agentId: entry.agentId,
-            timestamp: entry.timestamp,
-            previousHash: entry.previousHash,
-          }),
-        )
-        .digest('hex');
-
-      // We can't perfectly recompute without the original payload,
-      // but we verify the chain linkage is intact
+      // Verify entry hash length
       if (entry.hash.length !== 64) {
         return false;
       }
     }
 
+    this.lastVerifiedIndex = this.trail.length - 1;
     return true;
   }
 
@@ -174,5 +164,6 @@ export class AuditTrailLayer implements PipelineLayer {
 
   clearTrail(): void {
     this.trail = [];
+    this.lastVerifiedIndex = -1;
   }
 }

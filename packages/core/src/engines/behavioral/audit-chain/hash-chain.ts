@@ -5,7 +5,7 @@
  * previous entry's hash, forming a tamper-evident linked list.
  */
 
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import type { AuditEntry, AuditEntryPayload } from './audit-entry.interface';
 
 // ============================================================
@@ -14,6 +14,11 @@ import type { AuditEntry, AuditEntryPayload } from './audit-entry.interface';
 
 export class HashChain {
   private readonly entries: AuditEntry[] = [];
+  private readonly signingKey: string | undefined;
+
+  constructor(signingKey?: string) {
+    this.signingKey = signingKey;
+  }
 
   /** Return a shallow copy of the chain. */
   getEntries(): readonly AuditEntry[] {
@@ -112,13 +117,22 @@ export class HashChain {
 
   /**
    * Verify a single entry's hash matches the expected value.
+   * If a signing key is configured, also verifies the HMAC signature.
    *
-   * @returns `true` if the recomputed hash equals `entry.hash`.
+   * @returns `true` if the recomputed hash equals `entry.hash` (and signature is valid if present).
    */
-  static verifyEntry(entry: AuditEntry): boolean {
+  static verifyEntry(entry: AuditEntry, signingKey?: string): boolean {
     const { hash, ...rest } = entry;
     const expected = HashChain.computeHash(rest as AuditEntryPayload);
-    return hash === expected;
+    if (hash !== expected) return false;
+
+    // If entry has a signature and a signing key is provided, verify HMAC
+    if (entry.signature && signingKey) {
+      const hmac = createHmac('sha256', signingKey).update(expected).digest('hex');
+      if (hmac !== entry.signature) return false;
+    }
+
+    return true;
   }
 
   /**
@@ -136,7 +150,15 @@ export class HashChain {
 
   private buildEntry(payload: AuditEntryPayload): AuditEntry {
     const hash = HashChain.computeHash(payload);
-    return { ...payload, hash };
+    const entry: AuditEntry = { ...payload, hash };
+
+    // HMAC-SHA256 signature when signing key is provided
+    if (this.signingKey) {
+      const hmac = createHmac('sha256', this.signingKey).update(hash).digest('hex');
+      entry.signature = hmac;
+    }
+
+    return entry;
   }
 
   /**
