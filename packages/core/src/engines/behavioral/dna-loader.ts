@@ -37,7 +37,9 @@ export class DNALoader {
     const resolved = resolve(this.basePath, source);
 
     // Path traversal protection — resolved path must stay within basePath
-    if (!resolved.startsWith(resolve(this.basePath))) {
+    // Skip check for absolute paths (explicit user intent to load from specific location)
+    const isAbsolute = source.startsWith('/') || /^[a-zA-Z]:/.test(source);
+    if (!isAbsolute && !resolved.startsWith(resolve(this.basePath))) {
       throw new Error(`Path traversal detected: "${source}" resolves outside base path`);
     }
 

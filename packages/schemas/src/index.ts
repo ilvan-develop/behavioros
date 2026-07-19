@@ -189,7 +189,7 @@ export type DNABehavioralPattern = z.infer<typeof DNABehavioralPatternSchema>;
 export const WorkflowStepSchema = z.object({
   id: z.string(),
   name: z.string(),
-  type: z.enum(['action', 'decision', 'parallel', 'conditional', 'loop', 'gate']),
+  type: z.enum(['action', 'decision', 'parallel', 'conditional', 'loop', 'gate', 'parallel_pairs']),
   description: z.string().optional(),
   agent: z.string().optional(),
   input: z.record(z.unknown()).optional(),
