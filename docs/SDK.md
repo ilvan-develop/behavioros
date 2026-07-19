@@ -279,6 +279,107 @@ const stats = bos.getStats()
 // }
 ```
 
+#### `makeDecision(context, votes)`
+
+Submit a decision for voting-based evaluation by the Decision Engine.
+
+```typescript
+const result = await bos.makeDecision(
+  {
+    action: 'deploy-production',
+    agentRole: 'devops',
+    agentAuthority: 'senior',
+  },
+  [
+    { agentId: 'architect', weight: 1, approve: true, rationale: 'Architecture looks good' },
+    { agentId: 'qa', weight: 1, approve: true, rationale: 'Tests passing' },
+  ],
+)
+
+// result: { approved: boolean, votes: DecisionVote[], quorum: boolean }
+```
+
+#### `runPipeline(options?)`
+
+Start an EAARG (Enterprise Agent Architecture Review Guide) pipeline with the loaded DNA. Runs the full 18-layer review pipeline.
+
+```typescript
+const state = await bos.runPipeline({
+  // optional pipeline options
+})
+
+// state: PipelineState — contains layer results, current step, overall status
+```
+
+#### `advancePipeline()`
+
+Advance the pipeline to the next layer. Returns the result of the current layer evaluation.
+
+```typescript
+const layerResult = await bos.advancePipeline()
+
+// layerResult: LayerResult — pass/fail, score, evidence validation
+```
+
+#### `pausePipeline()`
+
+Pause the currently running pipeline. Returns the current pipeline state.
+
+```typescript
+const state = bos.pausePipeline()
+// state: PipelineState — current progress, paused status
+```
+
+#### `resumePipeline()`
+
+Resume a previously paused pipeline.
+
+```typescript
+const state = bos.resumePipeline()
+// state: PipelineState — resumed from last position
+```
+
+#### `validatePipelineLayer(layer, evidence)`
+
+Validate a specific pipeline layer by providing evidence. The layer is validated against the EAARG criteria.
+
+```typescript
+const result = await bos.validatePipelineLayer(4, [
+  'Architecture document approved',
+  'ADRs documented',
+  'C4 diagrams created',
+])
+
+// result: LayerResult — pass/fail for the specific layer
+```
+
+#### `getPipelineState()`
+
+Get the current state of the running pipeline.
+
+```typescript
+const state = bos.getPipelineState()
+// state: PipelineState | undefined — current layer, results, status
+```
+
+#### `getPipelineReport()`
+
+Get a full report of the pipeline execution.
+
+```typescript
+const report = bos.getPipelineReport()
+// report: PipelineReport | undefined — all layer results, overall score, summary
+```
+
+#### `getPipelineProgress()`
+
+Get the current progress of the pipeline as a percentage.
+
+```typescript
+const progress = bos.getPipelineProgress()
+// progress: { current: number, total: number, percent: number } | undefined
+```
+
 ## Events
 
 The SDK uses `eventemitter3` for event emission. Subscribe to engine events for real-time monitoring.

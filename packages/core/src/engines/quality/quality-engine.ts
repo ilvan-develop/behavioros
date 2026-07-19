@@ -93,7 +93,7 @@ export class QualityEngine {
         checks.push({
           gate: gate.name,
           passed: false,
-          actual: 'error',
+          actual: false,
           expected: true,
           message: `Gate ${gate.name} failed: ${error instanceof Error ? error.message : String(error)}`,
         });
@@ -430,7 +430,7 @@ export class QualityEngine {
         check: {
           gate: gateName,
           passed: true,
-          actual: 'unknown',
+          actual: true,
           expected: true,
           message: `Unknown gate: ${gateName}, auto-pass`,
         },
@@ -446,7 +446,7 @@ export class QualityEngine {
         check: {
           gate: gateName,
           passed,
-          actual: passed ? 'pass' : 'fail',
+          actual: passed,
           expected: true,
           message: passed
             ? `${gateName}: passed`
@@ -461,7 +461,7 @@ export class QualityEngine {
       check: {
         gate: gateName,
         passed: true,
-        actual: 'no_config',
+        actual: true,
         expected: true,
         message: `${gateName}: no execution config, auto-pass`,
       },
@@ -477,8 +477,7 @@ export class QualityEngine {
 
     const metrics: QualityMetric[] = results.map((r) => ({
       name: r.gate,
-      value:
-        typeof r.actual === 'number' ? r.actual : r.actual === 'pass' || r.actual === true ? 1 : 0,
+      value: typeof r.actual === 'number' ? r.actual : r.actual === true ? 1 : 0,
       passed: r.passed,
       timestamp: new Date().toISOString(),
     }));
@@ -507,8 +506,8 @@ export class QualityEngine {
         checks.push({
           gate: gate.name,
           passed: false,
-          actual: 'missing',
-          expected: gate.threshold ?? gate.pass,
+          actual: false,
+          expected: gate.threshold ?? gate.pass ?? true,
           message: `Metric not found for gate: ${gate.name}`,
         });
         continue;
@@ -551,7 +550,7 @@ export class QualityEngine {
     }
 
     if (gate.pass !== undefined) {
-      const actual = metric.pass ?? metric.value > 0;
+      const actual = metric.passed ?? metric.value > 0;
       const passed = actual === gate.pass;
       return {
         gate: gate.name,
@@ -566,7 +565,7 @@ export class QualityEngine {
       gate: gate.name,
       passed: true,
       actual: metric.value,
-      expected: 'any',
+      expected: metric.value,
       message: `${gate.name}: no threshold configured, auto-pass`,
     };
   }

@@ -1,0 +1,49 @@
+name: BehaviorOS Merge Gate
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  merge-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build core packages
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint check
+        run: pnpm lint:check
+
+      - name: Run core tests
+        run: pnpm --filter @behavioros/core test
+
+      - name: Validate DNA
+        run: npx @behavioros/cli validate
+
+      - name: Block merge on failure
+        if: failure()
+        run: |
+          echo "::error::Merge gate failed — one or more checks did not pass."
+          exit 1

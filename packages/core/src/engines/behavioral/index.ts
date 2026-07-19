@@ -1,5 +1,9 @@
 export type { AuditChainReport, AuditResult, AuditStep } from './audit-chain';
 export { AuditChain } from './audit-chain';
+export { AuditChainVerifier } from './audit-chain/audit-chain-verifier';
+export type { AuditEntry, AuditEntryPayload } from './audit-chain/audit-entry.interface';
+export { HashChain } from './audit-chain/hash-chain';
+export type { VerificationResult } from './audit-chain/verification-result.interface';
 export type { DnaSelection, TaskContext } from './behavior-selector';
 // BOS Behavioral Engines
 export { BehaviorSelector } from './behavior-selector';
@@ -7,6 +11,16 @@ export type { ConflictContext, Resolution } from './conflict-resolver';
 export { ConflictResolver } from './conflict-resolver';
 export type { CompositionResult } from './dna-composer';
 export { DNAComposer } from './dna-composer';
+export { ContextManager } from './dna-isolation/context-manager';
+export type { CrossDNARequest, CrossDNAResult } from './dna-isolation/cross-dna-guard';
+export { CrossDNAGuard } from './dna-isolation/cross-dna-guard';
+export type {
+  DNAMode,
+  Permission,
+  PermissionAction,
+  PermissionMatrix,
+} from './dna-isolation/permission-matrix';
+export { PermissionMatrixManager } from './dna-isolation/permission-matrix';
 export type { DNALoaderOptions } from './dna-loader';
 export { DNALoader } from './dna-loader';
 export type { ResolvedDna } from './dna-resolver';

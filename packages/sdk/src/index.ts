@@ -20,13 +20,23 @@ import {
   QualityEngine,
 } from '@behavioros/core';
 import type {
+  AgentPersona,
+  AgentRole,
+  AgentStatus,
+  AuditResult,
+  AuditSeverity,
+  AuthorityLevel,
+  BoundaryRule,
   DNAPackage,
   LayerResult,
   LearningEvent,
   Mission,
+  MissionPriority,
+  MissionStatus,
   PipelineReport,
   PipelineState,
   QualityMetric,
+  VotingStrategy,
 } from '@behavioros/schemas';
 
 // ============================================================
@@ -62,24 +72,25 @@ export class BehaviorOS {
   private governanceEngine: GovernanceEngine | null = null;
   private dna: DNAPackage | null = null;
   private initialized = false;
+  private _dnaPath?: string;
+  private _dnaLoaderOptions?: DNALoaderOptions;
 
   constructor(config: BehaviorOSConfig = {}) {
     // Initialize engines
     this.auditEngine = new AuditEngine();
-    this.qualityEngine = new QualityEngine(config.quality?.enabled === false ? [] : undefined);
     this.learningEngine = new LearningEngine({
       persistPath: config.learning?.persistPath,
       autoApply: config.learning?.autoApply,
     });
-    this.missionEngine = new MissionEngine();
     this.decisionEngine = new DecisionEngine();
 
-    // Load DNA if provided
+    // Load DNA if provided directly
     if (config.dnaPackage) {
       this.dna = config.dnaPackage;
     } else if (config.dnaPath) {
-      const loader = new DNALoader(config.dnaLoaderOptions);
-      this.dna = loader.load(config.dnaPath);
+      // Store path for async loading in init()
+      this._dnaPath = config.dnaPath;
+      this._dnaLoaderOptions = config.dnaLoaderOptions;
     }
 
     // Initialize core engine if DNA is available
@@ -104,18 +115,37 @@ export class BehaviorOS {
 
   async init(): Promise<void> {
     if (this.initialized) return;
-    if (!this.engine) {
+
+    // Load DNA asynchronously if path was provided
+    if (this._dnaPath && !this.dna) {
+      const loader = new DNALoader(this._dnaLoaderOptions);
+      this.dna = await loader.load(this._dnaPath);
+    }
+
+    if (!this.dna) {
       throw new Error('BehaviorOS not initialized: no DNA package provided');
     }
+
+    // Initialize core engine if not already done
+    if (!this.engine) {
+      this.engine = new BehaviorOSEngine({
+        dna: this.dna,
+      });
+
+      if (this.dna.governance && this.dna.governance.length > 0) {
+        this.governanceEngine = new GovernanceEngine(this.dna.governance);
+      }
+    }
+
     this.initialized = true;
   }
 
   /**
    * Carrega um pacote DNA a partir de um caminho
    */
-  loadDNA(path: string): void {
+  async loadDNA(path: string): Promise<void> {
     const loader = new DNALoader();
-    this.dna = loader.load(path);
+    this.dna = await loader.load(path);
     this.engine = new BehaviorOSEngine({ dna: this.dna });
     if (this.dna.governance && this.dna.governance.length > 0) {
       this.governanceEngine = new GovernanceEngine(this.dna.governance);
@@ -372,9 +402,16 @@ export {
   type ValidationResult,
 } from '@behavioros/core';
 export type {
+  AgentPersona,
+  AgentRole,
   AgentState,
+  AgentStatus,
   AuditEvent,
+  AuditResult,
+  AuditSeverity,
+  AuthorityLevel,
   BehaviorPattern,
+  BoundaryRule,
   ConversationProtocol,
   DiscoveryQuestion,
   DNAPackage,
@@ -384,9 +421,12 @@ export type {
   LayerResult,
   LearningEvent,
   Mission,
+  MissionPriority,
+  MissionStatus,
   PipelineReport,
   PipelineState,
   QualityGate,
   QualityMetric,
   RequiredEvidence,
+  VotingStrategy,
 } from '@behavioros/schemas';

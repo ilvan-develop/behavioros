@@ -63,7 +63,7 @@ export class QualityLayer implements PipelineLayer {
           results.push({
             gate: 'custom',
             passed: false,
-            actual: 'error',
+            actual: false,
             expected: true,
             message: `Custom check failed: ${error instanceof Error ? error.message : String(error)}`,
           });
@@ -75,8 +75,8 @@ export class QualityLayer implements PipelineLayer {
         results.push({
           gate: 'pipeline_continuity',
           passed: true,
-          actual: true,
-          expected: true,
+          actual: true as boolean,
+          expected: true as boolean,
           message: 'Pipeline continuity check passed',
         });
       }
@@ -130,11 +130,17 @@ export class QualityLayer implements PipelineLayer {
     const hasThreshold = gate.threshold !== undefined;
     const hasPassConfig = gate.pass !== undefined;
 
+    const actual: number | boolean = hasThreshold
+      ? (gate.threshold as number)
+      : hasPassConfig
+        ? (gate.pass as boolean)
+        : true;
+
     return {
       gate: gate.name,
       passed: true,
-      actual: hasThreshold ? gate.threshold : hasPassConfig ? gate.pass : true,
-      expected: hasThreshold ? gate.threshold : hasPassConfig ? gate.pass : true,
+      actual,
+      expected: actual,
       message: `Gate '${gate.name}' (${gate.type}) registered — execution deferred to audit pipeline`,
     };
   }

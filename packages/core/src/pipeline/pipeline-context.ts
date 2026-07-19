@@ -12,6 +12,8 @@ export interface PipelineDispatcherContext {
   readonly payload: Record<string, unknown>;
   readonly metadata: Map<string, unknown>;
   readonly startTime: number;
+  // TODO: Authority should be verified against signed token, not self-declared
+  readonly verifiedAuthority?: string;
   layerResults: DispatcherLayerResult[];
   currentLayerIndex: number;
   failed: boolean;

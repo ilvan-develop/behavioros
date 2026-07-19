@@ -1,4 +1,5 @@
 import type { DispatcherLayerResult, PipelineDispatcherContext } from './pipeline-context';
+import { traceLayer } from './telemetry';
 
 // ============================================================
 // Pipeline Dispatcher — Layer Execution with Interceptors
@@ -58,7 +59,9 @@ export class PipelineDispatcher {
         continue;
       }
 
-      const result = await this.executeWithInterceptors(context, layer);
+      const result = await traceLayer(layer.name, context.id, i, () =>
+        this.executeWithInterceptors(context, layer),
+      );
       context.layerResults.push(result);
 
       // Mark failure for structural layers (1-4)

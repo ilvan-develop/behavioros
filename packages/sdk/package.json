@@ -5,7 +5,11 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
   },
   "files": [
     "dist"
@@ -32,8 +36,8 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs",
-    "dev": "tsup src/index.ts --format esm,cjs --watch",
+    "build": "tsup src/index.ts --dts --format esm,cjs",
+    "dev": "tsup src/index.ts --dts --format esm,cjs --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
@@ -44,6 +48,8 @@
     "@modelcontextprotocol/sdk": "^1.12.0"
   },
   "devDependencies": {
+    "@behavioros/core": "workspace:*",
+    "@behavioros/schemas": "workspace:*",
     "@types/node": "^22.0.0",
     "tsup": "^8.4.0",
     "typescript": "^5.8.0",

@@ -20,7 +20,7 @@ export class DNALoaderLayer implements PipelineLayer {
 
   private dnaPackage: DNAPackage | undefined;
 
-  constructor(private options: DNALoaderLayerOptions = {}) {
+  constructor(options: DNALoaderLayerOptions = {}) {
     this.dnaPackage = options.dnaPackage;
   }
 

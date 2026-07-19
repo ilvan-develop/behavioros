@@ -9,7 +9,7 @@ export class TimeoutInterceptor implements PipelineDispatcherInterceptor {
   constructor(private timeoutMs: number = 5000) {}
 
   async intercept(
-    context: PipelineDispatcherContext,
+    _context: PipelineDispatcherContext,
     next: () => Promise<DispatcherLayerResult>,
   ): Promise<DispatcherLayerResult> {
     const startTime = Date.now();

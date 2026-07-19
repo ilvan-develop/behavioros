@@ -42,7 +42,7 @@ export function statusCommand(program: Command): void {
 
         spinner.text = 'Loading DNA package...';
         const loader = new DNALoader({ validate: true });
-        const dna = loader.load(result.filepath);
+        const dna = await loader.load(result.filepath);
 
         const validation = DNAValidator.validate(dna);
 

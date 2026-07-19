@@ -12,6 +12,80 @@ export type {
   GeneratedWorkflow,
 } from './compiler/behavior-compiler';
 export { BehaviorCompiler } from './compiler/behavior-compiler';
+export type { OPAInput, OPAOutput } from './compiler/opa-evaluator';
+export { OPAEvaluator } from './compiler/opa-evaluator';
+export { PolicyStore } from './compiler/policy-store';
+export type { OPARegoPolicy, OPARegoRule } from './compiler/yaml-to-opa';
+export { YAMLToOPACompiler } from './compiler/yaml-to-opa';
+export {
+  STAGE_5_CONFIG,
+  STAGE_5_THRESHOLDS,
+  STAGE_25_CONFIG,
+  STAGE_25_THRESHOLDS,
+  STAGE_50_CONFIG,
+  STAGE_50_THRESHOLDS,
+  STAGE_100_CONFIG,
+  STAGE_100_THRESHOLDS,
+} from './deploy';
+// Deploy — Canary deployment system
+export type {
+  CanaryDeployerConfig,
+  CanaryDeployerEvents,
+  CanaryDeployment,
+  CanaryDeploymentStatus,
+  CanaryStageConfig,
+  CanaryStageState,
+} from './deploy/canary-deployer';
+export { CanaryDeployer } from './deploy/canary-deployer';
+export type {
+  HealthCheckCategory,
+  HealthCheckerConfig,
+  HealthCheckerEvents,
+  HealthCheckProbe,
+  HealthCheckResult,
+  HealthCheckStatus,
+  HealthThreshold,
+} from './deploy/health-checker';
+export { HealthChecker } from './deploy/health-checker';
+export type {
+  RollbackManagerConfig,
+  RollbackManagerEvents,
+  RollbackRecord,
+  RollbackStatus,
+  RollbackTrigger,
+} from './deploy/rollback-manager';
+export { RollbackManager } from './deploy/rollback-manager';
+export type {
+  RoutingDecision,
+  SplitStrategy,
+  StickySession,
+  TrafficRoute,
+  TrafficSplitterConfig,
+  TrafficSplitterEvents,
+} from './deploy/traffic-splitter';
+export { TrafficSplitter } from './deploy/traffic-splitter';
+// Domain — DDD Boundaries & Anti-Corruption Layer
+export type {
+  ACLResult as DomainACLResult,
+  AgentContextValidationResult,
+  AntiCorruptionLayer as DomainAntiCorruptionLayer,
+  AuthorityLevel as DomainAuthorityLevel,
+  Boundary as DomainBoundary,
+  BoundaryResult as DomainBoundaryResult,
+  BoundaryType as DomainBoundaryType,
+  DNAContextValidationResult,
+  EventType as DomainEventType,
+} from './domain';
+export {
+  AgentACL as DomainAgentACL,
+  AgentBoundary as DomainAgentBoundary,
+  AgentContext as DomainAgentContext,
+  DataACL as DomainDataACL,
+  DNABoundary as DomainDNABoundary,
+  DNAContext as DomainDNAContext,
+  EventACL as DomainEventACL,
+  ExecutionBoundary as DomainExecutionBoundary,
+} from './domain';
 export type {
   AuditContext,
   AuditPipelineResult,
@@ -78,7 +152,6 @@ export type { LearningReport, PatternInsight } from './engines/learning/learning
 export { LearningEngine } from './engines/learning/learning-engine';
 export type { MissionPlan, MissionProgress } from './engines/mission/mission-engine';
 export { MissionEngine } from './engines/mission/mission-engine';
-
 export { PipelineEngine } from './engines/pipeline/pipeline-engine';
 export type {
   EvidenceValidationResult,
@@ -94,12 +167,16 @@ export type {
   QualityReport,
 } from './engines/quality/quality-engine';
 export { QualityEngine } from './engines/quality/quality-engine';
+// Persistence — Audit trail
+export type { AuditEntry, ChainVerificationResult } from './persistence/sqlite-audit-store';
+export { SQLiteAuditStore } from './persistence/sqlite-audit-store';
 export type { PersistenceConfig } from './persistence/sqlite-store';
 // Persistence
 export { SQLiteStore } from './persistence/sqlite-store';
 export type { LayerMetrics } from './pipeline/interceptors/metrics-interceptor';
 export { MetricsInterceptor } from './pipeline/interceptors/metrics-interceptor';
 export { TimeoutInterceptor } from './pipeline/interceptors/timeout-interceptor';
+export { DelegationEnforcementLayer } from './pipeline/layers/delegation-enforcement.layer';
 export { shouldSkipForConversational } from './pipeline/mode/conversational.adapter';
 export { shouldSkipForTransactional } from './pipeline/mode/transactional.adapter';
 // Pipeline Dispatcher
@@ -113,3 +190,77 @@ export type {
   PipelineDispatcherLayer,
 } from './pipeline/pipeline-dispatcher';
 export { PipelineDispatcher } from './pipeline/pipeline-dispatcher';
+export type { LayerMetricEntry, PipelineMetrics } from './pipeline/telemetry/metrics';
+export { MetricsCollector } from './pipeline/telemetry/metrics';
+// Resilience — Agent Isolation
+export type {
+  AgentBehaviorSnapshot,
+  AnomalyType,
+  CapturedData,
+  EvidenceSeverity,
+  EvidenceType,
+  ExecutionPermission,
+  ForensicCollectorConfig,
+  ForensicCollectorEvents,
+  ForensicEntry,
+  ForensicEvidenceReport,
+  QuarantineEntry,
+  QuarantineManagerConfig,
+  QuarantineManagerEvents,
+  QuarantineReason,
+  QuarantineResult,
+  QuarantineStatus,
+  SandboxEvidence,
+  SandboxExecution,
+  SandboxExecutorConfig,
+  SandboxExecutorEvents,
+  SandboxOutput,
+  SandboxStatus as AgentSandboxStatus,
+  SideEffect,
+  SuspicionDetectorConfig,
+  SuspicionDetectorEvents,
+  SuspicionEvent,
+  SuspicionLevel,
+  SuspicionResult,
+} from './resilience/agent-isolation';
+export {
+  ForensicCollector,
+  QuarantineManager,
+  SandboxExecutor,
+  SuspicionDetector,
+} from './resilience/agent-isolation';
+export type { EphemeralConfig } from './sandbox/environments/ephemeral-env';
+export { EphemeralEnvironment } from './sandbox/environments/ephemeral-env';
+export type { PersistentConfig } from './sandbox/environments/persistent-env';
+export { PersistentEnvironment } from './sandbox/environments/persistent-env';
+export type {
+  DiffEntry,
+  ShadowConfig,
+  TrafficCaptureEntry,
+} from './sandbox/environments/shadow-env';
+export { ShadowEnvironment } from './sandbox/environments/shadow-env';
+// Sandbox — Isolated environments + simulation
+export type {
+  SandboxEnvironment as SandboxEnv,
+  SandboxStatus,
+  SandboxType,
+} from './sandbox/sandbox-engine';
+export { SandboxEngine } from './sandbox/sandbox-engine';
+export type { PromptScenario } from './sandbox/simulation/prompt-simulator';
+export { PromptSimulator } from './sandbox/simulation/prompt-simulator';
+export type { CollectedResponse } from './sandbox/simulation/response-collector';
+export { ResponseCollector } from './sandbox/simulation/response-collector';
+export type { TrafficCapture } from './sandbox/simulation/traffic-replay';
+export { TrafficReplay } from './sandbox/simulation/traffic-replay';
+// Security — Authority verification, DNA sanitization
+export type {
+  AuthorityLevel,
+  AuthorityToken,
+  VerificationResult,
+} from './security/authority-verifier';
+export { AuthorityVerifier } from './security/authority-verifier';
+export type { SanitizationResult, SanitizationViolation } from './security/dna-sanitizer';
+export { analyzeIntent, sanitizeDNA } from './security/dna-sanitizer';
+export type { LogEntry } from './shared/logger';
+// Shared — Logger
+export { Logger } from './shared/logger';

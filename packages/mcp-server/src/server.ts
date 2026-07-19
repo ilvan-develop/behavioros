@@ -1,14 +1,15 @@
 import { resolve } from 'node:path';
-import type { DNAPackage } from '@behavioros/schemas';
 import {
   AuditChain,
   BehaviorOSEngine,
   BehaviorSelector,
   BosLearningEngine,
   ConflictResolver,
+  DelegationEnforcementLayer,
   DNALoader,
   EscalationManager,
 } from '@behavioros/core';
+import type { DNAPackage } from '@behavioros/schemas';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerCICDResources } from './resources/cicd-resources.js';
@@ -83,6 +84,66 @@ const __dirname_safe = _globalDirname ?? resolve(process.cwd());
 
 let _engine: BehaviorOSEngine | null = null;
 let _server: McpServer | null = null;
+let _delegationLayer: DelegationEnforcementLayer | null = null;
+
+function getAgentId(): string {
+  return process.env.BEHAVIOROS_AGENT_ID ?? 'unknown';
+}
+
+/**
+ * Tools that are part of the delegation workflow itself — never blocked.
+ * The orchestrator MUST call these to delegate properly.
+ */
+const DELEGATION_WORKFLOW_TOOLS = new Set([
+  'bos_select_dna',
+  'bos_resolve_truth',
+  'create-mission',
+  'update-progress',
+  'get-status',
+  'list-agents',
+  'list-missions',
+  'bos_list_patterns',
+  'bos_get_insights',
+  'bos_check_escalation',
+  'bos_resolve_conflict',
+  'bos_run_audit',
+  'evaluate-governance',
+]);
+
+/**
+ * Wrapper that checks delegation enforcement before executing action tools.
+ * Only blocks orchestrator agents that attempt direct execution without delegation.
+ * Workflow tools (create-mission, bos_select_dna, etc.) are always allowed.
+ */
+async function withDelegationCheck<T>(toolName: string, fn: () => Promise<T>): Promise<T> {
+  if (_delegationLayer && !DELEGATION_WORKFLOW_TOOLS.has(toolName)) {
+    const agentId = getAgentId();
+    const context = {
+      id: crypto.randomUUID(),
+      dnaId: '',
+      dnaMode: 'transactional' as const,
+      agentId,
+      agentAuthority: 'lead',
+      action: 'execute',
+      payload: {},
+      metadata: new Map<string, unknown>(),
+      startTime: Date.now(),
+      layerResults: [],
+      currentLayerIndex: 0,
+      failed: false,
+    };
+
+    const result = await _delegationLayer.execute(context);
+    if (!result.passed) {
+      const details = result.details as { reason?: string; requiredActions?: string[] };
+      throw new Error(
+        `Delegation enforcement failed: ${details.reason}\n` +
+          `Required actions: ${details.requiredActions?.join(', ')}`,
+      );
+    }
+  }
+  return fn();
+}
 
 export function getEngine(): BehaviorOSEngine {
   if (!_engine) {
@@ -98,7 +159,7 @@ export function getServer(): McpServer {
   return _server;
 }
 
-export function createServer(): McpServer {
+export async function createServer(): Promise<McpServer> {
   if (_server) return _server;
 
   // Load enterprise governance DNA
@@ -118,12 +179,12 @@ export function createServer(): McpServer {
   const loader = new DNALoader({ basePath: process.cwd() });
   let dna: DNAPackage;
   try {
-    dna = loader.load(dnaPath);
+    dna = await loader.load(dnaPath);
   } catch {
     console.warn(`[behavioros] DNA file not found at ${dnaPath}. Using built-in fallback.`);
     const fallbackPath = resolve(process.cwd(), 'dnas/enterprise-governance.yaml');
     try {
-      dna = loader.load(fallbackPath);
+      dna = await loader.load(fallbackPath);
     } catch {
       console.warn(`[behavioros] Fallback DNA also not found. Initializing with minimal config.`);
       throw new Error(
@@ -138,9 +199,12 @@ export function createServer(): McpServer {
     dna,
     governance: { enabled: true, level: 'standard', requireApproval: true, maxAgents: 10 },
     quality: { enabled: true, minCoverage: 80, enforceTypecheck: true, enforceLint: true },
-    learning: { enabled: true },
+    learning: { enabled: true, autoApply: false },
     audit: { enabled: true },
   });
+
+  // Initialize delegation enforcement layer
+  _delegationLayer = new DelegationEnforcementLayer();
 
   // Create MCP server
   _server = new McpServer({
@@ -148,12 +212,12 @@ export function createServer(): McpServer {
     version: '0.1.0',
   });
 
-  // Register tools
+  // Register tools — action tools wrapped with delegation check, read-only tools pass through
   _server.tool(
     'create-mission',
     'Create a new mission in BehaviorOS',
     createMissionInput.shape,
-    async (args) => createMission(_engine!, args),
+    async (args) => withDelegationCheck('create-mission', () => createMission(_engine!, args)),
   );
 
   _server.tool(
@@ -166,42 +230,43 @@ export function createServer(): McpServer {
     'update-progress',
     'Update the progress/status of a mission',
     updateProgressInput.shape,
-    async (args) => updateProgress(_engine!, args),
+    async (args) => withDelegationCheck('update-progress', () => updateProgress(_engine!, args)),
   );
 
   _server.tool(
     'list-agents',
     'List all agents in the system',
-    listAgentsInput.shape,
-    async (args) => listAgents(_engine!, args),
+    (listAgentsInput as any).shape,
+    async (args: any) => listAgents(_engine!, args),
   );
 
   _server.tool(
     'list-missions',
     'List missions with optional filtering',
-    listMissionsInput.shape,
-    async (args) => listMissions(_engine!, args),
+    (listMissionsInput as any).shape,
+    async (args: any) => listMissions(_engine!, args),
   );
 
   _server.tool(
     'evaluate-governance',
     'Evaluate an action against governance rules',
     evaluateGovernanceInput.shape,
-    async (args) => evaluateGovernance(_engine!, args),
+    async (args) =>
+      withDelegationCheck('evaluate-governance', () => evaluateGovernance(_engine!, args)),
   );
 
   _server.tool(
     'record-learning',
     'Record a learning event',
     recordLearningInput.shape,
-    async (args) => recordLearning(_engine!, args),
+    async (args) => withDelegationCheck('record-learning', () => recordLearning(_engine!, args)),
   );
 
   _server.tool(
     'run-audit',
     'Run the audit pipeline on a project',
     runAuditInput.shape,
-    async (args) => runAudit(args),
+    async (args) => withDelegationCheck('run-audit', () => runAudit(args)),
   );
 
   // Register CI/CD engine references
@@ -245,7 +310,7 @@ export function createServer(): McpServer {
     'bos_run_audit',
     'Run the continuous audit chain for a given trigger (commit, PR, merge, staging, production). Returns gate results.',
     bosRunAuditInput.shape,
-    async (args) => bosRunAudit(bosAuditChain, args),
+    async (args) => withDelegationCheck('bos_run_audit', () => bosRunAudit(bosAuditChain, args)),
   );
 
   _server.tool(
@@ -290,7 +355,7 @@ export function createServer(): McpServer {
     'start-pipeline',
     'Start an EAARG pipeline for a project (brocolis/finpay)',
     startPipelineInput.shape,
-    async (args) => startPipeline(args),
+    async (args) => withDelegationCheck('start-pipeline', () => startPipeline(args)),
   );
 
   _server.tool(
@@ -318,7 +383,7 @@ export function createServer(): McpServer {
     'approve-layer',
     'Approve a layer after manual review',
     approveLayerInput.shape,
-    async (args) => approveLayer(args),
+    async (args) => withDelegationCheck('approve-layer', () => approveLayer(args)),
   );
 
   _server.tool(
@@ -332,28 +397,28 @@ export function createServer(): McpServer {
     'cicd-run-audit',
     'Run the BehaviorOS audit pipeline (lint, typecheck, security, coverage)',
     cicdRunAuditInput.shape,
-    async (args) => cicdRunAudit(args),
+    async (args) => withDelegationCheck('cicd-run-audit', () => cicdRunAudit(args)),
   );
 
   _server.tool(
     'cicd-get-audit-history',
     'Get historical audit results from CI/CD pipelines',
-    getAuditHistoryInput.shape,
-    async (args) => getAuditHistory(args),
+    (getAuditHistoryInput as any).shape,
+    async (args: any) => getAuditHistory(args),
   );
 
   _server.tool(
     'cicd-record-learning',
     'Record a learning event from CI/CD pipeline',
     cicdRecordLearningInput.shape,
-    async (args) => cicdRecordLearning(args),
+    async (args) => withDelegationCheck('cicd-record-learning', () => cicdRecordLearning(args)),
   );
 
   _server.tool(
     'cicd-get-learning-report',
     'Get learning recommendations from CI/CD events',
-    getLearningReportInput.shape,
-    async (args) => getLearningReport(args),
+    (getLearningReportInput as any).shape,
+    async (args: any) => getLearningReport(args),
   );
 
   // Register integration tools
@@ -361,14 +426,14 @@ export function createServer(): McpServer {
     'sync-brocolis-orders',
     'Sync Brocolis orders with FinPay payments',
     syncBrocolisOrdersInput.shape,
-    async (args) => syncBrocolisOrders(args),
+    async (args) => withDelegationCheck('sync-brocolis-orders', () => syncBrocolisOrders(args)),
   );
 
   _server.tool(
     'validate-payment',
     'Validate a payment through FinPay pipeline',
     validatePaymentInput.shape,
-    async (args) => validatePayment(args),
+    async (args) => withDelegationCheck('validate-payment', () => validatePayment(args)),
   );
 
   _server.tool(
@@ -402,22 +467,22 @@ export function createServer(): McpServer {
   _server.tool(
     'get-observability-metrics',
     'Get unified metrics from Brocolis, FinPay, and BehaviorOS',
-    getObservabilityMetricsInput.shape,
-    async (args) => getObservabilityMetrics(args),
+    (getObservabilityMetricsInput as any).shape,
+    async (args: any) => getObservabilityMetrics(args),
   );
 
   _server.tool(
     'deploy-canary',
     'Deploy canary version with BehaviorOS quality gates',
     deployCanaryInput.shape,
-    async (args) => deployCanary(args),
+    async (args) => withDelegationCheck('deploy-canary', () => deployCanary(args)),
   );
 
   _server.tool(
     'rollback-deployment',
     'Rollback deployment if quality gates fail',
     rollbackDeploymentInput.shape,
-    async (args) => rollbackDeployment(args),
+    async (args) => withDelegationCheck('rollback-deployment', () => rollbackDeployment(args)),
   );
 
   // Register resources
@@ -437,20 +502,23 @@ const _isDirectExec =
   _argv1.endsWith('\\server.mjs');
 
 if (_isDirectExec || process.env.BEHAVIOROS_MCP_AUTO_START === 'true') {
-  const server = createServer();
-  const transport = new StdioServerTransport();
-  process.on('SIGINT', async () => {
-    await server.close();
-    process.exit(0);
-  });
+  createServer()
+    .then(async (server) => {
+      const transport = new StdioServerTransport();
+      process.on('SIGINT', async () => {
+        await server.close();
+        process.exit(0);
+      });
 
-  process.on('SIGTERM', async () => {
-    await server.close();
-    process.exit(0);
-  });
+      process.on('SIGTERM', async () => {
+        await server.close();
+        process.exit(0);
+      });
 
-  server.connect(transport).catch((err) => {
-    console.error('Failed to start MCP server:', err);
-    process.exit(1);
-  });
+      await server.connect(transport);
+    })
+    .catch((err) => {
+      console.error('Failed to start MCP server:', err);
+      process.exit(1);
+    });
 }

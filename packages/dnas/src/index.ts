@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { type DNAPackage, DNAPackageSchema } from '@behavioros/schemas';
 import { parse as parseYAML } from 'yaml';

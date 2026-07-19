@@ -1,4 +1,5 @@
 import type { BoundaryRule, GovernanceRule } from '@behavioros/schemas';
+import { AUTHORITY_HIERARCHY } from '../../shared/authority-hierarchy';
 
 // ============================================================
 // Governance Engine — Authority, Boundaries, Policies, Escalation
@@ -46,16 +47,6 @@ export interface GovernanceDecision {
   requiredAuthority?: AuthorityLevelValue;
 }
 
-const AUTHORITY_HIERARCHY: Record<AuthorityLevelValue, number> = {
-  junior: 1,
-  senior: 2,
-  architect: 3,
-  lead: 4,
-  director: 5,
-  vp: 6,
-  'c-level': 7,
-};
-
 const DAY_NAME_MAP: Record<string, number> = {
   sunday: 0,
   monday: 1,
@@ -68,6 +59,11 @@ const DAY_NAME_MAP: Record<string, number> = {
 
 export class GovernanceEngine {
   private rules: GovernanceRule[];
+  private ruleIndex = new Map<string, GovernanceRule[]>();
+  private rulesWithoutScope: GovernanceRule[] = [];
+  private timeRestrictedRules: GovernanceRule[] = [];
+  private dependencyRules: GovernanceRule[] = [];
+  private conditionIndex = new Map<string, GovernanceRule[]>();
   private escalationChain: Map<AuthorityLevelValue, AuthorityLevelValue> = new Map([
     ['junior', 'senior'],
     ['senior', 'architect'],
@@ -79,6 +75,100 @@ export class GovernanceEngine {
 
   constructor(rules: GovernanceRule[]) {
     this.rules = rules;
+    this.buildIndex();
+  }
+
+  private buildIndex(): void {
+    this.ruleIndex.clear();
+    this.conditionIndex.clear();
+    this.rulesWithoutScope = [];
+    this.timeRestrictedRules = [];
+    this.dependencyRules = [];
+
+    for (const rule of this.rules) {
+      // Scope index
+      if (!rule.scope || rule.scope.length === 0) {
+        this.rulesWithoutScope.push(rule);
+      } else {
+        for (const key of rule.scope) {
+          const existing = this.ruleIndex.get(key);
+          if (existing) {
+            existing.push(rule);
+          } else {
+            this.ruleIndex.set(key, [rule]);
+          }
+        }
+      }
+
+      // Condition-type index for O(1) lookups on "type:" and "impact:" conditions
+      if (rule.conditions) {
+        for (const condition of rule.conditions) {
+          if (condition.startsWith('type:') || condition.startsWith('impact:')) {
+            const existing = this.conditionIndex.get(condition);
+            if (existing) {
+              existing.push(rule);
+            } else {
+              this.conditionIndex.set(condition, [rule]);
+            }
+          }
+        }
+      }
+
+      // Pre-classify rules by condition type for O(1) lookup
+      if (rule.conditions && (rule.action === 'block' || rule.action === 'escalate')) {
+        for (const condition of rule.conditions) {
+          if (condition.startsWith('day:') || condition.startsWith('hours:')) {
+            this.timeRestrictedRules.push(rule);
+            break;
+          }
+          if (condition.startsWith('dependency:')) {
+            this.dependencyRules.push(rule);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  private getCandidateRules(context: GovernanceContext): GovernanceRule[] {
+    const seen = new Set<GovernanceRule>();
+    const candidates: GovernanceRule[] = [];
+
+    // Rules without scope always apply
+    for (const rule of this.rulesWithoutScope) {
+      candidates.push(rule);
+      seen.add(rule);
+    }
+
+    // Scope-indexed lookup (O(1))
+    const scopeKeys = [context.targetType, context.action];
+    for (const key of scopeKeys) {
+      const indexed = this.ruleIndex.get(key);
+      if (indexed) {
+        for (const rule of indexed) {
+          if (!seen.has(rule)) {
+            candidates.push(rule);
+            seen.add(rule);
+          }
+        }
+      }
+    }
+
+    // Condition-type index lookup (O(1)) for type: and impact: conditions
+    const conditionKeys = [`type:${context.targetType}`, `impact:${context.impact}`];
+    for (const key of conditionKeys) {
+      const indexed = this.conditionIndex.get(key);
+      if (indexed) {
+        for (const rule of indexed) {
+          if (!seen.has(rule)) {
+            candidates.push(rule);
+            seen.add(rule);
+          }
+        }
+      }
+    }
+
+    return candidates;
   }
 
   /**
@@ -136,7 +226,8 @@ export class GovernanceEngine {
   }
 
   private checkRules(context: GovernanceContext): GovernanceDecision {
-    for (const rule of this.rules) {
+    const candidates = this.getCandidateRules(context);
+    for (const rule of candidates) {
       if (this.ruleApplies(rule, context)) {
         if (rule.action === 'block') {
           return {
@@ -146,18 +237,10 @@ export class GovernanceEngine {
             escalationRequired: rule.level === 'critical' || rule.level === 'high',
           };
         }
-        if (rule.action === 'require_approval') {
+        if (rule.action === 'escalate') {
           return {
             allowed: false,
             reason: `Approval required by governance rule: ${rule.name}`,
-            rule,
-            escalationRequired: true,
-          };
-        }
-        if (rule.action === 'escalate') {
-          return {
-            allowed: true,
-            reason: `Escalated by governance rule: ${rule.name}`,
             rule,
             escalationRequired: true,
           };
@@ -179,9 +262,20 @@ export class GovernanceEngine {
       }
     }
 
-    // Check conditions
+    // Check conditions — use precomputed index for type:/impact: patterns
     if (rule.conditions && rule.conditions.length > 0) {
       for (const condition of rule.conditions) {
+        // Fast path: indexed type/impact conditions
+        if (condition.startsWith('type:') || condition.startsWith('impact:')) {
+          if (
+            condition === `type:${context.targetType}` ||
+            condition === `impact:${context.impact}`
+          ) {
+            return true;
+          }
+          continue;
+        }
+        // Slow path: other conditions (day:, hours:, dependency:, freeform)
         if (condition.includes(context.impact) || condition.includes(context.targetType)) {
           return true;
         }
@@ -382,12 +476,10 @@ export class GovernanceEngine {
     const currentDay = now.getDay();
     const currentHour = now.getHours();
 
-    for (const rule of this.rules) {
+    for (const rule of this.timeRestrictedRules) {
       if (!rule.conditions || rule.conditions.length === 0) continue;
-      if (rule.action !== 'block' && rule.action !== 'escalate') continue;
 
       for (const condition of rule.conditions) {
-        // day restriction: e.g. "day:friday"
         if (condition.startsWith('day:')) {
           const dayName = condition.slice(4).toLowerCase().trim();
           const restrictedDay = DAY_NAME_MAP[dayName];
@@ -410,7 +502,6 @@ export class GovernanceEngine {
           }
         }
 
-        // hours restriction: e.g. "hours:9-17" (inclusive)
         if (condition.startsWith('hours:')) {
           const range = condition.slice(6).trim();
           const [startStr, endStr] = range.split('-');
@@ -455,9 +546,8 @@ export class GovernanceEngine {
       return { allowed: true, reason: 'No dependency change detected', escalationRequired: false };
     }
 
-    for (const rule of this.rules) {
+    for (const rule of this.dependencyRules) {
       if (!rule.conditions || rule.conditions.length === 0) continue;
-      if (rule.action !== 'block' && rule.action !== 'escalate') continue;
 
       for (const condition of rule.conditions) {
         if (condition.startsWith('dependency:')) {
@@ -542,7 +632,7 @@ export class GovernanceEngine {
     const normalisedPattern = pattern.replace(/\\/g, '/');
     const normalisedPath = path.replace(/\\/g, '/');
 
-    // Build a regex from the glob pattern
+    // Build a regex from the glob pattern — escape all regex-special characters first
     let regexStr = '';
     let i = 0;
     while (i < normalisedPattern.length) {
@@ -560,11 +650,9 @@ export class GovernanceEngine {
       } else if (ch === '?') {
         regexStr += '[^/]';
         i += 1;
-      } else if (ch === '.') {
-        regexStr += '\\.';
-        i += 1;
       } else {
-        regexStr += ch;
+        // Escape all regex-special characters for literal matching
+        regexStr += ch.replace(/[.+^${}()|[\]\\]/g, '\\$&');
         i += 1;
       }
     }
@@ -588,7 +676,7 @@ export class GovernanceEngine {
    * Lista todas as regras que se aplicam a um contexto
    */
   getApplicableRules(context: GovernanceContext): GovernanceRule[] {
-    return this.rules.filter((rule) => this.ruleApplies(rule, context));
+    return this.getCandidateRules(context).filter((rule) => this.ruleApplies(rule, context));
   }
 
   /**

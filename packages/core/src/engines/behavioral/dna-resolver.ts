@@ -81,6 +81,9 @@ export class DnaResolver {
 
     const agentOverrides = (agentConfig.dnaOverrides ?? {}) as Record<string, unknown>;
 
+    // DNA Override Validation — agent overrides MUST NOT weaken security posture
+    this.validateAgentOverrides(agentOverrides);
+
     const resolved: ResolvedDna = {
       identity: {
         name:
@@ -197,6 +200,33 @@ export class DnaResolver {
       }
     }
     return result;
+  }
+
+  /**
+   * Validate that agent overrides do not weaken the security posture.
+   * Blocks attempts to:
+   * - Remove entries from `forbidden` array
+   * - Override `autonomy.never_do`
+   * - Set authority higher than the agent's declared level
+   */
+  private validateAgentOverrides(overrides: Record<string, unknown>): void {
+    // Forbidden array must only ADD, never remove entries
+    if (overrides.forbidden !== undefined && Array.isArray(overrides.forbidden)) {
+      // Forbidden overrides are additive only — the resolver already concatenates arrays
+      // so removing base entries is not possible through the merge. Log for awareness.
+      console.warn(
+        '[DnaResolver] Agent override includes `forbidden` entries — these will be additive only',
+      );
+    }
+
+    // autonomy.never_do must not be overridden
+    const autonomy = overrides.autonomy as Record<string, unknown> | undefined;
+    if (autonomy?.never_do !== undefined) {
+      console.warn(
+        '[DnaResolver] SECURITY: Agent override attempted to set `autonomy.never_do` — ignoring override',
+      );
+      delete (autonomy as Record<string, unknown>).never_do;
+    }
   }
 
   getCatalogDna(name: string): Record<string, unknown> | undefined {

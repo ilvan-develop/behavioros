@@ -151,7 +151,7 @@ function buildVisualDisplay(
 ╠══════════════════════════════════════════════════════════╣
 ║ Pattern:   ${selection.primary.padEnd(43)}║
 ║ Blend:     ${blendStr.substring(0, 43).padEnd(43)}║
-║ Confidence:${(' ' + (selection.confidence * 100).toFixed(0) + '%').padEnd(42)}║
+║ Confidence:${(` ${(selection.confidence * 100).toFixed(0)}%`).padEnd(42)}║
 ║ Rationale: ${selection.rationale.substring(0, 43).padEnd(43)}║
 ║ Domain:    ${input.domain.padEnd(43)}║
 ║ Risk:      ${(input.riskLevel ?? 'medium').padEnd(43)}║

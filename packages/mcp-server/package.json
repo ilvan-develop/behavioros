@@ -9,8 +9,8 @@
   },
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "files": [
@@ -40,7 +40,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "tsup src/server.ts src/index.ts --format esm,cjs",
+    "build": "tsup",
     "dev": "tsx watch src/server.ts",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
@@ -52,6 +52,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@behavioros/schemas": "workspace:*",
     "@types/node": "^22.0.0",
     "tsup": "^8.4.0",
     "typescript": "^5.8.0",

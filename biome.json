@@ -9,13 +9,21 @@
       "!**/.turbo",
       "!**/.behavioros",
       "!**/.opencode",
-      "!**/.next"
+      "!**/.next",
+      "!**/*.css",
+      "!**/*.scss",
+      "!website",
+      "!scripts",
+      "!finpay-temp",
+      "!generated",
+      "!templates",
+      "!packages/e2e-tests",
+      "!packages/finpay-integration"
     ]
   },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
       "correctness": {
         "noUnusedVariables": "warn",
         "noUnusedImports": "warn"

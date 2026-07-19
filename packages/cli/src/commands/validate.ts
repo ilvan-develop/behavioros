@@ -48,7 +48,7 @@ export function validateCommand(program: Command): void {
 
         spinner.text = `Loading DNA from ${dnaPath}...`;
         const loader = new DNALoader({ validate: true });
-        const dna = loader.load(dnaPath);
+        const dna = await loader.load(dnaPath);
 
         spinner.succeed(`Loaded DNA: ${chalk.bold(dna.name)} v${dna.version}`);
         spinner.start('Validating...');

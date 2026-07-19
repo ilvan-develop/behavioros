@@ -1,0 +1,48 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Audit dependencies
+        run: pnpm audit --audit-level=high
+
+      - name: Check for secrets in code
+        run: |
+          echo "Checking for hardcoded secrets..."
+          if grep -rn "password\s*=\s*['\"]" packages/ --include="*.ts" --include="*.js" 2>/dev/null | grep -v "test\|mock\|fake\|example\|placeholder"; then
+            echo "WARNING: Potential hardcoded secrets found"
+            exit 1
+          fi
+          echo "No hardcoded secrets detected"
+
+      - name: Check for .env files
+        run: |
+          if find . -name ".env" -not -path "*/node_modules/*" -not -path "*/.env.example" 2>/dev/null | grep -q .; then
+            echo "WARNING: .env files detected in repository"
+            exit 1
+          fi
+          echo "No .env files detected"

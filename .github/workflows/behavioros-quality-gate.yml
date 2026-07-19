@@ -1,0 +1,46 @@
+name: BehaviorOS Quality Gate
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build core packages
+        run: pnpm build
+
+      - name: EAARG pipeline validation
+        run: npx @behavioros/cli eaarg start
+        continue-on-error: true
+        id: eaarg
+
+      - name: Fallback — DNA validate
+        if: steps.eaarg.outcome == 'failure'
+        run: npx @behavioros/cli validate
+
+      - name: Block merge on failure
+        if: failure()
+        run: |
+          echo "::error::Quality gate failed — EAARG pipeline did not pass."
+          exit 1

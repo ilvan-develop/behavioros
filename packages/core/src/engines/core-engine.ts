@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import type {
-  AgentState,
   AuditEvent,
   AuditResult,
   BehaviorOSConfig,
@@ -13,19 +12,20 @@ import type {
   QualityGate,
   QualityMetric,
 } from '@behavioros/schemas';
-import { MissionSchema } from '@behavioros/schemas';
 import EventEmitter from 'eventemitter3';
-import type { AuditContext, AuditPipelineResult, AuditStage } from './audit/audit-engine';
-// Real engines
+import { AgentManager } from './agent-manager';
+import type { AuditPipelineResult, AuditStage } from './audit/audit-engine';
 import { AuditEngine } from './audit/audit-engine';
 import type { AuthorityLevelValue, GovernanceContext } from './governance/governance-engine';
 import { GovernanceEngine } from './governance/governance-engine';
 import { LearningEngine } from './learning/learning-engine';
 import { MissionEngine } from './mission/mission-engine';
+import { MissionManager } from './mission-manager';
 import { QualityEngine } from './quality/quality-engine';
 
 // ============================================================
-// BehaviorOS Core Engine — Central Orchestrator
+// BehaviorOS Core Engine — Central Orchestrator (Facade)
+// Delegates to MissionManager, AgentManager, and sub-engines
 // ============================================================
 
 export interface EngineEvents {
@@ -33,8 +33,8 @@ export interface EngineEvents {
   'mission:started': (mission: Mission) => void;
   'mission:completed': (mission: Mission) => void;
   'mission:failed': (mission: Mission, error: Error) => void;
-  'agent:assigned': (agent: AgentState, mission: Mission) => void;
-  'agent:status': (agent: AgentState, status: string) => void;
+  'agent:assigned': (agent: any, mission: Mission) => void;
+  'agent:status': (agent: any, status: string) => void;
   'audit:event': (event: AuditEvent) => void;
   'quality:metric': (metric: QualityMetric) => void;
   'learning:event': (event: LearningEvent) => void;
@@ -52,13 +52,15 @@ export interface BehaviorOSEngineConfig {
 
 export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
   private dna: DNAPackage;
-  private missions: Map<string, Mission> = new Map();
-  private agents: Map<string, AgentState> = new Map();
   private auditLog: AuditEvent[] = [];
   private qualityMetrics: QualityMetric[] = [];
   private config: BehaviorOSEngineConfig;
 
-  // Real engine instances — public for advanced usage
+  // Extracted managers
+  private missionManager: MissionManager;
+  private agentManager: AgentManager;
+
+  // Sub-engines — public for advanced usage
   public governanceEngine: GovernanceEngine;
   public qualityEngine: QualityEngine;
   public learningEngine: LearningEngine;
@@ -70,7 +72,7 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
     this.config = config;
     this.dna = config.dna;
 
-    // Instantiate real engines
+    // Instantiate sub-engines
     this.governanceEngine = new GovernanceEngine(this.dna.governance ?? []);
     this.qualityEngine = new QualityEngine(this.dna.quality ?? [], {
       minScore: config.quality?.minCoverage ?? 80,
@@ -82,43 +84,12 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
     this.missionEngine = new MissionEngine();
     this.auditEngine = new AuditEngine();
 
-    this.initializeAgents();
+    // Instantiate extracted managers
+    this.agentManager = new AgentManager(this.dna);
+    this.missionManager = new MissionManager(this, this.auditEvent.bind(this));
   }
 
-  private initializeAgents(): void {
-    // 1. Register agents from personas
-    for (const persona of this.dna.personas) {
-      const agent: AgentState = {
-        id: `agent-${persona.role}-${randomUUID().slice(0, 8)}`,
-        role: persona.role,
-        status: 'idle',
-        authority: persona.authority,
-        completedMissions: [],
-        reputation: 50,
-      };
-      this.agents.set(agent.id, agent);
-    }
-
-    // 2. Register agents from agent_mapping (skip duplicates)
-    if (this.dna.agent_mapping) {
-      for (const mapping of Object.values(this.dna.agent_mapping)) {
-        for (const agentName of mapping.opencode_agents) {
-          if (this.agents.has(agentName)) continue;
-          const agent: AgentState = {
-            id: agentName,
-            role: mapping.role,
-            status: 'idle',
-            authority: mapping.authority,
-            completedMissions: [],
-            reputation: 50,
-          };
-          this.agents.set(agent.id, agent);
-        }
-      }
-    }
-  }
-
-  // ─── Mission Management ────────────────────────────────────
+  // ─── Mission Management (delegates to MissionManager) ─────
 
   async createMission(input: {
     title: string;
@@ -127,132 +98,37 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
     priority?: Mission['priority'];
     context?: Record<string, unknown>;
   }): Promise<Mission> {
-    const mission = MissionSchema.parse({
-      id: randomUUID(),
-      title: input.title,
-      description: input.description,
-      type: input.type,
-      priority: input.priority ?? 'medium',
-      status: 'draft',
-      context: input.context ?? {},
-    });
-
-    this.missions.set(mission.id, mission);
-    this.emit('mission:created', mission);
-    this.auditEvent('mission:created', 'info', 'pass', `Mission created: ${mission.title}`, {
-      missionId: mission.id,
-    });
-
-    return mission;
+    return this.missionManager.create(input);
   }
 
   async startMission(missionId: string): Promise<Mission> {
-    const mission = this.missions.get(missionId);
-    if (!mission) throw new Error(`Mission not found: ${missionId}`);
-
-    const updated = {
-      ...mission,
-      status: 'executing' as const,
-      startedAt: new Date().toISOString(),
-    };
-    this.missions.set(missionId, updated);
-
-    const assignedAgents = this.selectAgents(updated);
-    for (const agent of assignedAgents) {
-      agent.status = 'working';
-      agent.currentMission = missionId;
-      this.emit('agent:assigned', agent, updated);
-    }
-
-    this.emit('mission:started', updated);
-    this.auditEvent('mission:started', 'info', 'pass', `Mission started: ${updated.title}`, {
-      missionId,
-    });
-
-    return updated;
+    return this.missionManager.start(missionId, this.agentManager.getRawMap());
   }
 
   async completeMission(missionId: string, output?: Record<string, unknown>): Promise<Mission> {
-    const mission = this.missions.get(missionId);
-    if (!mission) throw new Error(`Mission not found: ${missionId}`);
-
-    const updated = {
-      ...mission,
-      status: 'completed' as const,
-      completedAt: new Date().toISOString(),
-      output,
-    };
-    this.missions.set(missionId, updated);
-
-    for (const agent of this.agents.values()) {
-      if (agent.currentMission === missionId) {
-        agent.status = 'idle';
-        agent.currentMission = undefined;
-        agent.completedMissions.push(missionId);
-        agent.reputation = Math.min(100, agent.reputation + 2);
-      }
-    }
-
-    this.emit('mission:completed', updated);
-    this.auditEvent('mission:completed', 'info', 'pass', `Mission completed: ${updated.title}`, {
-      missionId,
-    });
-    return updated;
+    return this.missionManager.complete(missionId, this.agentManager.getRawMap(), output);
   }
 
   async failMission(missionId: string, error: Error): Promise<Mission> {
-    const mission = this.missions.get(missionId);
-    if (!mission) throw new Error(`Mission not found: ${missionId}`);
-
-    const updated = {
-      ...mission,
-      status: 'failed' as const,
-      completedAt: new Date().toISOString(),
-    };
-    this.missions.set(missionId, updated);
-
-    for (const agent of this.agents.values()) {
-      if (agent.currentMission === missionId) {
-        agent.status = 'idle';
-        agent.currentMission = undefined;
-        agent.reputation = Math.max(0, agent.reputation - 5);
-      }
-    }
-
-    this.emit('mission:failed', updated, error);
-    this.auditEvent(
-      'mission:failed',
-      'error',
-      'fail',
-      `Mission failed: ${updated.title} — ${error.message}`,
-      { missionId },
-    );
-    return updated;
+    return this.missionManager.fail(missionId, this.agentManager.getRawMap(), error);
   }
 
-  private selectAgents(_mission: Mission): AgentState[] {
-    const available = Array.from(this.agents.values()).filter((a) => a.status === 'idle');
-    return available
-      .sort((a, b) => b.reputation - a.reputation)
-      .slice(0, Math.min(3, available.length));
+  // ─── Agent Management (delegates to AgentManager) ─────────
+
+  getAgent(id: string) {
+    return this.agentManager.get(id);
+  }
+  getAgentByOpenCodeName(name: string) {
+    return this.agentManager.getByOpenCodeName(name);
+  }
+  getAllAgents() {
+    return this.agentManager.getAll();
+  }
+  getAgentsByRole(role: string) {
+    return this.agentManager.getByRole(role);
   }
 
-  // ─── Agent Management ──────────────────────────────────────
-
-  getAgent(id: string): AgentState | undefined {
-    return this.agents.get(id);
-  }
-  getAgentByOpenCodeName(name: string): AgentState | undefined {
-    return Array.from(this.agents.values()).find((a) => a.id === name);
-  }
-  getAllAgents(): AgentState[] {
-    return Array.from(this.agents.values());
-  }
-  getAgentsByRole(role: string): AgentState[] {
-    return Array.from(this.agents.values()).filter((a) => a.role === role);
-  }
-
-  // ─── Governance (delegates to real GovernanceEngine) ──────
+  // ─── Governance (delegates to GovernanceEngine) ──────────
 
   async evaluateGovernance(action: string, context: Record<string, unknown>) {
     if (!this.config.governance?.enabled)
@@ -309,7 +185,6 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
 
   private mapTargetType(context: Record<string, unknown>): GovernanceContext['targetType'] {
     const type = String(context.targetType ?? context.type ?? '').toLowerCase();
-    // Direct match to GovernanceContext targetType enum
     if (
       (['file', 'module', 'service', 'config', 'infrastructure', 'database'] as string[]).includes(
         type,
@@ -317,9 +192,6 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
     ) {
       return type as GovernanceContext['targetType'];
     }
-    // For DNA condition types (e.g. "security", "payment", "api"), return raw value.
-    // The real GovernanceEngine.ruleApplies() checks condition.includes(targetType),
-    // so "type:security".includes("security") === true.
     return type as GovernanceContext['targetType'];
   }
 
@@ -331,7 +203,7 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
     return 'medium';
   }
 
-  // ─── Quality (delegates to real QualityEngine) ────────────
+  // ─── Quality (delegates to QualityEngine) ────────────────
 
   async evaluateQuality(metrics: QualityMetric[]) {
     if (!this.config.quality?.enabled)
@@ -355,7 +227,7 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
     return { passed: report.passed, failedGates, metrics: report.metrics };
   }
 
-  // ─── Learning (delegates to real LearningEngine) ──────────
+  // ─── Learning (delegates to LearningEngine) ──────────────
 
   async recordLearning(event: Omit<LearningEvent, 'id' | 'timestamp'>): Promise<LearningEvent> {
     const enriched = this.learningEngine.record(event);
@@ -367,7 +239,7 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
     return this.learningEngine.getEvents();
   }
 
-  // ─── Audit (delegates to real AuditEngine) ────────────────
+  // ─── Audit (delegates to AuditEngine) ────────────────────
 
   async runAudit(projectPath: string, stages?: AuditStage[]): Promise<AuditPipelineResult> {
     return this.auditEngine.execute({ projectPath }, stages);
@@ -407,13 +279,13 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
   // ─── Query Methods ────────────────────────────────────────
 
   getMission(id: string): Mission | undefined {
-    return this.missions.get(id);
+    return this.missionManager.get(id);
   }
   getAllMissions(): Mission[] {
-    return Array.from(this.missions.values());
+    return this.missionManager.getAll();
   }
   getMissionsByStatus(status: MissionStatus): Mission[] {
-    return Array.from(this.missions.values()).filter((m) => m.status === status);
+    return this.missionManager.getByStatus(status);
   }
   getPatternsByType(type: BehaviorPattern['type']): BehaviorPattern[] {
     return (this.dna.patterns ?? []).filter((p) => p.type === type);
@@ -438,9 +310,10 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
 
   getStats() {
     const missions: Record<string, number> = {};
-    for (const m of this.missions.values()) missions[m.status] = (missions[m.status] || 0) + 1;
+    for (const m of this.missionManager.getAll())
+      missions[m.status] = (missions[m.status] || 0) + 1;
     const agents: Record<string, number> = {};
-    for (const a of this.agents.values()) agents[a.status] = (agents[a.status] || 0) + 1;
+    for (const a of this.agentManager.getAll()) agents[a.status] = (agents[a.status] || 0) + 1;
     return {
       missions: missions as Record<MissionStatus, number>,
       agents,

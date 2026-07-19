@@ -1,11 +1,16 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { access, readdir, readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { type DNAPackage, DNAPackageSchema } from '@behavioros/schemas';
 import { parse as parseYAML } from 'yaml';
+import { sanitizeDNA } from '../../security/dna-sanitizer.js';
 
 // ============================================================
 // DNA Loader — Carrega e valida pacotes DNA
 // ============================================================
+
+const MAX_YAML_SIZE = 1024 * 1024; // 1MB
+const MAX_NESTING_DEPTH = 10;
+const MAX_GOVERNANCE_RULES = 1000;
 
 export interface DNALoaderOptions {
   basePath?: string;
@@ -28,8 +33,15 @@ export class DNALoader {
   /**
    * Carrega um pacote DNA de um diretório ou arquivo
    */
-  load(source: string): DNAPackage {
+  async load(source: string): Promise<DNAPackage> {
     const resolved = resolve(this.basePath, source);
+
+    // Path traversal protection — resolved path must stay within basePath
+    // Skip check for absolute paths (explicit user intent to load from specific location)
+    const isAbsolute = source.startsWith('/') || /^[a-zA-Z]:/.test(source);
+    if (!isAbsolute && !resolved.startsWith(resolve(this.basePath))) {
+      throw new Error(`Path traversal detected: "${source}" resolves outside base path`);
+    }
 
     // Check cache
     if (this.cache.has(resolved)) {
@@ -39,16 +51,30 @@ export class DNALoader {
     let raw: string;
 
     // Try loading from directory (index.yaml or behavioros.yaml)
-    if (existsSync(join(resolved, 'behavioros.yaml'))) {
-      raw = readFileSync(join(resolved, 'behavioros.yaml'), 'utf-8');
-    } else if (existsSync(join(resolved, 'index.yaml'))) {
-      raw = readFileSync(join(resolved, 'index.yaml'), 'utf-8');
-    } else if (existsSync(resolved)) {
-      raw = readFileSync(resolved, 'utf-8');
-    } else {
-      throw new Error(`DNA source not found: ${source}`);
+    try {
+      await access(join(resolved, 'behavioros.yaml'));
+      raw = await readFile(join(resolved, 'behavioros.yaml'), 'utf-8');
+    } catch {
+      try {
+        await access(join(resolved, 'index.yaml'));
+        raw = await readFile(join(resolved, 'index.yaml'), 'utf-8');
+      } catch {
+        try {
+          await access(resolved);
+          const fileStat = await stat(resolved);
+          if (fileStat.size > MAX_YAML_SIZE) {
+            throw new Error(
+              `DNA file too large: ${(fileStat.size / MAX_YAML_SIZE).toFixed(1)}MB exceeds 1MB limit`,
+            );
+          }
+          raw = await readFile(resolved, 'utf-8');
+        } catch {
+          throw new Error(`DNA source not found: ${source}`);
+        }
+      }
     }
 
+    this.sanitizeOrThrow(raw, resolved);
     return this.parse(raw, resolved);
   }
 
@@ -56,6 +82,13 @@ export class DNALoader {
    * Carrega um pacote DNA de uma string YAML
    */
   loadFromString(yamlContent: string, sourceName?: string): DNAPackage {
+    if (yamlContent.length > MAX_YAML_SIZE) {
+      throw new Error(
+        `DNA YAML content exceeds maximum size of ${MAX_YAML_SIZE} bytes ` +
+          `(${yamlContent.length} bytes provided)`,
+      );
+    }
+    this.sanitizeOrThrow(yamlContent, sourceName ?? '<inline>');
     return this.parse(yamlContent, sourceName ?? '<inline>');
   }
 
@@ -63,6 +96,9 @@ export class DNALoader {
    * Carrega um pacote DNA de um objeto JSON
    */
   loadFromObject(obj: unknown): DNAPackage {
+    if (DNALoader.getNestingDepth(obj) > MAX_NESTING_DEPTH) {
+      throw new Error(`DNA object exceeds maximum nesting depth of ${MAX_NESTING_DEPTH}`);
+    }
     if (this.validate) {
       return DNAPackageSchema.parse(obj);
     }
@@ -72,18 +108,18 @@ export class DNALoader {
   /**
    * Carrega todos os pacotes DNA de um diretório
    */
-  loadAll(directory: string): DNAPackage[] {
+  async loadAll(directory: string): Promise<DNAPackage[]> {
     const dir = resolve(this.basePath, directory);
     const results: DNAPackage[] = [];
 
     // Scan for .yaml files
-    if (existsSync(dir)) {
-      const { readdirSync } = require('node:fs');
-      const files = readdirSync(dir) as string[];
+    try {
+      await access(dir);
+      const files = await readdir(dir);
       for (const file of files) {
         if (file.endsWith('.yaml') || file.endsWith('.yml')) {
           try {
-            const dna = this.load(join(directory, file));
+            const dna = await this.load(join(directory, file));
             results.push(dna);
           } catch (error) {
             if (this.strict) throw error;
@@ -91,6 +127,8 @@ export class DNALoader {
           }
         }
       }
+    } catch {
+      // Directory doesn't exist — return empty
     }
 
     return results;
@@ -107,12 +145,49 @@ export class DNALoader {
           .join('\n');
         throw new Error(`Invalid DNA package at ${source}:\n${errors}`);
       }
+
+      if (result.data.governance && result.data.governance.length > MAX_GOVERNANCE_RULES) {
+        throw new Error(
+          `DNA package at ${source} has ${result.data.governance.length} governance rules, ` +
+            `exceeding maximum of ${MAX_GOVERNANCE_RULES}`,
+        );
+      }
+
       this.cache.set(source, result.data);
       return result.data;
     }
 
     this.cache.set(source, parsed as DNAPackage);
     return parsed as DNAPackage;
+  }
+
+  private sanitizeOrThrow(raw: string, source: string): void {
+    const result = sanitizeDNA(raw);
+
+    const riskLevel =
+      result.riskScore >= 80
+        ? 'critical'
+        : result.riskScore >= 60
+          ? 'high'
+          : result.riskScore >= 30
+            ? 'medium'
+            : 'low';
+
+    if (riskLevel === 'critical' || riskLevel === 'high') {
+      const details = result.violations
+        .map((v) => `  - [${v.severity}] ${v.description}${v.location ? ` (${v.location})` : ''}`)
+        .join('\n');
+      throw new Error(
+        `DNA sanitization failed for ${source} (risk: ${riskLevel}, score: ${result.riskScore}):\n${details}`,
+      );
+    }
+
+    if (riskLevel === 'medium' || riskLevel === 'low') {
+      console.warn(
+        `DNA sanitization warning for ${source} (risk: ${riskLevel}, score: ${result.riskScore}): ` +
+          `${result.violations.length} violation(s) detected`,
+      );
+    }
   }
 
   /**
@@ -147,5 +222,22 @@ export class DNALoader {
 
   clearCache(): void {
     this.cache.clear();
+  }
+
+  static getNestingDepth(obj: unknown, depth = 0): number {
+    if (depth > MAX_NESTING_DEPTH) return depth;
+    if (obj === null || obj === undefined || typeof obj !== 'object') return depth;
+    if (Array.isArray(obj)) {
+      let maxDepth = depth + 1;
+      for (const item of obj) {
+        maxDepth = Math.max(maxDepth, DNALoader.getNestingDepth(item, depth + 1));
+      }
+      return maxDepth;
+    }
+    let maxDepth = depth + 1;
+    for (const value of Object.values(obj as Record<string, unknown>)) {
+      maxDepth = Math.max(maxDepth, DNALoader.getNestingDepth(value, depth + 1));
+    }
+    return maxDepth;
   }
 }

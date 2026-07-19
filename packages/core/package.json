@@ -5,15 +5,51 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./behavioral": "./dist/engines/behavioral/index.js",
-    "./governance": "./dist/engines/governance/index.js",
-    "./decision": "./dist/engines/decision/index.js",
-    "./audit": "./dist/engines/audit/index.js",
-    "./quality": "./dist/engines/quality/index.js",
-    "./learning": "./dist/engines/learning/index.js",
-    "./mission": "./dist/engines/mission/index.js",
-    "./compiler": "./dist/compiler/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./behavioral": {
+      "types": "./dist/engines/behavioral/index.d.ts",
+      "import": "./dist/engines/behavioral/index.mjs",
+      "require": "./dist/engines/behavioral/index.js"
+    },
+    "./governance": {
+      "types": "./dist/engines/governance/index.d.ts",
+      "import": "./dist/engines/governance/index.mjs",
+      "require": "./dist/engines/governance/index.js"
+    },
+    "./decision": {
+      "types": "./dist/engines/decision/index.d.ts",
+      "import": "./dist/engines/decision/index.mjs",
+      "require": "./dist/engines/decision/index.js"
+    },
+    "./audit": {
+      "types": "./dist/engines/audit/index.d.ts",
+      "import": "./dist/engines/audit/index.mjs",
+      "require": "./dist/engines/audit/index.js"
+    },
+    "./quality": {
+      "types": "./dist/engines/quality/index.d.ts",
+      "import": "./dist/engines/quality/index.mjs",
+      "require": "./dist/engines/quality/index.js"
+    },
+    "./learning": {
+      "types": "./dist/engines/learning/index.d.ts",
+      "import": "./dist/engines/learning/index.mjs",
+      "require": "./dist/engines/learning/index.js"
+    },
+    "./mission": {
+      "types": "./dist/engines/mission/index.d.ts",
+      "import": "./dist/engines/mission/index.mjs",
+      "require": "./dist/engines/mission/index.js"
+    },
+    "./compiler": {
+      "types": "./dist/compiler/index.d.ts",
+      "import": "./dist/compiler/index.mjs",
+      "require": "./dist/compiler/index.js"
+    }
   },
   "files": [
     "dist"
@@ -41,8 +77,8 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs",
-    "dev": "tsup src/index.ts --format esm,cjs --watch",
+    "build": "tsup src/index.ts --dts --format esm,cjs",
+    "dev": "tsup src/index.ts --dts --format esm,cjs --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -59,7 +95,8 @@
     "diff": "^7.0.0",
     "eventemitter3": "^5.0.0",
     "lru-cache": "^11.0.0",
-    "dotenv": "^16.4.0"
+    "dotenv": "^16.4.0",
+    "@opentelemetry/api": "^1.9.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",

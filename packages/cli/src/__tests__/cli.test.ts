@@ -100,19 +100,16 @@ personas:
     expect(dna.personas[0].role).toBe('engineer');
   });
 
-  it('should load DNA with empty personas (schema allows it, validator catches it)', () => {
+  it('should reject DNA with empty personas (Zod schema enforces min 1 persona)', () => {
     const loader = new DNALoader({ validate: true });
-    const dna = loader.loadFromString(`
+    expect(() =>
+      loader.loadFromString(`
 id: empty-personas
 name: Empty Personas
 version: '1.0.0'
 personas: []
-`);
-    expect(dna.id).toBe('empty-personas');
-    expect(dna.personas).toHaveLength(0);
-    const result = DNAValidator.validate(dna);
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.code === 'DNA_NO_PERSONAS')).toBe(true);
+`),
+    ).toThrow(/personas|Array must contain at least 1/i);
   });
 });
 

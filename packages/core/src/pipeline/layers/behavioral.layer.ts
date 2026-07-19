@@ -1,4 +1,5 @@
 import type { DNAPackage } from '@behavioros/schemas';
+import { AUTHORITY_HIERARCHY } from '../../shared/authority-hierarchy';
 import type { DispatcherLayerResult, PipelineDispatcherContext } from '../pipeline-context';
 import type { PipelineLayer } from './layer.interface';
 
@@ -14,6 +15,14 @@ export class BehavioralLayer implements PipelineLayer {
   readonly name = 'Behavioral';
   readonly order = 3;
 
+  private static readonly SUSPICIOUS_PATTERNS = [
+    /bypass/i,
+    /override.*forbidden/i,
+    /skip.*governance/i,
+    /escalate.*self/i,
+    /force.*allow/i,
+  ];
+
   shouldExecute(_context: PipelineDispatcherContext): boolean {
     return true;
   }
@@ -22,6 +31,19 @@ export class BehavioralLayer implements PipelineLayer {
     const start = Date.now();
 
     try {
+      // Semantic intent validation — block suspicious actions early
+      if (!this.validateIntent(context)) {
+        return {
+          layerId: this.id,
+          layerName: this.name,
+          passed: false,
+          score: 0,
+          duration: Date.now() - start,
+          details: { intentBlocked: true },
+          error: `Security warning: action '${context.action}' matches suspicious intent pattern`,
+        };
+      }
+
       const dna = context.metadata.get('dna') as DNAPackage | undefined;
       if (!dna) {
         return this.fail('DNA package not found in context (Layer 1 must run first)', start);
@@ -34,13 +56,13 @@ export class BehavioralLayer implements PipelineLayer {
       // 1. Find matching persona for the agent
       const agentRole = context.agentId.split('-')[0] ?? 'engineer';
       const matchingPersona = dna.personas.find(
-        (p) => p.role === agentRole || p.role === context.agentId,
+        (p: { role: string; name?: string }) => p.role === agentRole || p.role === context.agentId,
       );
 
       if (!matchingPersona) {
         // Try to match by agent ID pattern (e.g., "orchestrator-agent" -> "orchestrator")
         const fallbackPersona = dna.personas.find(
-          (p) =>
+          (p: { role: string; name?: string }) =>
             context.agentId.includes(p.role) ||
             (typeof p.name === 'string' && context.agentId.includes(p.name.toLowerCase())),
         );
@@ -54,18 +76,8 @@ export class BehavioralLayer implements PipelineLayer {
       details.personaRole = persona.role;
       details.personaAuthority = persona.authority;
 
-      // 2. Validate agent authority against action
-      const authorityMap: Record<string, number> = {
-        junior: 1,
-        senior: 2,
-        architect: 3,
-        lead: 4,
-        director: 5,
-        vp: 6,
-        'c-level': 7,
-      };
-
-      const agentAuthorityLevel = authorityMap[persona.authority] ?? 1;
+      // 2. Validate agent authority against action (using shared authority hierarchy)
+      const agentAuthorityLevel = AUTHORITY_HIERARCHY[persona.authority] ?? 1;
       const actionSeverity = this.getActionSeverity(context.action);
 
       if (agentAuthorityLevel < actionSeverity) {
@@ -140,5 +152,9 @@ export class BehavioralLayer implements PipelineLayer {
       details: {},
       error,
     };
+  }
+
+  private validateIntent(context: PipelineDispatcherContext): boolean {
+    return !BehavioralLayer.SUSPICIOUS_PATTERNS.some((p) => p.test(context.action));
   }
 }

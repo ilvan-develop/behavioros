@@ -4,7 +4,6 @@ import type { Agent, AuditEvent, GovernanceRule, Mission, QualityGate } from '@/
 // Seed Data — Realistic demo data for BehaviorOS dashboard
 // ============================================================
 
-const now = new Date().toISOString();
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
 const daysAgo = (d: number) => new Date(Date.now() - d * 86400_000).toISOString();
 

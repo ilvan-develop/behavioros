@@ -29,6 +29,15 @@ export interface DomainInvariantsLayerOptions {
 
 // --- Built-in Invariant Factories ---
 
+const SECRET_KEY_PATTERNS = [
+  /password/i,
+  /secret/i,
+  /api[_-]?key/i,
+  /token/i,
+  /private[_-]?key/i,
+  /credential/i,
+];
+
 export function requirePayloadField(field: string): InvariantCheck {
   return (context) => {
     const hasField = context.payload && field in context.payload;
@@ -45,18 +54,9 @@ export function requirePayloadField(field: string): InvariantCheck {
 
 export function requireNoSecrets(): InvariantCheck {
   return (context) => {
-    const secretPatterns = [
-      /password/i,
-      /secret/i,
-      /api[_-]?key/i,
-      /token/i,
-      /private[_-]?key/i,
-      /credential/i,
-    ];
-
     for (const [key, value] of Object.entries(context.payload ?? {})) {
       if (typeof value === 'string') {
-        for (const pattern of secretPatterns) {
+        for (const pattern of SECRET_KEY_PATTERNS) {
           if (pattern.test(key) && value.length > 0) {
             return {
               passed: false,

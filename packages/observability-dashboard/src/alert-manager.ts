@@ -13,7 +13,6 @@ import type {
   AlertResult,
   AlertRule,
   AlertSeverity,
-  AlertStatus,
   UnifiedMetrics,
 } from './types';
 

@@ -3,8 +3,17 @@ description: Central coordinator that delegates tasks to specialized agents, man
 mode: subagent
 temperature: 0.1
 permission:
-  edit: allow
-  bash: allow
+  edit: deny
+  bash:
+    "*": deny
+    "git status*": allow
+    "git log*": allow
+    "git diff*": allow
+    "git branch*": allow
+    "pnpm build*": allow
+    "pnpm test*": allow
+    "pnpm lint*": allow
+    "pnpm typecheck*": allow
   webfetch: allow
   websearch: allow
   skill:

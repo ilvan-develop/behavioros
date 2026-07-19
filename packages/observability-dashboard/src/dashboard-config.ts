@@ -9,7 +9,6 @@ import type {
   GrafanaPanel,
   GrafanaTarget,
   GrafanaTemplate,
-  PanelConfig,
   PrometheusAlertingRule,
   PrometheusRuleGroup,
   PrometheusRulesFile,
