@@ -153,6 +153,39 @@ personas:
       - kubernetes
       - terraform
 
+  - role: orchestrator
+    authority: lead
+    name: Orchestrator
+    description: >-
+      Central coordinator. MUST delegate all execution work to specialized agents.
+      CANNOT edit files, write code, or execute implementation directly.
+      Only manages missions, selects DNA patterns, and tracks progress.
+    boundaries:
+      - id: orch-no-direct-edit
+        name: No direct file editing
+        type: forbidden
+        value: true
+        scope: global
+      - id: orch-no-direct-implementation
+        name: No direct code implementation
+        type: forbidden
+        value: true
+        scope: global
+      - id: orch-must-delegate
+        name: Must delegate via Task tool
+        type: require_approval
+        value: true
+        scope: per_session
+    skills:
+      - delegation
+      - mission-management
+      - governance-enforcement
+      - conflict-resolution
+    tools:
+      - task-delegation
+      - behavioros-mcp
+      - mission-tracking
+
 governance:
   - id: gov-change-management
     name: Change Management
@@ -201,6 +234,37 @@ governance:
     conditions:
       - type:feature
       - type:architecture
+
+  - id: gov-orchestrator-no-direct-execution
+    name: Orchestrator Must Not Execute Directly
+    description: >-
+      Orchestrator role is forbidden from executing implementation work.
+      All code changes, bug fixes, and feature work MUST be delegated
+      to specialized subagents (dna-architect, governance-reviewer,
+      quality-guardian, audit-analyst, mission-controller).
+    level: critical
+    action: block
+    conditions:
+      - type:orchestrator-direct-execution
+      - type:edit-code
+      - type:write-implementation
+
+  - id: gov-orchestrator-delegation-required
+    name: Delegation Required Before Execution
+    description: >-
+      Before any implementation work begins, orchestrator MUST:
+      1. Run bos_select_dna to select DNA pattern
+      2. Run bos_resolve_truth to get truth sources
+      3. Create mission via create-mission
+      4. Delegate via Task tool to appropriate subagent
+    level: critical
+    action: escalate
+    conditions:
+      - type:feature
+      - type:bugfix
+      - type:refactor
+      - type:security
+      - type:performance
 
 quality:
   - id: qg-test-coverage

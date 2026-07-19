@@ -6,6 +6,22 @@ import { MissionSchema } from '@behavioros/schemas';
 // Mission Engine — Task decomposition, assignment, tracking
 // ============================================================
 
+const VALID_TRANSITIONS: Record<MissionStatus, MissionStatus[]> = {
+  draft: ['queued', 'cancelled'],
+  queued: ['planning', 'executing', 'cancelled'],
+  planning: ['executing', 'cancelled'],
+  executing: ['review', 'blocked', 'completed', 'failed', 'cancelled'],
+  review: ['completed', 'failed', 'executing', 'cancelled'],
+  blocked: ['executing', 'cancelled'],
+  completed: [],
+  failed: ['queued', 'cancelled'],
+  cancelled: [],
+};
+
+function isValidTransition(from: MissionStatus, to: MissionStatus): boolean {
+  return VALID_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
 export interface MissionPlan {
   id: string;
   rootMission: string;
@@ -67,13 +83,23 @@ export class MissionEngine {
   updateProgress(missionId: string, updates: Partial<MissionProgress>): MissionProgress {
     const existing = this.progress.get(missionId) ?? {
       missionId,
-      status: 'executing' as MissionStatus,
+      status: 'queued' as MissionStatus,
       progress: 0,
       subTasks: 0,
       completedSubTasks: 0,
       blockers: [],
       lastUpdated: new Date().toISOString(),
     };
+
+    // Validate state transitions
+    if (updates.status && updates.status !== existing.status) {
+      if (!isValidTransition(existing.status, updates.status)) {
+        throw new Error(
+          `Invalid mission transition: ${existing.status} → ${updates.status}. ` +
+            `Valid transitions: ${VALID_TRANSITIONS[existing.status]?.join(', ') ?? 'none'}`,
+        );
+      }
+    }
 
     const updated = { ...existing, ...updates, lastUpdated: new Date().toISOString() };
     this.progress.set(missionId, updated);

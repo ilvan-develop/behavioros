@@ -137,10 +137,10 @@ export function diffCommand(program: Command): void {
         const loader = new DNALoader({ validate: true });
 
         spinner.text = `Loading ${options.from}...`;
-        const from = loader.load(options.from);
+        const from = await loader.load(options.from);
 
         spinner.text = `Loading ${options.to}...`;
-        const to = loader.load(options.to);
+        const to = await loader.load(options.to);
 
         spinner.succeed(
           `Comparing ${chalk.bold(from.name)} v${from.version} → ${chalk.bold(to.name)} v${to.version}`,

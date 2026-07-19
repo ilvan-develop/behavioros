@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import EventEmitter from 'eventemitter3';
 
 export type EvidenceType =
@@ -61,7 +62,7 @@ export class ForensicCollector {
   private config: ForensicCollectorConfig;
   private entries: ForensicEntry[] = [];
   private emitter = new EventEmitter();
-  private lastHash = '0000000000000000';
+  private lastHash = '0'.repeat(64);
   private flushTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(config?: Partial<ForensicCollectorConfig>) {
@@ -264,7 +265,7 @@ export class ForensicCollector {
     const chain = entries ?? this.entries;
     if (chain.length === 0) return true;
 
-    let previousHash = '0000000000000000';
+    let previousHash = '0'.repeat(64);
     for (const entry of chain) {
       if (entry.previousHash !== previousHash) {
         return false;
@@ -337,7 +338,7 @@ export class ForensicCollector {
 
   reset(): void {
     this.entries = [];
-    this.lastHash = '0000000000000000';
+    this.lastHash = '0'.repeat(64);
     this.stopPeriodicFlush();
   }
 
@@ -373,14 +374,8 @@ export class ForensicCollector {
   }
 
   private computeHash(data: string, previousHash: string): string {
-    let hash = 0;
     const combined = previousHash + data;
-    for (let i = 0; i < combined.length; i++) {
-      const char = combined.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(16).padStart(12, '0');
+    return createHash('sha256').update(combined).digest('hex');
   }
 
   private generateId(): string {

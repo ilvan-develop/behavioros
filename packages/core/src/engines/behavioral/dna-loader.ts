@@ -2,6 +2,7 @@ import { access, readdir, readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { type DNAPackage, DNAPackageSchema } from '@behavioros/schemas';
 import { parse as parseYAML } from 'yaml';
+import { sanitizeDNA } from '../../security/dna-sanitizer.js';
 
 // ============================================================
 // DNA Loader — Carrega e valida pacotes DNA
@@ -71,6 +72,7 @@ export class DNALoader {
       }
     }
 
+    this.sanitizeOrThrow(raw, resolved);
     return this.parse(raw, resolved);
   }
 
@@ -84,6 +86,7 @@ export class DNALoader {
           `(${yamlContent.length} bytes provided)`,
       );
     }
+    this.sanitizeOrThrow(yamlContent, sourceName ?? '<inline>');
     return this.parse(yamlContent, sourceName ?? '<inline>');
   }
 
@@ -154,6 +157,35 @@ export class DNALoader {
 
     this.cache.set(source, parsed as DNAPackage);
     return parsed as DNAPackage;
+  }
+
+  private sanitizeOrThrow(raw: string, source: string): void {
+    const result = sanitizeDNA(raw);
+
+    const riskLevel =
+      result.riskScore >= 80
+        ? 'critical'
+        : result.riskScore >= 60
+          ? 'high'
+          : result.riskScore >= 30
+            ? 'medium'
+            : 'low';
+
+    if (riskLevel === 'critical' || riskLevel === 'high') {
+      const details = result.violations
+        .map((v) => `  - [${v.severity}] ${v.description}${v.location ? ` (${v.location})` : ''}`)
+        .join('\n');
+      throw new Error(
+        `DNA sanitization failed for ${source} (risk: ${riskLevel}, score: ${result.riskScore}):\n${details}`,
+      );
+    }
+
+    if (riskLevel === 'medium' || riskLevel === 'low') {
+      console.warn(
+        `DNA sanitization warning for ${source} (risk: ${riskLevel}, score: ${result.riskScore}): ` +
+          `${result.violations.length} violation(s) detected`,
+      );
+    }
   }
 
   /**

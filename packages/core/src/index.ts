@@ -167,12 +167,16 @@ export type {
   QualityReport,
 } from './engines/quality/quality-engine';
 export { QualityEngine } from './engines/quality/quality-engine';
+// Persistence — Audit trail
+export type { AuditEntry, ChainVerificationResult } from './persistence/sqlite-audit-store';
+export { SQLiteAuditStore } from './persistence/sqlite-audit-store';
 export type { PersistenceConfig } from './persistence/sqlite-store';
 // Persistence
 export { SQLiteStore } from './persistence/sqlite-store';
 export type { LayerMetrics } from './pipeline/interceptors/metrics-interceptor';
 export { MetricsInterceptor } from './pipeline/interceptors/metrics-interceptor';
 export { TimeoutInterceptor } from './pipeline/interceptors/timeout-interceptor';
+export { DelegationEnforcementLayer } from './pipeline/layers/delegation-enforcement.layer';
 export { shouldSkipForConversational } from './pipeline/mode/conversational.adapter';
 export { shouldSkipForTransactional } from './pipeline/mode/transactional.adapter';
 // Pipeline Dispatcher
@@ -248,6 +252,15 @@ export type { CollectedResponse } from './sandbox/simulation/response-collector'
 export { ResponseCollector } from './sandbox/simulation/response-collector';
 export type { TrafficCapture } from './sandbox/simulation/traffic-replay';
 export { TrafficReplay } from './sandbox/simulation/traffic-replay';
+// Security — Authority verification, DNA sanitization
+export type {
+  AuthorityLevel,
+  AuthorityToken,
+  VerificationResult,
+} from './security/authority-verifier';
+export { AuthorityVerifier } from './security/authority-verifier';
+export type { SanitizationResult, SanitizationViolation } from './security/dna-sanitizer';
+export { analyzeIntent, sanitizeDNA } from './security/dna-sanitizer';
 export type { LogEntry } from './shared/logger';
 // Shared — Logger
 export { Logger } from './shared/logger';

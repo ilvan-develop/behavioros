@@ -618,7 +618,7 @@ describe('ForensicCollector', () => {
       expect(entry.type).toBe('action-log');
       expect(entry.action).toBe('deploy');
       expect(entry.hash).toBeTruthy();
-      expect(entry.previousHash).toBe('0000000000000000');
+      expect(entry.previousHash).toBe('0'.repeat(64));
     });
 
     it('should chain hashes between entries', () => {

@@ -63,6 +63,7 @@ export class GovernanceEngine {
   private rulesWithoutScope: GovernanceRule[] = [];
   private timeRestrictedRules: GovernanceRule[] = [];
   private dependencyRules: GovernanceRule[] = [];
+  private conditionIndex = new Map<string, GovernanceRule[]>();
   private escalationChain: Map<AuthorityLevelValue, AuthorityLevelValue> = new Map([
     ['junior', 'senior'],
     ['senior', 'architect'],
@@ -79,6 +80,7 @@ export class GovernanceEngine {
 
   private buildIndex(): void {
     this.ruleIndex.clear();
+    this.conditionIndex.clear();
     this.rulesWithoutScope = [];
     this.timeRestrictedRules = [];
     this.dependencyRules = [];
@@ -94,6 +96,20 @@ export class GovernanceEngine {
             existing.push(rule);
           } else {
             this.ruleIndex.set(key, [rule]);
+          }
+        }
+      }
+
+      // Condition-type index for O(1) lookups on "type:" and "impact:" conditions
+      if (rule.conditions) {
+        for (const condition of rule.conditions) {
+          if (condition.startsWith('type:') || condition.startsWith('impact:')) {
+            const existing = this.conditionIndex.get(condition);
+            if (existing) {
+              existing.push(rule);
+            } else {
+              this.conditionIndex.set(condition, [rule]);
+            }
           }
         }
       }
@@ -118,14 +134,30 @@ export class GovernanceEngine {
     const seen = new Set<GovernanceRule>();
     const candidates: GovernanceRule[] = [];
 
+    // Rules without scope always apply
     for (const rule of this.rulesWithoutScope) {
       candidates.push(rule);
       seen.add(rule);
     }
 
-    const keys = [context.targetType, context.action];
-    for (const key of keys) {
+    // Scope-indexed lookup (O(1))
+    const scopeKeys = [context.targetType, context.action];
+    for (const key of scopeKeys) {
       const indexed = this.ruleIndex.get(key);
+      if (indexed) {
+        for (const rule of indexed) {
+          if (!seen.has(rule)) {
+            candidates.push(rule);
+            seen.add(rule);
+          }
+        }
+      }
+    }
+
+    // Condition-type index lookup (O(1)) for type: and impact: conditions
+    const conditionKeys = [`type:${context.targetType}`, `impact:${context.impact}`];
+    for (const key of conditionKeys) {
+      const indexed = this.conditionIndex.get(key);
       if (indexed) {
         for (const rule of indexed) {
           if (!seen.has(rule)) {
@@ -230,9 +262,20 @@ export class GovernanceEngine {
       }
     }
 
-    // Check conditions
+    // Check conditions — use precomputed index for type:/impact: patterns
     if (rule.conditions && rule.conditions.length > 0) {
       for (const condition of rule.conditions) {
+        // Fast path: indexed type/impact conditions
+        if (condition.startsWith('type:') || condition.startsWith('impact:')) {
+          if (
+            condition === `type:${context.targetType}` ||
+            condition === `impact:${context.impact}`
+          ) {
+            return true;
+          }
+          continue;
+        }
+        // Slow path: other conditions (day:, hours:, dependency:, freeform)
         if (condition.includes(context.impact) || condition.includes(context.targetType)) {
           return true;
         }

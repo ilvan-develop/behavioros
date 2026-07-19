@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { type AuditEntry, SQLiteAuditStore } from '../../persistence/sqlite-audit-store';
 import type { DispatcherLayerResult, PipelineDispatcherContext } from '../pipeline-context';
 import type { PipelineLayer } from './layer.interface';
 
@@ -22,6 +23,8 @@ export interface AuditTrailEntry {
 
 export interface AuditTrailLayerOptions {
   maxEntries?: number;
+  dbPath?: string;
+  enablePersistence?: boolean;
 }
 
 export class AuditTrailLayer implements PipelineLayer {
@@ -32,9 +35,30 @@ export class AuditTrailLayer implements PipelineLayer {
   private trail: AuditTrailEntry[] = [];
   private maxEntries: number;
   private lastVerifiedIndex = -1;
+  private store: SQLiteAuditStore | null = null;
+  private enablePersistence: boolean;
 
   constructor(options: AuditTrailLayerOptions = {}) {
     this.maxEntries = options.maxEntries ?? 10_000;
+    this.enablePersistence = options.enablePersistence ?? false;
+
+    if (this.enablePersistence && options.dbPath) {
+      this.store = new SQLiteAuditStore({ dbPath: options.dbPath, maxEntries: this.maxEntries });
+      // Load existing entries from store
+      const stored = this.store.getEntries();
+      this.trail = stored.map((e: AuditEntry) => ({
+        pipelineId: e.id,
+        layerIndex: 0,
+        layerId: 'audit-trail',
+        action: e.action,
+        agentId: e.agentId ?? 'unknown',
+        timestamp: e.timestamp,
+        previousHash: e.previousHash,
+        hash: e.hash,
+        details: e.payload ? JSON.parse(e.payload) : {},
+      }));
+      this.lastVerifiedIndex = this.trail.length - 1;
+    }
   }
 
   shouldExecute(_context: PipelineDispatcherContext): boolean {
@@ -82,6 +106,18 @@ export class AuditTrailLayer implements PipelineLayer {
       // Append to trail (never removes — append-only)
       this.trail.push(entry);
 
+      // Persist to SQLite if enabled
+      if (this.store) {
+        this.store.append({
+          id: `${context.id}-${context.currentLayerIndex}`,
+          timestamp: entry.timestamp,
+          agentId: context.agentId,
+          action: context.action,
+          payload: JSON.stringify(context.payload),
+          metadata: JSON.stringify(Object.fromEntries(context.metadata.entries())),
+        });
+      }
+
       // Trim if over max (keeps head, drops oldest)
       if (this.trail.length > this.maxEntries) {
         const trimAmount = this.trail.length - this.maxEntries;
@@ -106,6 +142,7 @@ export class AuditTrailLayer implements PipelineLayer {
           trailLength: this.trail.length,
           pipelineId: context.id,
           recordedAt: entry.timestamp,
+          persistent: this.enablePersistence,
         },
       };
     } catch (error) {
@@ -165,5 +202,9 @@ export class AuditTrailLayer implements PipelineLayer {
   clearTrail(): void {
     this.trail = [];
     this.lastVerifiedIndex = -1;
+  }
+
+  getStore(): SQLiteAuditStore | null {
+    return this.store;
   }
 }

@@ -39,6 +39,7 @@ const defaultMatrix: PermissionMatrix = {
 
 export class PermissionMatrixManager {
   private matrix: PermissionMatrix = structuredClone(defaultMatrix);
+  private crossDNAPermissions: Map<string, boolean> = new Map();
 
   getPermission(dnaMode: DNAMode, action: PermissionAction): Permission {
     return this.matrix[dnaMode][action];
@@ -64,6 +65,27 @@ export class PermissionMatrixManager {
     }
 
     return this.matrix[mode][act].requiresApproval ?? false;
+  }
+
+  /**
+   * Check if cross-DNA access is permitted
+   */
+  checkAccess(sourceDnaId: string, targetDnaId: string, action: string): boolean {
+    const key = `${sourceDnaId}:${targetDnaId}:${action}`;
+    return this.crossDNAPermissions.get(key) ?? false;
+  }
+
+  /**
+   * Register a cross-DNA permission
+   */
+  registerCrossDNAPermission(
+    sourceDnaId: string,
+    targetDnaId: string,
+    action: string,
+    allowed: boolean,
+  ): void {
+    const key = `${sourceDnaId}:${targetDnaId}:${action}`;
+    this.crossDNAPermissions.set(key, allowed);
   }
 
   getMatrix(): PermissionMatrix {

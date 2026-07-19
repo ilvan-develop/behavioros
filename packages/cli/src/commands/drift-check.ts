@@ -294,10 +294,10 @@ export function driftCheckCommand(program: Command): void {
         const loader = new DNALoader({ validate: true });
 
         spinner.text = `Loading current DNA from ${options.dna}...`;
-        const current = loader.load(options.dna);
+        const current = await loader.load(options.dna);
 
         spinner.text = `Loading baseline DNA from ${options.baseline}...`;
-        const baseline = loader.load(options.baseline);
+        const baseline = await loader.load(options.baseline);
 
         spinner.text = 'Validating DNAs...';
         const currentValidation = DNAValidator.validate(current);

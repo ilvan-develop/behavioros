@@ -71,7 +71,7 @@ export function deployCommand(program: Command): void {
         try {
           const loader = new DNALoader({ validate: true });
           spinner.text = `Loading DNA from ${options.dna}...`;
-          const dna = loader.load(options.dna);
+          const dna = await loader.load(options.dna);
 
           spinner.text = 'Validating DNA...';
           const validation = DNAValidator.validate(dna);

@@ -51,7 +51,9 @@
     "behavioros": {
       "type": "local",
       "command": ["node", "packages/mcp-server/dist/server.js"],
+      "cwd": ".",
       "enabled": true,
+      "timeout": 30000,
       "environment": {
         "BEHAVIOROS_DNA_PATH": "./dnas"
       }

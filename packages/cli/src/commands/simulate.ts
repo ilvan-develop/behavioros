@@ -238,7 +238,7 @@ export function simulateCommand(program: Command): void {
       try {
         const loader = new DNALoader({ validate: true });
         spinner.text = `Loading DNA from ${options.dna}...`;
-        const dna = loader.load(options.dna);
+        const dna = await loader.load(options.dna);
 
         spinner.text = `Loading prompt from ${options.prompt}...`;
         let promptContent: string;

@@ -40,7 +40,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "tsup src/server.ts src/index.ts --format esm,cjs",
+    "build": "tsup",
     "dev": "tsx watch src/server.ts",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",

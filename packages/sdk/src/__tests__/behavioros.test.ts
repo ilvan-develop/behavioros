@@ -530,8 +530,8 @@ describe('BehaviorOS', () => {
   // ─── loadDNA() ─────────────────────────────────────────────
 
   describe('loadDNA()', () => {
-    it('loads DNA from path (throws for invalid path)', () => {
-      expect(() => bos.loadDNA('./non-existent-dna.yaml')).toThrow();
+    it('loads DNA from path (throws for invalid path)', async () => {
+      await expect(bos.loadDNA('./non-existent-dna.yaml')).rejects.toThrow();
     });
   });
 
