@@ -1,5 +1,12 @@
 # @behavioros/observability-dashboard
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @behavioros/core@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,7 +1,7 @@
 {
   "name": "@behavioros/e2e-tests",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "BehaviorOS E2E test suite using Playwright",
   "scripts": {
     "test": "playwright test",

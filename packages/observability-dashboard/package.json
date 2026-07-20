@@ -1,6 +1,6 @@
 {
   "name": "@behavioros/observability-dashboard",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Unified observability dashboard for BehaviorOS ecosystem",
   "type": "module",
   "main": "./dist/index.js",

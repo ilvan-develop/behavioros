@@ -1,6 +1,6 @@
 {
   "name": "@behavioros/sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "BehaviorOS SDK — TypeScript SDK for integrating with AI agent orchestrators",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

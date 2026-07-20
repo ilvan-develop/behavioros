@@ -1,5 +1,11 @@
 # @behavioros/core
 
+## 0.2.1
+
+### Patch Changes
+
+- DNALoader sanitize option, governance auto-enable
+
 ## 0.2.0
 
 ### Minor Changes
