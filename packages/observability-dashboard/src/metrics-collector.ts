@@ -1,5 +1,5 @@
 // ============================================================
-// Metrics Collector — Real metrics from BehaviorOSEngine + HTTP APIs
+// Metrics Collector — Real metrics from BehaviorOSEngine
 // ============================================================
 
 import type {
@@ -9,18 +9,6 @@ import type {
   BehaviorOSMetrics,
   BehaviorOSPipeline,
   BehaviorOSQuality,
-  BrocolisApi,
-  BrocolisDeliveries,
-  BrocolisMetrics,
-  BrocolisOrders,
-  BrocolisPrescriptions,
-  BrocolisUsers,
-  FinPayCompliance,
-  FinPayFraud,
-  FinPayMetrics,
-  FinPayOcr,
-  FinPayPayments,
-  FinPayTrust,
   HealthLevel,
   HealthStatus,
   UnifiedMetrics,
@@ -75,10 +63,6 @@ export interface BehaviorOSEngineLike {
 export interface MetricsCollectorConfig {
   /** Reference to a live BehaviorOSEngine for pulling real metrics. */
   engine?: BehaviorOSEngineLike;
-  /** Brocolis API base URL (e.g. "http://localhost:3001"). If omitted, engine data is used as proxy. */
-  brocolisApiUrl?: string;
-  /** FinPay API base URL (e.g. "http://localhost:3002"). If omitted, engine data is used as proxy. */
-  finpayApiUrl?: string;
   /** BehaviorOS data file path (unused when engine ref is provided). */
   behaviorosDataPath?: string;
   /** Auto-collection interval in ms. 0 = disabled. */
@@ -110,40 +94,10 @@ export interface MetricHistoryEntry {
 export interface CollectorHealthStatus extends HealthStatus {
   details: {
     engineConnected: boolean;
-    brocolisApiReachable: boolean;
-    finpayApiReachable: boolean;
     snapshotsCollected: number;
     errorRate: number;
     lastError?: string;
   };
-}
-
-// ============================================================
-// Internal helpers
-// ============================================================
-
-type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
-
-function defaultFetch(): FetchFn {
-  if (typeof globalThis.fetch === 'function') {
-    return globalThis.fetch.bind(globalThis);
-  }
-  return async () => {
-    throw new Error('No fetch implementation available');
-  };
-}
-
-async function httpJson<T>(url: string, timeout: number, fetchFn: FetchFn): Promise<T | null> {
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
-    const res = await fetchFn(url, { signal: controller.signal });
-    clearTimeout(timer);
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch {
-    return null;
-  }
 }
 
 // ============================================================
@@ -153,8 +107,6 @@ async function httpJson<T>(url: string, timeout: number, fetchFn: FetchFn): Prom
 export class MetricsCollector {
   private readonly config: MetricsCollectorConfig;
   private readonly engine: BehaviorOSEngineLike | undefined;
-  private readonly fetchFn: FetchFn;
-  private readonly httpTimeout: number;
   private readonly maxHistorySize: number;
 
   private history: MetricSnapshot[] = [];
@@ -167,8 +119,6 @@ export class MetricsCollector {
   constructor(config: MetricsCollectorConfig = {}) {
     this.config = config;
     this.engine = config.engine;
-    this.fetchFn = defaultFetch();
-    this.httpTimeout = config.httpTimeout ?? 5000;
     this.maxHistorySize = config.maxHistorySize ?? 360;
   }
 
@@ -203,51 +153,15 @@ export class MetricsCollector {
   // ----------------------------------------------------------
 
   async collectAll(): Promise<UnifiedMetrics> {
-    const [brocolis, finpay, behavioros] = await Promise.all([
-      this.collectBrocolisMetrics(),
-      this.collectFinPayMetrics(),
-      this.collectBehaviorOSMetrics(),
-    ]);
+    const behavioros = await this.collectBehaviorOSMetrics();
 
     const unified: UnifiedMetrics = {
-      brocolis,
-      finpay,
       behavioros,
       timestamp: new Date().toISOString(),
     };
 
     this.recordSnapshot(unified);
     return unified;
-  }
-
-  async collectBrocolisMetrics(): Promise<BrocolisMetrics> {
-    const now = new Date().toISOString();
-
-    if (this.config.brocolisApiUrl) {
-      const data = await httpJson<BrocolisMetrics>(
-        `${this.config.brocolisApiUrl}/api/metrics`,
-        this.httpTimeout,
-        this.fetchFn,
-      );
-      if (data) return { ...data, timestamp: now };
-    }
-
-    return this.buildBrocolisFromEngine(now);
-  }
-
-  async collectFinPayMetrics(): Promise<FinPayMetrics> {
-    const now = new Date().toISOString();
-
-    if (this.config.finpayApiUrl) {
-      const data = await httpJson<FinPayMetrics>(
-        `${this.config.finpayApiUrl}/api/metrics`,
-        this.httpTimeout,
-        this.fetchFn,
-      );
-      if (data) return { ...data, timestamp: now };
-    }
-
-    return this.buildFinPayFromEngine(now);
   }
 
   async collectBehaviorOSMetrics(): Promise<BehaviorOSMetrics> {
@@ -290,97 +204,6 @@ export class MetricsCollector {
     };
 
     return { pipeline, layers, governance, quality, learning, timestamp: now };
-  }
-
-  private buildBrocolisFromEngine(now: string): BrocolisMetrics {
-    if (!this.engine) return this.emptyBrocolis(now);
-
-    const stats = this.engine.getStats();
-    const auditLog = this.engine.getAuditLog();
-    const totalMissions = sumValues(stats.missions);
-
-    const orders: BrocolisOrders = {
-      total: totalMissions,
-      pending: (stats.missions.draft ?? 0) + (stats.missions.queued ?? 0),
-      completed: stats.missions.completed ?? 0,
-      cancelled: stats.missions.failed ?? 0,
-      revenue: 0,
-    };
-
-    const prescriptions: BrocolisPrescriptions = {
-      uploaded: auditLog.filter((e) => e.type.includes('prescription') || e.type.includes('upload'))
-        .length,
-      verified: auditLog.filter((e) => e.result === 'pass').length,
-      rejected: auditLog.filter((e) => e.result === 'fail').length,
-    };
-
-    const deliveries: BrocolisDeliveries = {
-      active: stats.missions.executing ?? 0,
-      completed: stats.missions.completed ?? 0,
-      failed: stats.missions.failed ?? 0,
-    };
-
-    const agents = this.engine.getAllAgents();
-    const users: BrocolisUsers = {
-      active: agents.length,
-      new: agents.filter((a) => a.completedMissions.length === 0).length,
-      churned: 0,
-    };
-
-    const api: BrocolisApi = {
-      latency: 0,
-      errorRate: totalMissions > 0 ? ((stats.missions.failed ?? 0) / totalMissions) * 100 : 0,
-      throughput: totalMissions,
-    };
-
-    return { orders, prescriptions, deliveries, users, api, timestamp: now };
-  }
-
-  private buildFinPayFromEngine(now: string): FinPayMetrics {
-    if (!this.engine) return this.emptyFinPay(now);
-
-    const stats = this.engine.getStats();
-    const auditLog = this.engine.getAuditLog();
-    const qualityScores = this.computeQualityFromAudit(auditLog);
-    const totalMissions = sumValues(stats.missions);
-
-    const payments: FinPayPayments = {
-      total: totalMissions,
-      approved: stats.missions.completed ?? 0,
-      rejected: stats.missions.failed ?? 0,
-      pendingReview: (stats.missions.draft ?? 0) + (stats.missions.queued ?? 0),
-    };
-
-    const trust: FinPayTrust = {
-      avgScore: qualityScores.avgCoverage,
-      distribution: {
-        low: auditLog.filter((e) => e.severity === 'error').length,
-        medium: auditLog.filter((e) => e.severity === 'warning').length,
-        high: auditLog.filter((e) => e.severity === 'info').length,
-      },
-    };
-
-    const governanceBlocked = auditLog.filter(
-      (e) => e.type.includes('governance') && e.type.includes('violation'),
-    ).length;
-
-    const fraud: FinPayFraud = {
-      detected: governanceBlocked,
-      falsePositives: 0,
-      truePositives: governanceBlocked,
-    };
-
-    const compliance: FinPayCompliance = {
-      passed: auditLog.filter((e) => e.result === 'pass').length,
-      violations: auditLog.filter((e) => e.result === 'fail').length,
-    };
-
-    const ocr: FinPayOcr = {
-      accuracy: qualityScores.lintPass ? 100 : 0,
-      processingTime: 0,
-    };
-
-    return { payments, trust, fraud, compliance, ocr, timestamp: now };
   }
 
   // ----------------------------------------------------------
@@ -444,28 +267,6 @@ export class MetricsCollector {
     };
   }
 
-  private emptyBrocolis(now: string): BrocolisMetrics {
-    return {
-      orders: { total: 0, pending: 0, completed: 0, cancelled: 0, revenue: 0 },
-      prescriptions: { uploaded: 0, verified: 0, rejected: 0 },
-      deliveries: { active: 0, completed: 0, failed: 0 },
-      users: { active: 0, new: 0, churned: 0 },
-      api: { latency: 0, errorRate: 0, throughput: 0 },
-      timestamp: now,
-    };
-  }
-
-  private emptyFinPay(now: string): FinPayMetrics {
-    return {
-      payments: { total: 0, approved: 0, rejected: 0, pendingReview: 0 },
-      trust: { avgScore: 0, distribution: { low: 0, medium: 0, high: 0 } },
-      fraud: { detected: 0, falsePositives: 0, truePositives: 0 },
-      compliance: { passed: 0, violations: 0 },
-      ocr: { accuracy: 0, processingTime: 0 },
-      timestamp: now,
-    };
-  }
-
   // ----------------------------------------------------------
   // History & time-series
   // ----------------------------------------------------------
@@ -509,26 +310,6 @@ export class MetricsCollector {
   async getHealthStatus(): Promise<CollectorHealthStatus> {
     const engineConnected = this.engine !== undefined;
 
-    let brocolisApiReachable = false;
-    if (this.config.brocolisApiUrl) {
-      const data = await httpJson<unknown>(
-        `${this.config.brocolisApiUrl}/api/health`,
-        this.httpTimeout,
-        this.fetchFn,
-      );
-      brocolisApiReachable = data !== null;
-    }
-
-    let finpayApiReachable = false;
-    if (this.config.finpayApiUrl) {
-      const data = await httpJson<unknown>(
-        `${this.config.finpayApiUrl}/api/health`,
-        this.httpTimeout,
-        this.fetchFn,
-      );
-      finpayApiReachable = data !== null;
-    }
-
     const errorRate =
       this._totalCollections > 0 ? (this._errorCount / this._totalCollections) * 100 : 0;
 
@@ -537,7 +318,7 @@ export class MetricsCollector {
       status = 'unhealthy';
     } else if (errorRate > 5) {
       status = 'degraded';
-    } else if (!engineConnected && !brocolisApiReachable && !finpayApiReachable) {
+    } else if (!engineConnected) {
       status = 'unknown';
     }
 
@@ -548,8 +329,6 @@ export class MetricsCollector {
       lastCheck: new Date().toISOString(),
       details: {
         engineConnected,
-        brocolisApiReachable,
-        finpayApiReachable,
         snapshotsCollected: this._totalCollections,
         errorRate,
         lastError: this._lastError,
@@ -573,11 +352,6 @@ export class MetricsCollector {
 // ============================================================
 // Module-level helpers
 // ============================================================
-
-function sumValues(record: Record<string, number> | undefined): number {
-  if (!record) return 0;
-  return Object.values(record).reduce((sum, n) => sum + n, 0);
-}
 
 function resolveMetricPath(obj: unknown, path: string): unknown {
   const parts = path.split('.');

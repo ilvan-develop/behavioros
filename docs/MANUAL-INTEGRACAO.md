@@ -1,7 +1,7 @@
 # Manual Técnico — Integração BehaviorOS
 
 > Guia genérico para agentes de IA integrarem BehaviorOS em qualquer projeto.
-> Brocolis e FinPay são apenas exemplos de utilização.
+> Comportamento adaptado ao domínio do projecto.
 
 ---
 
@@ -57,7 +57,6 @@ BehaviorOS é um framework de governança comportamental para equipas de agentes
 | `@behavioros/cli` | CLI (init, compile, validate, status) | Terminal |
 | `@behavioros/mcp-server` | MCP server para agentes IA | OpenCode/Cursor/Claude |
 | `@behavioros/observability-dashboard` | Métricas + Dashboards + Alertas | Monitorização |
-| `@behavioros/finpay-integration` | Exemplo: integração FinPay + Brocolis | Referência |
 | `@behavioros/e2e-tests` | 54 testes Playwright | Testes E2E |
 
 ---
@@ -525,7 +524,6 @@ await mcp.callTool('bos_lsp_validate', {
 ## Referências
 
 - `dnas/enterprise-agent-review.yaml` — DNA genérico com 18 camadas
-- `packages/finpay-integration/` — Exemplo de integração FinPay + Brocolis
 - `docs/SDK.md` — API reference completa
 - `docs/CLI.md` — Guia do CLI
 - `docs/ARCHITECTURE.md` — Arquitetura detalhada

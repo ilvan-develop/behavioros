@@ -31,10 +31,10 @@ console.log('📋 TEST 2: Resolve manufacturing with squad + agent overrides');
 const result = resolver.resolve(
   { primary: 'manufacturing' },
   {
-    id: 'finpay-backend',
+    id: 'agent-backend',
     squad: 'payments',
     dnaOverrides: {
-      identity: { name: 'FinPay Backend Engineer' },
+      identity: { name: 'Backend Engineer' },
       risk_tolerance: 'low',
       principles: [
         {
@@ -57,8 +57,8 @@ console.log('   forbidden count:', result.forbidden.length);
 
 // Verify agent override took precedence on identity.name
 console.assert(
-  result.identity.name === 'FinPay Backend Engineer',
-  `FAIL: identity.name should be "FinPay Backend Engineer" but got "${result.identity.name}"`,
+  result.identity.name === 'Backend Engineer',
+  `FAIL: identity.name should be "Backend Engineer" but got "${result.identity.name}"`,
 );
 // Verify _sources includes all 3 layers
 console.assert(
@@ -67,8 +67,8 @@ console.assert(
 );
 console.assert(result._sources.includes('squad:payments'), `FAIL: _sources missing squad:payments`);
 console.assert(
-  result._sources.includes('agent:finpay-backend'),
-  `FAIL: _sources missing agent:finpay-backend`,
+  result._sources.includes('agent:agent-backend'),
+  `FAIL: _sources missing agent:agent-backend`,
 );
 console.log('   ✅ Override precedence: agent > squad > catalog\n');
 
@@ -76,7 +76,7 @@ console.log('   ✅ Override precedence: agent > squad > catalog\n');
 console.log('📋 TEST 3: Secondary DNA blending (manufacturing + immune-system)');
 const blended = resolver.resolve(
   { primary: 'manufacturing', secondary: 'immune-system', blend: { primary: 70, secondary: 30 } },
-  { id: 'finpay-backend', squad: 'payments' },
+  { id: 'agent-backend', squad: 'payments' },
 );
 
 console.log('   _sources:', JSON.stringify(blended._sources));

@@ -1,7 +1,7 @@
 meta:
   version: "1.0.0"
   preset: "fintech"
-  description: "FinPay-style fintech SaaS — PCI-DSS, SOC2, financial transaction integrity"
+  description: "Fintech governance preset — PCI-DSS, SOC2, financial transaction integrity"
   inherits: "bos/schemas/governance-schema.yaml"
   risk_level: critical
 

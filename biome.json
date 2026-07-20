@@ -14,11 +14,9 @@
       "!**/*.scss",
       "!website",
       "!scripts",
-      "!finpay-temp",
       "!generated",
       "!templates",
-      "!packages/e2e-tests",
-      "!packages/finpay-integration"
+      "!packages/e2e-tests"
     ]
   },
   "linter": {

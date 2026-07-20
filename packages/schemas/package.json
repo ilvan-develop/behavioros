@@ -1,6 +1,6 @@
 {
   "name": "@behavioros/schemas",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "BehaviorOS Schemas — Zod + JSON Schema for BehaviorOS configuration",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,6 +10,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "author": "Ilvan Joaquim",
   "license": "MIT",
   "keywords": [

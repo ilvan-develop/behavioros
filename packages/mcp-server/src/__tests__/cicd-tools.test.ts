@@ -67,11 +67,11 @@ describe('CI/CD Tools', () => {
 
   describe('start_pipeline', () => {
     it('should create a pipeline with all default layers', async () => {
-      const result = await startPipeline({ project: 'brocolis' });
+      const result = await startPipeline({ project: 'my-project' });
       const parsed = JSON.parse(result.content[0].text);
 
       expect(parsed.id).toBeDefined();
-      expect(parsed.project).toBe('brocolis');
+      expect(parsed.project).toBe('my-project');
       expect(parsed.status).toBe('created');
       expect(parsed.layerCount).toBe(9);
       expect(parsed.createdAt).toBeDefined();
@@ -79,12 +79,12 @@ describe('CI/CD Tools', () => {
 
     it('should create a pipeline with custom layers', async () => {
       const result = await startPipeline({
-        project: 'finpay',
+        project: 'my-project',
         layers: ['dna', 'governance', 'quality'],
       });
       const parsed = JSON.parse(result.content[0].text);
 
-      expect(parsed.project).toBe('finpay');
+      expect(parsed.project).toBe('my-project');
       expect(parsed.layerCount).toBe(3);
       expect(parsed.layers.map((l: { id: string }) => l.id)).toEqual([
         'dna',
@@ -96,14 +96,14 @@ describe('CI/CD Tools', () => {
 
   describe('get_pipeline_status', () => {
     it('should return pipeline status', async () => {
-      const createResult = await startPipeline({ project: 'brocolis' });
+      const createResult = await startPipeline({ project: 'my-project' });
       const created = JSON.parse(createResult.content[0].text);
 
       const result = await getPipelineStatus({ pipelineId: created.id });
       const parsed = JSON.parse(result.content[0].text);
 
       expect(parsed.id).toBe(created.id);
-      expect(parsed.project).toBe('brocolis');
+      expect(parsed.project).toBe('my-project');
       expect(parsed.status).toBe('created');
       expect(parsed.progress).toEqual({
         passed: 0,
@@ -123,7 +123,7 @@ describe('CI/CD Tools', () => {
   describe('validate_layer', () => {
     it('should validate a layer and set it to passed', async () => {
       const createResult = await startPipeline({
-        project: 'brocolis',
+        project: 'my-project',
         layers: ['dna'],
       });
       const created = JSON.parse(createResult.content[0].text);
@@ -143,7 +143,7 @@ describe('CI/CD Tools', () => {
 
     it('should mark layer as failed when evidence is missing', async () => {
       const createResult = await startPipeline({
-        project: 'finpay',
+        project: 'my-project',
         layers: ['schema'],
       });
       const created = JSON.parse(createResult.content[0].text);
@@ -172,7 +172,7 @@ describe('CI/CD Tools', () => {
   describe('approve_layer', () => {
     it('should approve a validated layer', async () => {
       const createResult = await startPipeline({
-        project: 'brocolis',
+        project: 'my-project',
         layers: ['governance'],
       });
       const created = JSON.parse(createResult.content[0].text);
@@ -197,7 +197,7 @@ describe('CI/CD Tools', () => {
 
     it('should throw when approving unvalidated layer', async () => {
       const createResult = await startPipeline({
-        project: 'finpay',
+        project: 'my-project',
         layers: ['quality'],
       });
       const created = JSON.parse(createResult.content[0].text);
@@ -215,7 +215,7 @@ describe('CI/CD Tools', () => {
   describe('get_pipeline_report', () => {
     it('should return full pipeline report', async () => {
       const createResult = await startPipeline({
-        project: 'brocolis',
+        project: 'my-project',
         layers: ['dna', 'schema'],
       });
       const created = JSON.parse(createResult.content[0].text);
@@ -240,7 +240,7 @@ describe('CI/CD Tools', () => {
   describe('get_gate_results', () => {
     it('should return gate results for a layer', async () => {
       const createResult = await startPipeline({
-        project: 'finpay',
+        project: 'my-project',
         layers: ['audit'],
       });
       const created = JSON.parse(createResult.content[0].text);
@@ -278,7 +278,7 @@ describe('CI/CD Tools', () => {
     });
 
     it('should associate audit with pipeline', async () => {
-      const createResult = await startPipeline({ project: 'brocolis' });
+      const createResult = await startPipeline({ project: 'my-project' });
       const created = JSON.parse(createResult.content[0].text);
 
       const result = await cicdRunAudit({
@@ -304,7 +304,7 @@ describe('CI/CD Tools', () => {
     });
 
     it('should filter by pipeline ID', async () => {
-      const createResult = await startPipeline({ project: 'finpay' });
+      const createResult = await startPipeline({ project: 'my-project' });
       const created = JSON.parse(createResult.content[0].text);
 
       await cicdRunAudit({ pipelineId: created.id, projectPath: '/tmp/test' });
@@ -334,7 +334,7 @@ describe('CI/CD Tools', () => {
     });
 
     it('should record with pipeline association', async () => {
-      const createResult = await startPipeline({ project: 'brocolis' });
+      const createResult = await startPipeline({ project: 'my-project' });
       const created = JSON.parse(createResult.content[0].text);
 
       const result = await cicdRecordLearning({

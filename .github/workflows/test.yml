@@ -47,7 +47,7 @@ jobs:
         run: pnpm install --ignore-scripts
 
       - name: Build all packages
-        run: pnpm --filter @behavioros/schemas --filter @behavioros/core --filter @behavioros/sdk --filter @behavioros/mcp-server --filter @behavioros/dnas --filter @behavioros/cli --filter @behavioros/observability-dashboard --filter @behavioros/finpay-integration build
+        run: pnpm --filter @behavioros/schemas --filter @behavioros/core --filter @behavioros/sdk --filter @behavioros/mcp-server --filter @behavioros/dnas --filter @behavioros/cli --filter @behavioros/observability-dashboard build
 
       - name: Test core
         run: pnpm --filter @behavioros/core test
@@ -66,9 +66,6 @@ jobs:
 
       - name: Test observability-dashboard
         run: pnpm --filter @behavioros/observability-dashboard test
-
-      - name: Test finpay-integration
-        run: pnpm --filter @behavioros/finpay-integration test
 
       - name: Validate DNA configurations
         run: npx @behavioros/cli validate

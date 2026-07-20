@@ -50,27 +50,6 @@ import {
 import { createMission, createMissionInput } from './tools/create-mission.js';
 import { evaluateGovernance, evaluateGovernanceInput } from './tools/evaluate-governance.js';
 import { getStatus } from './tools/get-status.js';
-import {
-  checkFraud,
-  checkFraudInput,
-  deployCanary,
-  deployCanaryInput,
-  getObservabilityMetrics,
-  getObservabilityMetricsInput,
-  getTrustScore,
-  getTrustScoreInput,
-  reconcilePayments,
-  reconcilePaymentsInput,
-  rollbackDeployment,
-  rollbackDeploymentInput,
-  runCompliance,
-  runComplianceInput,
-  setIntegrationEngine,
-  syncBrocolisOrders,
-  syncBrocolisOrdersInput,
-  validatePayment,
-  validatePaymentInput,
-} from './tools/integration-tools.js';
 import { listAgents, listAgentsInput } from './tools/list-agents.js';
 import { listMissions, listMissionsInput } from './tools/list-missions.js';
 import { recordLearning, recordLearningInput } from './tools/record-learning.js';
@@ -271,7 +250,6 @@ export async function createServer(): Promise<McpServer> {
 
   // Register CI/CD engine references
   setCICDEngine(_engine);
-  setIntegrationEngine(_engine);
 
   // Initialize BOS behavioral engines
   const bosProjectRoot = process.cwd();
@@ -353,7 +331,7 @@ export async function createServer(): Promise<McpServer> {
   // Register CI/CD tools
   _server.tool(
     'start-pipeline',
-    'Start an EAARG pipeline for a project (brocolis/finpay)',
+    'Start an EAARG pipeline for a project (any project)',
     startPipelineInput.shape,
     async (args) => withDelegationCheck('start-pipeline', () => startPipeline(args)),
   );
@@ -419,70 +397,6 @@ export async function createServer(): Promise<McpServer> {
     'Get learning recommendations from CI/CD events',
     (getLearningReportInput as any).shape,
     async (args: any) => getLearningReport(args),
-  );
-
-  // Register integration tools
-  _server.tool(
-    'sync-brocolis-orders',
-    'Sync Brocolis orders with FinPay payments',
-    syncBrocolisOrdersInput.shape,
-    async (args) => withDelegationCheck('sync-brocolis-orders', () => syncBrocolisOrders(args)),
-  );
-
-  _server.tool(
-    'validate-payment',
-    'Validate a payment through FinPay pipeline',
-    validatePaymentInput.shape,
-    async (args) => withDelegationCheck('validate-payment', () => validatePayment(args)),
-  );
-
-  _server.tool(
-    'get-trust-score',
-    'Get trust score for a payment',
-    getTrustScoreInput.shape,
-    async (args) => getTrustScore(args),
-  );
-
-  _server.tool(
-    'check-fraud',
-    'Check for fraud signals in a payment',
-    checkFraudInput.shape,
-    async (args) => checkFraud(args),
-  );
-
-  _server.tool(
-    'run-compliance',
-    'Run compliance check (payment, data, audit)',
-    runComplianceInput.shape,
-    async (args) => runCompliance(args),
-  );
-
-  _server.tool(
-    'reconcile-payments',
-    'Reconcile payment ledger between Brocolis and FinPay',
-    reconcilePaymentsInput.shape,
-    async (args) => reconcilePayments(args),
-  );
-
-  _server.tool(
-    'get-observability-metrics',
-    'Get unified metrics from Brocolis, FinPay, and BehaviorOS',
-    (getObservabilityMetricsInput as any).shape,
-    async (args: any) => getObservabilityMetrics(args),
-  );
-
-  _server.tool(
-    'deploy-canary',
-    'Deploy canary version with BehaviorOS quality gates',
-    deployCanaryInput.shape,
-    async (args) => withDelegationCheck('deploy-canary', () => deployCanary(args)),
-  );
-
-  _server.tool(
-    'rollback-deployment',
-    'Rollback deployment if quality gates fail',
-    rollbackDeploymentInput.shape,
-    async (args) => withDelegationCheck('rollback-deployment', () => rollbackDeployment(args)),
   );
 
   // Register resources

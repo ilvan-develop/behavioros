@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   BehaviorOSDashboard,
-  BrocolisDashboard,
-  FinPayDashboard,
   getAllAlertRules,
   toGrafanaDashboard,
   toPrometheusRules,
-  UnifiedDashboard,
 } from '../dashboard-config';
 
 // ============================================================
@@ -14,70 +11,6 @@ import {
 // ============================================================
 
 describe('Dashboard Configurations', () => {
-  describe('BrocolisDashboard', () => {
-    it('should return a valid Brocolis dashboard config', () => {
-      const config = BrocolisDashboard();
-
-      expect(config.title).toBe('Brocolis Dashboard');
-      expect(config.description).toBeDefined();
-      expect(config.refreshInterval).toBeGreaterThan(0);
-      expect(config.panels).toBeInstanceOf(Array);
-      expect(config.panels.length).toBeGreaterThan(0);
-      expect(config.templates).toBeInstanceOf(Array);
-    });
-
-    it('should have all required panel fields', () => {
-      const config = BrocolisDashboard();
-
-      for (const panel of config.panels) {
-        expect(panel.title).toBeTruthy();
-        expect(panel.type).toBeTruthy();
-        expect(panel.metrics).toBeInstanceOf(Array);
-        expect(panel.metrics.length).toBeGreaterThan(0);
-        expect(panel.position).toBeDefined();
-        expect(typeof panel.position.x).toBe('number');
-        expect(typeof panel.position.y).toBe('number');
-        expect(typeof panel.position.width).toBe('number');
-        expect(typeof panel.position.height).toBe('number');
-      }
-    });
-
-    it('should include brocolis-specific metrics', () => {
-      const config = BrocolisDashboard();
-      const allMetrics = config.panels.flatMap((p) => p.metrics);
-
-      expect(allMetrics.some((m) => m.includes('brocolis'))).toBe(true);
-    });
-
-    it('should have brocolis tags', () => {
-      const config = BrocolisDashboard();
-
-      expect(config.tags).toContain('brocolis');
-    });
-  });
-
-  describe('FinPayDashboard', () => {
-    it('should return a valid FinPay dashboard config', () => {
-      const config = FinPayDashboard();
-
-      expect(config.title).toBe('FinPay Dashboard');
-      expect(config.panels.length).toBeGreaterThan(0);
-    });
-
-    it('should include finpay-specific metrics', () => {
-      const config = FinPayDashboard();
-      const allMetrics = config.panels.flatMap((p) => p.metrics);
-
-      expect(allMetrics.some((m) => m.includes('finpay'))).toBe(true);
-    });
-
-    it('should have finpay tags', () => {
-      const config = FinPayDashboard();
-
-      expect(config.tags).toContain('finpay');
-    });
-  });
-
   describe('BehaviorOSDashboard', () => {
     it('should return a valid BehaviorOS dashboard config', () => {
       const config = BehaviorOSDashboard();
@@ -99,35 +32,11 @@ describe('Dashboard Configurations', () => {
       expect(config.tags).toContain('behavioros');
     });
   });
-
-  describe('UnifiedDashboard', () => {
-    it('should return a valid unified dashboard config', () => {
-      const config = UnifiedDashboard();
-
-      expect(config.title).toBe('Unified Ecosystem Dashboard');
-      expect(config.panels.length).toBeGreaterThan(0);
-    });
-
-    it('should include metrics from all platforms', () => {
-      const config = UnifiedDashboard();
-      const allMetrics = config.panels.flatMap((p) => p.metrics);
-
-      expect(allMetrics.some((m) => m.includes('brocolis'))).toBe(true);
-      expect(allMetrics.some((m) => m.includes('finpay'))).toBe(true);
-      expect(allMetrics.some((m) => m.includes('behavioros'))).toBe(true);
-    });
-
-    it('should have unified tags', () => {
-      const config = UnifiedDashboard();
-
-      expect(config.tags).toContain('unified');
-    });
-  });
 });
 
 describe('Grafana Dashboard Export', () => {
   it('should convert a dashboard config to Grafana format', () => {
-    const config = BrocolisDashboard();
+    const config = BehaviorOSDashboard();
     const grafana = toGrafanaDashboard(config);
 
     expect(grafana.dashboard).toBeDefined();
@@ -138,7 +47,7 @@ describe('Grafana Dashboard Export', () => {
   });
 
   it('should map panel types correctly', () => {
-    const config = BrocolisDashboard();
+    const config = BehaviorOSDashboard();
     const grafana = toGrafanaDashboard(config);
 
     for (const panel of grafana.dashboard.panels) {
@@ -151,7 +60,7 @@ describe('Grafana Dashboard Export', () => {
   });
 
   it('should generate targets from metrics', () => {
-    const config = FinPayDashboard();
+    const config = BehaviorOSDashboard();
     const grafana = toGrafanaDashboard(config);
 
     for (const panel of grafana.dashboard.panels) {
@@ -164,7 +73,7 @@ describe('Grafana Dashboard Export', () => {
   });
 
   it('should include templating variables', () => {
-    const config = BrocolisDashboard();
+    const config = BehaviorOSDashboard();
     const grafana = toGrafanaDashboard(config);
 
     expect(grafana.dashboard.templating.list).toBeInstanceOf(Array);
@@ -216,17 +125,13 @@ describe('Prometheus Rules Export', () => {
 });
 
 describe('getAllAlertRules', () => {
-  it('should return alerts from all platforms', () => {
+  it('should return BehaviorOS alerts', () => {
     const alerts = getAllAlertRules();
 
     expect(alerts.length).toBeGreaterThan(0);
 
-    const brocolisAlerts = alerts.filter((a) => a.name.toLowerCase().includes('brocolis'));
-    const finpayAlerts = alerts.filter((a) => a.name.toLowerCase().includes('finpay'));
     const behaviorosAlerts = alerts.filter((a) => a.name.toLowerCase().includes('behavioros'));
 
-    expect(brocolisAlerts.length).toBeGreaterThan(0);
-    expect(finpayAlerts.length).toBeGreaterThan(0);
     expect(behaviorosAlerts.length).toBeGreaterThan(0);
   });
 

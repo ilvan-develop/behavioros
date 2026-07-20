@@ -1,7 +1,7 @@
 # BehaviorOS — Guia de Utilização Diária
 
 > Guia prático para equipas de agentes IA usarem BehaviorOS no dia a dia.
-> Exemplo real: FinPay (plataforma de pagamentos com 28 agentes especializados).
+> Exemplo real: ExamplePlatform (uma plataforma SaaS com agentes especializados).
 
 ---
 
@@ -53,7 +53,7 @@ BehaviorOS é um framework de governança comportamental para equipas de agentes
 ### 1. Abrir o Projecto
 
 ```bash
-cd ~/Desktop/GitHub\ Apps/finpay-app
+cd ~/projects/my-project
 opencode
 ```
 
@@ -123,17 +123,17 @@ created → in_progress → completed | failed
 
 | Tarefa | Agente | Role | Autoridade |
 |---|---|---|---|
-| Novo endpoint API | `finpay-backend` | engineer | senior |
-| Componente React | `finpay-frontend` | engineer | senior |
-| Migration Prisma | `finpay-database` | engineer | senior |
-| Review de segurança | `finpay-security` | security | architect |
-| Bug fix | `finpay-backend` | engineer | senior |
-| Deploy | `finpay-devops` | devops | senior |
-| Review de código | `finpay-code-review` | qa | senior |
-| Arquitetura | `finpay-architect` | architect | architect |
-| Testes E2E | `finpay-testing` | qa | senior |
-| Performance | `finpay-performance` | engineer | senior |
-| Documentação | `finpay-documentation` | knowledge | senior |
+| Novo endpoint API | `backend-agent` | engineer | senior |
+| Componente React | `frontend-agent` | engineer | senior |
+| Migration Prisma | `database-agent` | engineer | senior |
+| Review de segurança | `security-agent` | security | architect |
+| Bug fix | `backend-agent` | engineer | senior |
+| Deploy | `devops-agent` | devops | senior |
+| Review de código | `qa-agent` | qa | senior |
+| Arquitetura | `architect-agent` | architect | architect |
+| Testes E2E | `testing-agent` | qa | senior |
+| Performance | `performance-agent` | engineer | senior |
+| Documentação | `documentation-agent` | knowledge | senior |
 
 **Fluxo de delegação:**
 ```
@@ -247,8 +247,8 @@ record-learning(
 ```
 bos_resolve_conflict(
   type: "security_vs_feature",
-  agentA: "finpay-security",
-  agentB: "finpay-backend",
+  agentA: "security-agent",
+  agentB: "backend-agent",
   context: "Security quer rate limiting, backend quer performance"
 )
 
@@ -296,7 +296,7 @@ Retorna:
 Para mudanças significativas, usar o pipeline de 9 camadas:
 
 ```
-start-pipeline(project: "finpay")
+start-pipeline(project: "my-project")
 
 Camadas:
   1. DNA         — Validar configuração comportamental
@@ -340,7 +340,7 @@ node ../behavioros/packages/cli/dist/bin.mjs deploy --dna behavioros.yaml --env 
 node ../behavioros/packages/cli/dist/bin.mjs drift-check --dna current.yaml --baseline baseline.yaml
 
 # Testar MCP server manualmente
-BEHAVIOROS_DNA_PATH=./behavioros.yaml BEHAVIOROS_PROJECT=finpay \
+BEHAVIOROS_DNA_PATH=./behavioros.yaml \
   node ../behavioros/packages/mcp-server/dist/server.js
 ```
 
@@ -409,12 +409,12 @@ User: "O pagamento está a falhar com erro 500 no endpoint /api/payments"
 3. bos_check_escalation(trigger: "payment system fix")
    → shouldEscalate: false (bug fix, não é mudança estrutural)
 
-4. Delegar para finpay-backend:
+4. Delegar para backend-agent:
    - Task: "Investigar e corrigir erro 500 em /api/payments"
    - DNA principles: zero-defect, root-cause-first
    - Forbidden: skip-validation
 
-5. finpay-backend executa:
+5. backend-agent executa:
    - bos_lsp_diagnostics (após edits)
    - bos_lsp_validate (quality gate)
    - bos_run_audit(trigger: "commit")
@@ -442,23 +442,23 @@ User: "Adicionar suporte para MB WAY como método de pagamento"
 3. bos_resolve_truth(taskType: "feature", domain: "payments", libraries: ["nestjs", "prisma"])
    → DNA pattern + Context7 docs actualizadas
 
-4. Delegar para finpay-architect:
+4. Delegar para architect-agent:
    - Task: "Projectar arquitetura para MB WAY"
    - Output: ADR + C4 diagram
 
-5. Delegar para finpay-backend:
+5. Delegar para backend-agent:
    - Task: "Implementar MB WAY provider"
    - DNA: deterministic-pipelines, audit-trail
    - Forbidden: skip-contract
 
-6. Delegar para finpay-testing:
+6. Delegar para testing-agent:
    - Task: "Testes E2E para MB WAY"
    - DNA: zero-defect
 
 7. bos_run_audit(trigger: "pr")
    → Todos os gates passam
 
-8. Delegar para finpay-devops:
+8. Delegar para devops-agent:
    - Task: "Deploy para staging"
    - bos_check_escalation → human approval required
 ```
@@ -479,12 +479,12 @@ User: "Detectámos uma vulnerabilidade no endpoint de autenticação"
 
 4. [ESPERAR APROVAÇÃO HUMANA]
 
-5. Delegar para finpay-security:
+5. Delegar para security-agent:
    - Task: "Corrigir vulnerabilidade de autenticação"
    - DNA: immune-system, zero-trust, defense-in-depth
    - Forbidden: skip-audit
 
-6. finpay-security executa:
+6. security-agent executa:
    - bos_lsp_diagnostics (security scan)
    - bos_lsp_validate (quality gate)
    - bos_run_audit(trigger: "commit")
@@ -509,7 +509,7 @@ User: "Deploy da versão 2.1.0 para produção"
 
 2. create-mission(title: "Deploy v2.1.0 production", type: "deployment", priority: "critical")
 
-3. start-pipeline(project: "finpay")
+3. start-pipeline(project: "my-project")
    → Pipeline EAARG de 9 camadas
 
 4. [Cada camada é validada automaticamente]
@@ -520,12 +520,12 @@ User: "Deploy da versão 2.1.0 para produção"
 
 6. [ESPERAR APROVAÇÃO HUMANA]
 
-7. Delegar para finpay-devops:
+7. Delegar para devops-agent:
    - Task: "Deploy v2.1.0 para produção"
    - DNA: deterministic-pipelines, zero-downtime
    - Forbidden: skip-rollback-plan
 
-8. finpay-devops executa:
+8. devops-agent executa:
    - Canary rollout (5% → 25% → 50% → 100%)
    - Health checks em cada estágio
    - Auto-rollback se erro > 1%
@@ -582,14 +582,14 @@ User: "Deploy da versão 2.1.0 para produção"
 
 ```bash
 BEHAVIOROS_DNA_PATH=./behavioros.yaml    # Path para DNA
-BEHAVIOROS_PROJECT=finpay                # ID do projecto
+BEHAVIOROS_PROJECT=my-project                # ID do projecto
 BEHAVIOROS_LOG_LEVEL=debug               # Nível de log
 ```
 
 ### Estrutura de Directorios
 
 ```
-finpay-app/
+my-project/
   behavioros.yaml              # DNA package
   .behaviorosrc                # Engine config
   opencode.json                # MCP server config
@@ -623,7 +623,7 @@ finpay-app/
 ls -la ../behavioros/packages/mcp-server/dist/server.js
 
 # Testar manualmente
-BEHAVIOROS_DNA_PATH=./behavioros.yaml BEHAVIOROS_PROJECT=finpay \
+BEHAVIOROS_DNA_PATH=./behavioros.yaml \
   node ../behavioros/packages/mcp-server/dist/server.js
 
 # Verificar erros no stderr

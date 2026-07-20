@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/ilvan-develop/behavioros/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" /></a>
   <a href="https://github.com/ilvan-develop/behavioros/releases"><img src="https://img.shields.io/badge/version-0.1.0-green.svg" alt="Version" /></a>
-  <a href="#"><img src="https://img.shields.io/badge/tests-395%20passing-brightgreen.svg" alt="Tests" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/tests-833%20passing-brightgreen.svg" alt="Tests" /></a>
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@
 
 ---
 
-BehaviorOS is a behavioral governance framework for AI agent teams. It provides a 9-layer architecture with 7 specialized engines, 16 pre-built DNA patterns, and an MCP server — giving you full control over how autonomous agents make decisions, follow governance rules, and learn from outcomes.
+BehaviorOS is a behavioral governance framework for AI agent teams. It provides a 9-layer architecture with 7 specialized engines, 11 pre-built DNA patterns, and an MCP server — giving you full control over how autonomous agents make decisions, follow governance rules, and learn from outcomes.
 
 ## Quick Start
 
@@ -99,10 +99,10 @@ npx @behavioros/cli status        # Show system status
 - **9-Layer Governance Pipeline** — DNA → Schema → Behavioral → Domain → Governance → Decision → Quality → Audit → Learning
 - **7 Behavioral Engines** — Governance, Decision, Audit, Quality, Learning, Mission, Behavioral
 - **DNA Pattern System** — YAML-based behavioral blueprints for AI agent teams
-- **MCP Server** — 36 tools for direct integration with Claude, Cursor, VS Code, and Windsurf
+- **MCP Server** — 27 tools for direct integration with Claude, Cursor, VS Code, and Windsurf
 - **TypeScript SDK** — Full-featured SDK with `BehaviorOS` class for programmatic access
 - **CLI** — init, compile, validate, status, diff, simulate, deploy, drift-check
-- **16 Pre-built DNA Patterns** — Enterprise, Military, Surgical, Lean Factory, EAARG
+- **11 Pre-built DNA Patterns** — Enterprise, Military, Surgical, Lean Factory, EAARG
 - **EU AI Act Compliance Ready** — Audit trails, governance rules, and documentation built-in
 
 ### 7 Engines
@@ -126,11 +126,11 @@ npx @behavioros/cli status        # Show system status
 | `@behavioros/sdk` | TypeScript SDK |
 | `@behavioros/cli` | CLI tools |
 | `@behavioros/dnas` | DNA pattern catalog |
-| `@behavioros/mcp-server` | MCP server (36 tools) |
+| `@behavioros/mcp-server` | MCP server (27 tools) |
 
 ## DNA Catalog
 
-BehaviorOS ships with 16 DNA patterns — composable behavioral blueprints for AI agent teams.
+BehaviorOS ships with 11 DNA patterns — composable behavioral blueprints for AI agent teams.
 
 | DNA | Description | Use Case |
 |---|---|---|
@@ -206,7 +206,7 @@ console.log(status)
 
 ## MCP Server
 
-The MCP server exposes BehaviorOS to AI agents via the Model Context Protocol — 36 tools across 8 categories.
+The MCP server exposes BehaviorOS to AI agents via the Model Context Protocol — 27 tools across 8 categories.
 
 ### Setup
 
@@ -244,11 +244,11 @@ Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
 #### Cursor
 
-Create `.cursor/mcp.json` in your project root (already included in this repo).
+Create `.cursor/mcp.json` in your project root with the MCP server configuration above.
 
 #### VS Code (GitHub Copilot)
 
-Create `.vscode/mcp.json` in your project root (already included in this repo).
+Create `.vscode/mcp.json` in your project root with the MCP server configuration above.
 
 #### Windsurf
 
@@ -319,18 +319,6 @@ Add to your Windsurf MCP configuration:
 | `bos_resolve_truth` | Resolve DNA pattern + context7 docs for delegation |
 | `bos_list_patterns` | List all available behavioral DNA patterns in the catalog |
 
-#### Integration
-
-| Tool | Description |
-|---|---|
-| `sync-brocolis-orders` | Sync Brocolis orders with FinPay payments |
-| `validate-payment` | Validate a payment through FinPay pipeline |
-| `check-fraud` | Check for fraud signals in a payment |
-| `get-trust-score` | Get trust score for a payment |
-| `run-compliance` | Run compliance check (payment, data, audit) |
-| `reconcile-payments` | Reconcile payment ledger between Brocolis and FinPay |
-| `get-observability-metrics` | Get unified metrics from Brocolis, FinPay, and BehaviorOS |
-
 #### Deployment
 
 | Tool | Description |
@@ -374,10 +362,9 @@ Add to your Windsurf MCP configuration:
 |---|---|
 | `@behavioros/core` | 164 passing |
 | `@behavioros/sdk` | 60 passing |
-| `@behavioros/finpay-integration` | 68 passing |
 | `@behavioros/observability-dashboard` | 65 passing |
 | `@behavioros/dnas` | 38 passing |
-| **Total** | **395 passing** |
+| **Total** | **833 passing** |
 
 ## Contributing
 

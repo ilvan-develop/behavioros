@@ -66,7 +66,7 @@ console.log('\n--- 2. ConflictResolver ---');
 const resolver = new ConflictResolver();
 const conflict = resolver.resolve({
   type: 'security_vs_feature',
-  agents: ['finpay-security', 'finpay-backend'],
+  agents: ['agent-security', 'agent-backend'],
   issue: 'Security wants to block payment feature due to PCI compliance concern',
   severity: 'high',
   evidence: ['PCI-DSS Section 3.2 requires tokenization', 'Current implementation stores raw PAN'],
@@ -80,12 +80,12 @@ console.log('\n--- 3. EscalationManager ---');
 const escalation = new EscalationManager();
 const check1 = escalation.check({
   type: 'payment_failure: timeout on MTN payment gateway',
-  agent: 'finpay-backend',
+  agent: 'agent-backend',
 });
 console.log(`  Payment failure: ${check1 ? check1.action : 'no escalation'}`);
-const check2 = escalation.check({ type: 'test_coverage_drop: 55%', agent: 'finpay-testing' });
+const check2 = escalation.check({ type: 'test_coverage_drop: 55%',   agent: 'agent-testing' });
 console.log(`  Coverage drop: ${check2 ? check2.action : 'no escalation'}`);
-const check3 = escalation.check({ type: 'code review comment', agent: 'finpay-frontend' });
+const check3 = escalation.check({ type: 'code review comment',   agent: 'agent-frontend' });
 console.log(`  Minor event: ${check3 ? 'escalated' : 'not escalated (correct)'}`);
 
 // 4. LEARNING ENGINE
@@ -96,7 +96,7 @@ await learner.record({
   timestamp: new Date().toISOString(),
   dna: 'surgical-team',
   task: 'fix payment timeout',
-  agent: 'finpay-backend',
+  agent: 'agent-backend',
   success: true,
   duration: 120000,
   quality: 0.95,
@@ -106,7 +106,7 @@ await learner.record({
   timestamp: new Date().toISOString(),
   dna: 'surgical-team',
   task: 'fix race condition',
-  agent: 'finpay-backend',
+  agent: 'agent-backend',
   success: false,
   duration: 300000,
   quality: 0.4,
@@ -116,7 +116,7 @@ await learner.record({
   timestamp: new Date().toISOString(),
   dna: 'surgical-team',
   task: 'fix auth token',
-  agent: 'finpay-backend',
+  agent: 'agent-backend',
   success: true,
   duration: 45000,
   quality: 0.9,
@@ -126,7 +126,7 @@ await learner.record({
   timestamp: new Date().toISOString(),
   dna: 'manufacturing',
   task: 'add payment method',
-  agent: 'finpay-backend',
+  agent: 'agent-backend',
   success: true,
   duration: 180000,
   quality: 0.85,
@@ -136,7 +136,7 @@ await learner.record({
   timestamp: new Date().toISOString(),
   dna: 'manufacturing',
   task: 'add validation',
-  agent: 'finpay-backend',
+  agent: 'agent-backend',
   success: true,
   duration: 90000,
   quality: 0.92,

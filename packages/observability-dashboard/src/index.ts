@@ -4,12 +4,9 @@ export { AlertManager } from './alert-manager';
 // --- Dashboard Configurations ---
 export {
   BehaviorOSDashboard,
-  BrocolisDashboard,
-  FinPayDashboard,
   getAllAlertRules,
   toGrafanaDashboard,
   toPrometheusRules,
-  UnifiedDashboard,
 } from './dashboard-config';
 export type { MetricsCollectorConfig } from './metrics-collector';
 // --- Classes ---
@@ -32,23 +29,11 @@ export type {
   BehaviorOSMetrics,
   BehaviorOSPipeline,
   BehaviorOSQuality,
-  BrocolisApi,
-  BrocolisDeliveries,
-  BrocolisMetrics,
-  BrocolisOrders,
-  BrocolisPrescriptions,
-  BrocolisUsers,
   DashboardConfig,
   DashboardTemplate,
   DashboardVariable,
   DeploymentStatus,
   DeploymentStatusType,
-  FinPayCompliance,
-  FinPayFraud,
-  FinPayMetrics,
-  FinPayOcr,
-  FinPayPayments,
-  FinPayTrust,
   GrafanaDashboard,
   GrafanaPanel,
   GrafanaTarget,

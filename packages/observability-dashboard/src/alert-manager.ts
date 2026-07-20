@@ -2,10 +2,6 @@
 // Alert Manager — Alert evaluation, tracking and history
 // ============================================================
 
-// ============================================================
-// Alert Manager — Alert evaluation, tracking and history
-// ============================================================
-
 import type {
   Alert,
   AlertHistory,
@@ -23,11 +19,8 @@ import type {
 export class AlertManager {
   private readonly activeAlerts: Map<string, Alert> = new Map();
   private readonly alertHistory: AlertHistory[] = [];
-  private readonly rules: AlertRule[];
 
-  constructor(rules: AlertRule[] = []) {
-    this.rules = rules;
-  }
+  constructor(_rules?: AlertRule[]) {}
 
   async evaluateAlert(rule: AlertRule, metrics: UnifiedMetrics): Promise<AlertResult> {
     const currentValue = this.extractMetricValue(rule.name, metrics);
@@ -160,25 +153,6 @@ export class AlertManager {
   private extractMetricValue(ruleName: string, metrics: UnifiedMetrics): number {
     const name = ruleName.toLowerCase();
 
-    if (name.includes('error rate') || name.includes('error_rate')) {
-      return metrics.brocolis.api.errorRate;
-    }
-    if (name.includes('inventory') || name.includes('low inventory')) {
-      return metrics.brocolis.deliveries.active;
-    }
-    if (name.includes('delivery delay') || name.includes('delivery')) {
-      return metrics.brocolis.api.latency / 1000;
-    }
-    if (name.includes('fraud') || name.includes('fraud rate')) {
-      const total = metrics.finpay.payments.total || 1;
-      return (metrics.finpay.fraud.detected / total) * 100;
-    }
-    if (name.includes('ocr') || name.includes('ocr failure')) {
-      return 100 - metrics.finpay.ocr.accuracy;
-    }
-    if (name.includes('compliance') || name.includes('compliance violation')) {
-      return metrics.finpay.compliance.violations;
-    }
     if (name.includes('pipeline failure') || name.includes('pipeline')) {
       return metrics.behavioros.pipeline.failed;
     }

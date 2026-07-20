@@ -7,22 +7,6 @@ import type { AlertRule, UnifiedMetrics } from '../types';
 // ============================================================
 
 const createTestMetrics = (overrides?: Partial<UnifiedMetrics>): UnifiedMetrics => ({
-  brocolis: {
-    orders: { total: 500, pending: 50, completed: 430, cancelled: 20, revenue: 25000 },
-    prescriptions: { uploaded: 200, verified: 180, rejected: 10 },
-    deliveries: { active: 15, completed: 180, failed: 3 },
-    users: { active: 300, new: 30, churned: 5 },
-    api: { latency: 120, errorRate: 2.5, throughput: 800 },
-    timestamp: new Date().toISOString(),
-  },
-  finpay: {
-    payments: { total: 1000, approved: 920, rejected: 50, pendingReview: 30 },
-    trust: { avgScore: 72, distribution: { low: 30, medium: 150, high: 400 } },
-    fraud: { detected: 10, falsePositives: 2, truePositives: 8 },
-    compliance: { passed: 95, violations: 2 },
-    ocr: { accuracy: 94, processingTime: 1500 },
-    timestamp: new Date().toISOString(),
-  },
   behavioros: {
     pipeline: { active: 3, completed: 80, failed: 5 },
     layers: { passed: 70, failed: 8, pending: 2 },
@@ -37,36 +21,28 @@ const createTestMetrics = (overrides?: Partial<UnifiedMetrics>): UnifiedMetrics 
 
 const testAlertRules: AlertRule[] = [
   {
-    name: 'High Error Rate',
-    condition: 'above',
-    threshold: 5,
-    severity: 'critical',
-    channels: ['slack', 'pagerduty'],
-    description: 'API error rate exceeds 5%',
-  },
-  {
-    name: 'Low Inventory',
-    condition: 'below',
-    threshold: 10,
-    severity: 'high',
-    channels: ['slack'],
-    description: 'Inventory below threshold',
-  },
-  {
-    name: 'Compliance Violations',
-    condition: 'above',
-    threshold: 0,
-    severity: 'critical',
-    channels: ['slack', 'email'],
-    description: 'Any compliance violation',
-  },
-  {
     name: 'Pipeline Failures',
     condition: 'above',
     threshold: 0,
     severity: 'critical',
     channels: ['pagerduty'],
     description: 'Pipeline failures detected',
+  },
+  {
+    name: 'Quality Gate Failures',
+    condition: 'above',
+    threshold: 0,
+    severity: 'high',
+    channels: ['slack', 'email'],
+    description: 'Quality gate check failures',
+  },
+  {
+    name: 'Governance Blocks',
+    condition: 'above',
+    threshold: 5,
+    severity: 'medium',
+    channels: ['slack'],
+    description: 'Excessive governance rule blocks',
   },
 ];
 
@@ -92,7 +68,7 @@ describe('AlertManager', () => {
     it('should not trigger when value is within threshold', async () => {
       const metrics = createTestMetrics();
       const rule: AlertRule = {
-        name: 'Error Rate Check',
+        name: 'Pipeline Failures',
         condition: 'above',
         threshold: 100,
         severity: 'medium',
@@ -321,7 +297,7 @@ describe('AlertManager', () => {
         channels: ['slack'],
       };
       const lowRule: AlertRule = {
-        name: 'Low Inventory',
+        name: 'Quality Coverage',
         condition: 'below',
         threshold: 10,
         severity: 'low',

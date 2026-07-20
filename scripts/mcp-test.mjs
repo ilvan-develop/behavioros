@@ -131,7 +131,7 @@ try {
       domain: 'payments',
       riskLevel: 'high',
       complexity: 'complex',
-      agentId: 'finpay-backend',
+      agentId: 'agent-backend',
     },
   });
   const selectText = selectResult?.result?.content?.[0]?.text || '';
@@ -162,8 +162,8 @@ try {
     name: 'bos_resolve_conflict',
     arguments: {
       type: 'security_vs_feature',
-      agentA: 'finpay-security',
-      agentB: 'finpay-backend',
+      agentA: 'agent-security',
+      agentB: 'agent-backend',
       context:
         'Security wants to block all changes until audit passes, Backend wants to ship hotfix to unblock users',
     },
@@ -181,7 +181,7 @@ try {
       context: {
         branch: 'feat/idempotency-key',
         files: ['packages/core/src/payment.ts'],
-        author: 'finpay-backend',
+        author: 'agent-backend',
       },
     },
   });

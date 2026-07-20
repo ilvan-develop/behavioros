@@ -1,6 +1,6 @@
 {
   "name": "@behavioros/cli",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "BehaviorOS CLI — Command-line interface for BehaviorOS",
   "bin": {
     "behavioros": "./dist/bin.js"
@@ -17,6 +17,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "author": "Ilvan Joaquim",
   "license": "MIT",
   "keywords": [

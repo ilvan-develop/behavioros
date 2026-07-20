@@ -178,85 +178,7 @@ export interface DeploymentStatus {
   metadata?: Record<string, unknown>;
 }
 
-// --- Platform-Specific Metrics ---
-
-export interface BrocolisOrders {
-  total: number;
-  pending: number;
-  completed: number;
-  cancelled: number;
-  revenue: number;
-}
-
-export interface BrocolisPrescriptions {
-  uploaded: number;
-  verified: number;
-  rejected: number;
-}
-
-export interface BrocolisDeliveries {
-  active: number;
-  completed: number;
-  failed: number;
-}
-
-export interface BrocolisUsers {
-  active: number;
-  new: number;
-  churned: number;
-}
-
-export interface BrocolisApi {
-  latency: number;
-  errorRate: number;
-  throughput: number;
-}
-
-export interface BrocolisMetrics {
-  orders: BrocolisOrders;
-  prescriptions: BrocolisPrescriptions;
-  deliveries: BrocolisDeliveries;
-  users: BrocolisUsers;
-  api: BrocolisApi;
-  timestamp: string;
-}
-
-export interface FinPayPayments {
-  total: number;
-  approved: number;
-  rejected: number;
-  pendingReview: number;
-}
-
-export interface FinPayTrust {
-  avgScore: number;
-  distribution: Record<string, number>;
-}
-
-export interface FinPayFraud {
-  detected: number;
-  falsePositives: number;
-  truePositives: number;
-}
-
-export interface FinPayCompliance {
-  passed: number;
-  violations: number;
-}
-
-export interface FinPayOcr {
-  accuracy: number;
-  processingTime: number;
-}
-
-export interface FinPayMetrics {
-  payments: FinPayPayments;
-  trust: FinPayTrust;
-  fraud: FinPayFraud;
-  compliance: FinPayCompliance;
-  ocr: FinPayOcr;
-  timestamp: string;
-}
+// --- BehaviorOS Metrics ---
 
 export interface BehaviorOSPipeline {
   active: number;
@@ -300,8 +222,6 @@ export interface BehaviorOSMetrics {
 // --- Unified Metrics ---
 
 export interface UnifiedMetrics {
-  brocolis: BrocolisMetrics;
-  finpay: FinPayMetrics;
   behavioros: BehaviorOSMetrics;
   timestamp: string;
 }

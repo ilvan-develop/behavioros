@@ -10,8 +10,6 @@ coverage/
 .next/
 nul
 demo*.mjs
-finpay-*
-finpay-temp/
 generated/
 PITCH*.md
 dist/

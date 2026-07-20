@@ -1,77 +1,45 @@
 # Contributing to BehaviorOS
 
-Thank you for your interest in contributing to BehaviorOS!
-
 ## Development Setup
 
-### Prerequisites
-
-- Node.js >= 22.0.0
-- pnpm (install via `npm install -g pnpm`)
-
-### Getting Started
-
 ```bash
-# Clone the repository
 git clone https://github.com/ilvan-develop/behavioros.git
 cd behavioros
-
-# Install dependencies
 pnpm install
-
-# Build all packages
 pnpm build
-
-# Run tests
 pnpm test
-
-# Start development
-pnpm dev
 ```
 
 ## Project Structure
 
-```
-behavioros/
-├── packages/
-│   ├── core/          # 10 behavioral engines
-│   ├── sdk/           # TypeScript SDK
-│   ├── schemas/       # Zod schemas
-│   ├── cli/           # CLI tools
-│   ├── dnas/          # DNA pattern catalog
-│   ├── mcp-server/    # MCP server (30+ tools)
-│   └── web/           # Next.js dashboard (apps/web)
-├── dnas/              # DNA YAML files
-└── docs/              # Documentation
-```
+| Package | Description |
+|---|---|
+| `packages/schemas` | Zod schemas for all types |
+| `packages/core` | 7 behavioral engines |
+| `packages/sdk` | High-level TypeScript SDK |
+| `packages/cli` | Command-line interface |
+| `packages/mcp-server` | MCP server for AI agents |
+| `packages/dnas` | DNA pattern catalog |
+| `packages/observability-dashboard` | Monitoring dashboards |
 
 ## Code Conventions
 
-- **Formatter:** Biome (indent: 2, line width: 100, single quotes, trailing commas: all)
+- **Formatter:** Biome (2 spaces, single quotes, trailing commas)
 - **TypeScript:** strict mode, ES2022 target
-- **Schemas:** All types must have a Zod schema in `@behavioros/schemas`
-- **Tests:** Vitest with globals
-- **Commits:** Conventional commits (feat, fix, chore, docs, etc.)
+- **Testing:** Vitest with global test setup
+- **Commits:** Conventional commits (feat, fix, chore, docs)
 
-## Pull Requests
+## Pull Request Process
 
-1. Create a feature branch from `main`
-2. Make your changes
-3. Run `pnpm lint` and `pnpm typecheck`
+1. Run `pnpm lint:check` and `pnpm typecheck` before committing
+2. Add tests for new features
+3. Update docs if changing public API
 4. Run `pnpm test` to ensure all tests pass
-5. Submit your PR with a clear description
 
-## Adding DNA Patterns
+## DNA Patterns
 
-1. Create a YAML file in `dnas/` following the DNA schema
-2. Validate with `npx @behavioros/cli validate --dna your-file.yaml`
-3. Add tests in `packages/dnas/`
-4. Submit a PR
-
-## Reporting Issues
-
-Use the [GitHub Issues](https://github.com/ilvan-develop/behavioros/issues) page to report bugs or request features.
-
-## License
-
-By contributing, you agree that your contributions will be licensed under the MIT License.
+To add a new DNA pattern:
+1. Create a YAML file in `packages/dnas/catalog/`
+2. Follow the schema in `packages/schemas/`
+3. Add persona, governance rules, quality gates
+4. Add tests in `packages/dnas/src/__tests__/`

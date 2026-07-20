@@ -96,7 +96,7 @@ function now(): string {
 // --- Input schemas ---
 
 export const startPipelineInput = z.object({
-  project: z.string().min(1).describe('Project name (e.g. brocolis, finpay)'),
+  project: z.string().min(1).describe('Project name'),
   layers: z
     .array(z.enum(EAARG_LAYERS.map((l) => l.id) as [string, ...string[]]))
     .optional()
