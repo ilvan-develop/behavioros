@@ -3520,11 +3520,13 @@ var DNALoader = class _DNALoader {
   basePath;
   validate;
   strict;
+  sanitize;
   cache = /* @__PURE__ */ new Map();
   constructor(options = {}) {
     this.basePath = options.basePath ?? process.cwd();
     this.validate = options.validate ?? true;
     this.strict = options.strict ?? false;
+    this.sanitize = options.sanitize ?? true;
   }
   /**
    * Carrega um pacote DNA de um diretório ou arquivo
@@ -3561,7 +3563,9 @@ var DNALoader = class _DNALoader {
         }
       }
     }
-    this.sanitizeOrThrow(raw, resolved);
+    if (this.sanitize) {
+      this.sanitizeOrThrow(raw, resolved);
+    }
     return this.parse(raw, resolved);
   }
   /**
@@ -3573,7 +3577,9 @@ var DNALoader = class _DNALoader {
         `DNA YAML content exceeds maximum size of ${MAX_YAML_SIZE} bytes (${yamlContent.length} bytes provided)`
       );
     }
-    this.sanitizeOrThrow(yamlContent, sourceName ?? "<inline>");
+    if (this.sanitize) {
+      this.sanitizeOrThrow(yamlContent, sourceName ?? "<inline>");
+    }
     return this.parse(yamlContent, sourceName ?? "<inline>");
   }
   /**
@@ -6396,7 +6402,8 @@ var BehaviorOSEngine = class extends EventEmitter5 {
   }
   // ─── Governance (delegates to GovernanceEngine) ──────────
   async evaluateGovernance(action, context) {
-    if (!this.config.governance?.enabled)
+    const governanceEnabled = this.config.governance?.enabled ?? (this.dna.governance && this.dna.governance.length > 0);
+    if (!governanceEnabled)
       return {
         approved: true,
         violations: [],

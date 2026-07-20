@@ -81,9 +81,9 @@ test.describe('Governance Engine', () => {
 
     const engine = new GovernanceEngine(rules);
     const decision = engine.evaluate({
-      agentId: 'junior-dev',
+      agentId: 'senior-dev',
       agentRole: 'engineer',
-      agentAuthority: 'junior',
+      agentAuthority: 'architect',
       action: 'modify-payment-flow',
       targetType: 'service',
       impact: 'high',

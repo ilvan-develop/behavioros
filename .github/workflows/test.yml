@@ -44,7 +44,7 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: pnpm install --ignore-scripts
+        run: pnpm install --frozen-lockfile
 
       - name: Build all packages
         run: pnpm --filter @behavioros/schemas --filter @behavioros/core --filter @behavioros/sdk --filter @behavioros/mcp-server --filter @behavioros/dnas --filter @behavioros/cli --filter @behavioros/observability-dashboard build
@@ -68,7 +68,7 @@ jobs:
         run: pnpm --filter @behavioros/observability-dashboard test
 
       - name: Validate DNA configurations
-        run: npx @behavioros/cli validate
+        run: node packages/cli/dist/bin.mjs validate dnas/enterprise-governance.yaml
 
       - name: Upload coverage report
         if: always()

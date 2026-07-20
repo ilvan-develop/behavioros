@@ -131,7 +131,9 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
   // ─── Governance (delegates to GovernanceEngine) ──────────
 
   async evaluateGovernance(action: string, context: Record<string, unknown>) {
-    if (!this.config.governance?.enabled)
+    const governanceEnabled =
+      this.config.governance?.enabled ?? (this.dna.governance && this.dna.governance.length > 0);
+    if (!governanceEnabled)
       return {
         approved: true,
         violations: [] as GovernanceRule[],

@@ -16,18 +16,21 @@ export interface DNALoaderOptions {
   basePath?: string;
   validate?: boolean;
   strict?: boolean;
+  sanitize?: boolean;
 }
 
 export class DNALoader {
   private basePath: string;
   private validate: boolean;
   private strict: boolean;
+  private sanitize: boolean;
   private cache: Map<string, DNAPackage> = new Map();
 
   constructor(options: DNALoaderOptions = {}) {
     this.basePath = options.basePath ?? process.cwd();
     this.validate = options.validate ?? true;
     this.strict = options.strict ?? false;
+    this.sanitize = options.sanitize ?? true;
   }
 
   /**
@@ -74,7 +77,9 @@ export class DNALoader {
       }
     }
 
-    this.sanitizeOrThrow(raw, resolved);
+    if (this.sanitize) {
+      this.sanitizeOrThrow(raw, resolved);
+    }
     return this.parse(raw, resolved);
   }
 
@@ -88,7 +93,9 @@ export class DNALoader {
           `(${yamlContent.length} bytes provided)`,
       );
     }
-    this.sanitizeOrThrow(yamlContent, sourceName ?? '<inline>');
+    if (this.sanitize) {
+      this.sanitizeOrThrow(yamlContent, sourceName ?? '<inline>');
+    }
     return this.parse(yamlContent, sourceName ?? '<inline>');
   }
 

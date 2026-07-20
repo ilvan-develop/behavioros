@@ -59,9 +59,7 @@ test.describe('Mission Lifecycle', () => {
     });
 
     await bos.startMission(mission.id);
-    const completed = await bos.completeMission(mission.id, {
-      output: { pr: '#42' },
-    });
+    const completed = await bos.completeMission(mission.id, { pr: '#42' });
 
     expect(completed.id).toBe(mission.id);
     expect(completed.status).toBe('completed');

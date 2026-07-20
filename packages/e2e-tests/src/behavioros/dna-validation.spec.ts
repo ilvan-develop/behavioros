@@ -1,12 +1,15 @@
 import { test, expect } from '@playwright/test';
 import { DNALoader, DNAValidator } from '@behavioros/core';
+import { resolve } from 'node:path';
 import type { DNAPackage } from '@behavioros/schemas';
+
+const REPO_ROOT = resolve(__dirname, '..', '..', '..', '..');
 
 test.describe('DNA Validation', () => {
   test('loads a valid DNA YAML from the enterprise-governance file', async () => {
-    const loader = new DNALoader({ validate: true });
+    const loader = new DNALoader({ validate: true, basePath: REPO_ROOT });
     const dna = await loader.load(
-      '../../dnas/enterprise-governance.yaml',
+      'dnas/enterprise-governance.yaml',
     );
 
     expect(dna).toBeDefined();

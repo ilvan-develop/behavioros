@@ -144,3 +144,103 @@ AI governance is everyone's job. Let's get it right from the start.
 The operating system for autonomous AI teams. 7 engines, 27 MCP tools, 11 DNA patterns, 833 tests. Built from Angola. Govern your agents.
 
 https://github.com/ilvan-develop/behavioros
+
+---
+
+## Bonus (Jul 2026)
+
+### Tarefa B: Facebook & WhatsApp Content
+
+**Post 1 — Gancho de Apresentação**
+
+🚀 Criei um framework de governança para agentes de IA — e é 100% open-source.
+
+O BehaviorOS permite que equipas de agentes IA operem com:
+🧬 DNA patterns comportamentais
+🛡️ Regras de governance (block/escalate/warn)
+✅ Quality gates automáticos
+📊 Audit trail imutável
+
+7 packages no npm, 800+ testes, 27 tools MCP.
+
+Testa aí e diz o que achas: github.com/ilvan-develop/behavioros
+
+#IA #OpenSource #Angola #Tecnologia
+
+---
+
+**Post 2 — Prova Técnica**
+
+🧬 BehaviorOS: 7 packages publicados no npm, 800+ testes a passar, CI/CD com quality gates.
+
+O ecossistema completo:
+• @behavioros/schemas — tipos Zod
+• @behavioros/core — 7 engines
+• @behavioros/sdk — SDK TypeScript
+• @behavioros/cli — CLI completo
+• @behavioros/mcp-server — 27 tools para agentes
+• @behavioros/dnas — 11 DNA patterns
+• @behavioros/observability-dashboard — métricas + alertas
+
+Tudo open-source (MIT). Tudo disponível hoje.
+
+npmjs.com/settings/behavioros/packages
+
+#Dev #TypeScript #AI #OpenSource
+
+---
+
+**Post 3 — CTA Acção**
+
+💡 Sabias que Agosto 2026 o EU AI Act entra em vigor?
+
+O BehaviorOS já tem compliance built-in:
+✅ Governance engine com block/escalate/log
+✅ Audit trail multi-estágio
+✅ Quality gates automáticos
+✅ Learning system com deteção de padrões
+
+Querem testar? Comentem "IA" que mando o link directo.
+
+#EUAIAct #Governance #AI #BehaviorOS
+
+---
+
+### Tarefa C: DM Scripts
+
+**Script 1 — Contribuidor Open-Source (Sénior)**
+
+Vi o teu trabalho em {repo}. Estamos a construir o BehaviorOS — framework de governança para agentes IA, 100% open-source (MIT). Precisamos de mentes como a tua para rever ADRs e PRs. Interessa contribuir? 🧬
+
+**Script 2 — Investidor/Parceiro**
+
+Fundador angolano. BehaviorOS: framework open-source (npm) para governança de agentes IA. Compliance built-in para EU AI Act. 7 packages publicados, 800+ testes. Procuras uma conversa sobre o futuro da autonomia de IA?
+
+**Script 3 — Seguimento após "IA" comentário**
+
+Obrigado pelo interesse! Aqui está o link: github.com/ilvan-develop/behavioros
+
+Começa por:
+1. ⭐ Dar star no repo
+2. 📦 npm i @behavioros/sdk
+3. 🧬 Criar o teu primeiro DNA
+
+Docs: github.com/ilvan-develop/behavioros/tree/master/docs
+
+Dúvidas? Só chamar. 🚀
+
+---
+
+### Tarefa D: Image Prompts (Midjourney/DALL-E)
+
+**Prompt 1 — Logo BehaviorOS**
+
+Minimalist geometric logo, interconnected neural nodes forming a double helix structure, deep navy blue and neon cyan, hexagonal grid background, tech governance concept, clean vector style, no text, high contrast, 4k --ar 1:1 --v 6
+
+**Prompt 2 — Capa LinkedIn (Post Técnico)**
+
+Cyberpunk tech dashboard with AI agent network visualization, flowing data streams in cyan and purple, neural decision nodes with green pass and red block indicators, dark mode terminal aesthetic, clean code overlay, volumetric lighting, 8k --ar 16:9 --v 6
+
+**Prompt 3 — Banner GitHub/Twitter**
+
+Abstract hexagonal network topology, glowing blue nodes connected by thin cyan lines, depth of field with dark background, representing AI agent governance and decision layers, minimalist, no text, 8k --ar 3:1 --v 6

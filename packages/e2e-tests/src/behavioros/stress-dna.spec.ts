@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { DNALoader, GovernanceEngine } from '@behavioros/core';
+import { resolve } from 'node:path';
 import type { GovernanceRule } from '@behavioros/schemas';
+
+const REPO_ROOT = resolve(__dirname, '..', '..', '..', '..');
 
 interface DNAFixture {
   id: string;
@@ -10,11 +13,11 @@ interface DNAFixture {
 }
 
 const DNA_FIXTURES: DNAFixture[] = [
-  { id: 'enterprise-governance', name: 'Enterprise Governance', path: '../../dnas/enterprise-governance.yaml', rules: [] },
-  { id: 'military-operations', name: 'Military Operations', path: '../../dnas/military-operations.yaml', rules: [] },
-  { id: 'surgical-team', name: 'Surgical Team', path: '../../dnas/surgical-team.yaml', rules: [] },
-  { id: 'lean-factory', name: 'Lean Factory', path: '../../dnas/lean-factory.yaml', rules: [] },
-  { id: 'enterprise-agent-review', name: 'Enterprise Agent Review', path: '../../dnas/enterprise-agent-review.yaml', rules: [] },
+  { id: 'enterprise-governance', name: 'Enterprise Governance', path: 'dnas/enterprise-governance.yaml', rules: [] },
+  { id: 'military-operations', name: 'Military Operations', path: 'dnas/military-operations.yaml', rules: [] },
+  { id: 'surgical-team', name: 'Surgical Team', path: 'dnas/surgical-team.yaml', rules: [] },
+  { id: 'lean-factory', name: 'Lean Factory', path: 'dnas/lean-factory.yaml', rules: [] },
+  { id: 'enterprise-agent-review', name: 'Enterprise Agent Review', path: 'dnas/enterprise-agent-review.yaml', rules: [] },
 ];
 
 interface AdversarialProbe {
@@ -118,7 +121,7 @@ test.describe('DNA Stress Tests — Adversarial Governance', () => {
       let engine: GovernanceEngine;
 
       test.beforeAll(async () => {
-        const loader = new DNALoader({ validate: false });
+        const loader = new DNALoader({ validate: false, basePath: REPO_ROOT, sanitize: false });
         const dna = await loader.load(fixture.path);
         fixture.rules = dna.governance ?? [];
         engine = new GovernanceEngine(fixture.rules);
