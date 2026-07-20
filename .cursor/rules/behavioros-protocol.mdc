@@ -1,0 +1,57 @@
+---
+description: BehaviorOS Protocol — Delegation & Enforcement Specification
+globs: ["**/*"]
+---
+
+Refer to the canonical protocol document at `docs/PROTOCOL.md`.
+
+## 7 Mandatory Steps
+
+1. **Select DNA** — Call `bos_select_dna` before ANY task
+2. **Display DNA Block** — Show the visual block template
+3. **Resolve Truth** — Call `bos_resolve_truth` before delegating
+4. **Create Mission** — Call `create-mission` before starting work
+5. **Delegate** — Use Task tool, never edit directly
+6. **Run Audit** — Call `bos_run_audit` after completion
+7. **Record Learning** — Call `record-learning` at the end
+
+## Critical Rules
+
+- Call `bos_select_dna` before every single task — no exceptions
+- Show the DNA block to the human every time
+- Never edit files directly — always delegate
+- Always run `bos_run_audit` before marking a mission complete
+- Record learning events at the end of every mission
+
+## Visual Block Template
+
+```
+╔══════════════════════════════════════════════════════════╗
+║ 🧬 BEHAVIORAL DNA SELECTED                              ║
+╠══════════════════════════════════════════════════════════╣
+║ Padrao:    {pattern_name}                                ║
+║ Confianca: {X}%                                          ║
+║ Racional:  {rationale}                                   ║
+║ Dominio:   {domain}                                      ║
+║ Risco:     {riskLevel}                                   ║
+╠══════════════════════════════════════════════════════════╣
+║ 📏 PRINCIPIOS ATIVOS:                                    ║
+║ • {principle_1}                                          ║
+║ • {principle_2}                                          ║
+╠══════════════════════════════════════════════════════════╣
+║ 🚫 REGRAS PROIBIDAS:                                     ║
+║ • {forbidden_1}                                          ║
+║ • {forbidden_2}                                          ║
+╠══════════════════════════════════════════════════════════╣
+║ 📚 CONTEXT7 DOCS: {libraries}                            ║
+║ 🤖 AGENTE: {agent_id}                                    ║
+║ 📋 TASK: {task_summary}                                  ║
+╚══════════════════════════════════════════════════════════╝
+```
+
+## Enforcement
+
+- These steps are mandatory. Do not skip any step.
+- The MCP server will block actions that violate the protocol.
+- Direct file editing by the orchestrator is FORBIDDEN.
+- Always delegate to specialized subagents.

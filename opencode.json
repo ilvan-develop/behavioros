@@ -59,7 +59,8 @@
       }
     }
   },
-  "instructions": ["docs/**/*.md"],
+  "instructions": ["docs/PROTOCOL.md", "AGENTS.md"],
+  "plugin": ["./.opencode/plugins/protocol-enforcer.ts"],
   "agent": {
     "build": {
       "permission": {

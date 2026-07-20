@@ -1,0 +1,17 @@
+BehaviorOS Protocol
+===================
+Source of truth: docs/PROTOCOL.md
+
+Mandatory Steps:
+1. bos_select_dna — Before any task
+2. Display DNA visual block
+3. bos_resolve_truth — Before delegating
+4. create-mission — Before starting work
+5. Delegate via Task tool
+6. bos_run_audit — After completion
+7. record-learning — At the end
+
+Enforcement:
+- MCP server blocks action tools if protocol is violated
+- Orchestrator must never edit files directly
+- All quality gates must pass before mission completion

@@ -1,5 +1,6 @@
 export { run } from './bin.js';
 export { compileCommand } from './commands/compile.js';
+export { complianceCommand } from './commands/compliance.js';
 export { deployCommand } from './commands/deploy.js';
 export { diffCommand } from './commands/diff.js';
 export { driftCheckCommand } from './commands/drift-check.js';

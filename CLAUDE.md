@@ -47,6 +47,30 @@ Once connected, you have access to 30+ BehaviorOS tools:
 - `bos_resolve_truth` — DNA + docs for delegation
 - `bos_list_patterns` — Available DNA patterns
 
+## BehaviorOS Protocol
+
+This project follows the BehaviorOS Delegation Protocol defined in `docs/PROTOCOL.md`.
+
+### 7 Mandatory Steps
+
+| # | Step | Tool | When |
+|---|------|------|------|
+| 1 | Select DNA | `bos_select_dna` | Before ANY task |
+| 2 | Display DNA Block | Visual template | After step 1 |
+| 3 | Resolve Truth | `bos_resolve_truth` | Before delegating |
+| 4 | Create Mission | `create-mission` | Before starting work |
+| 5 | Delegate | Task tool | To execute work |
+| 6 | Run Audit | `bos_run_audit` | After completion |
+| 7 | Record Learning | `record-learning` | At the end |
+
+### Critical Rules
+
+- Call `bos_select_dna` before every single task — no exceptions
+- Show the DNA block to the human every time
+- Never edit files directly — always delegate
+- Always run `bos_run_audit` before marking a mission complete
+- Record learning events at the end of every mission
+
 ## Usage
 
 Ask Claude to:

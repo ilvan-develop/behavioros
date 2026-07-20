@@ -1,0 +1,59 @@
+name: BehaviorOS Protocol Compliance
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  protocol-compliance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Validate DNA
+        run: npx @behavioros/cli validate --dna {{DNA_PATH}}
+
+      - name: Check Protocol Files
+        run: |
+          echo "📋 Checking protocol compliance for {{PROJECT_NAME}}..."
+          files=(
+            "{{PROTOCOL_PATH}}"
+            "AGENTS.md"
+            ".opencode/rules/behavioros-protocol.mdc"
+            ".cursor/rules/behavioros-protocol.mdc"
+            "CLAUDE.md"
+            ".windsurfrules"
+            ".github/copilot-instructions.md"
+          )
+          missing=0
+          for f in "${files[@]}"; do
+            if [ -f "$f" ]; then
+              echo "  ✅ $f"
+            else
+              echo "  ❌ $f (missing)"
+              missing=$((missing + 1))
+            fi
+          done
+          if [ $missing -gt 0 ]; then
+            echo "❌ Protocol compliance check failed: $missing file(s) missing"
+            exit 1
+          fi
+          echo "✅ All protocol files present"
+
+      - name: Run Status Check
+        run: npx @behavioros/cli status

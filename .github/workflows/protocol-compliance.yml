@@ -1,0 +1,98 @@
+name: Protocol Compliance
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: protocol-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compliance:
+    name: Protocol Compliance Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check canonical protocol doc exists
+        run: |
+          if [ -f "docs/PROTOCOL.md" ]; then
+            echo "  ✓ docs/PROTOCOL.md — canonical source of truth"
+          else
+            echo "  ✗ docs/PROTOCOL.md — MISSING"
+            echo "ERROR: The canonical protocol document is required."
+            echo "Create it via: npx @behavioros/cli init --with-protocol"
+            exit 1
+          fi
+
+      - name: Check platform config files exist
+        run: |
+          FAILED=0
+          echo "Checking protocol enforcement files..."
+          for f in \
+            "AGENTS.md" \
+            ".opencode/rules/behavioros-protocol.md" \
+            ".cursor/rules/behavioros-protocol.mdc" \
+            ".github/copilot-instructions.md" \
+            ".windsurfrules" \
+            "CLAUDE.md"
+          do
+            if [ -f "$f" ]; then
+              echo "  ✓ $f"
+            else
+              echo "  ✗ $f — MISSING"
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" -ne 0 ]; then
+            echo ""
+            echo "ERROR: One or more protocol enforcement files are missing."
+            echo "Run 'npx @behavioros/cli init --with-protocol' to generate all platform configs."
+            exit 1
+          fi
+          echo ""
+          echo "All protocol enforcement files present."
+
+      - name: Verify AGENTS.md references protocol
+        run: |
+          if grep -q "behavioros-protocol\|PROTOCOL.md\|BehaviorOS Protocol" AGENTS.md; then
+            echo "  ✓ AGENTS.md references the protocol"
+          else
+            echo "  ✗ AGENTS.md does not reference the protocol"
+            echo "Add '@rules/behavioros-protocol' or a reference to docs/PROTOCOL.md"
+            exit 1
+          fi
+
+      - name: Verify CLAUDE.md contains 7 mandatory steps
+        run: |
+          if grep -q "7 Mandatory Steps\|Mandatory Steps" CLAUDE.md; then
+            echo "  ✓ CLAUDE.md has protocol section with mandatory steps"
+          else
+            echo "  ✗ CLAUDE.md missing mandatory steps section"
+            echo "CLAUDE.md must include the 7 mandatory steps table from the protocol."
+            exit 1
+          fi
+
+      - name: Verify all files align with canonical source
+        run: |
+          echo "PROTOCOL.md exists:         $([ -f docs/PROTOCOL.md ] && echo 'YES' || echo 'NO')"
+          echo "CLAUDE.md references doc:   $(grep -c 'PROTOCOL.md' CLAUDE.md || true)"
+          echo "AGENTS.md references doc:   $(grep -c 'PROTOCOL.md\|behavioros-protocol' AGENTS.md || true)"
+          echo ""
+          echo "All platform config files aligned with canonical source at docs/PROTOCOL.md."

@@ -1,6 +1,6 @@
-## BehaviorOS Protocol
+## {{PROJECT_NAME}} — BehaviorOS Protocol
 
-This project uses BehaviorOS for AI agent governance. The canonical protocol is at `docs/PROTOCOL.md`.
+This project uses BehaviorOS for AI agent governance. The canonical protocol is at `{{PROTOCOL_PATH}}`.
 
 ### Required Workflow
 
@@ -18,3 +18,9 @@ This project uses BehaviorOS for AI agent governance. The canonical protocol is 
 - Edit files directly as orchestrator
 - Mark mission complete without running audit
 - Bypass quality gates
+
+### Configuration
+
+- MCP Server: `{{MCP_SERVER_COMMAND}}`
+- DNA: `{{DNA_PATH}}`
+- Enforcement Level: {{ENFORCEMENT_LEVEL}}

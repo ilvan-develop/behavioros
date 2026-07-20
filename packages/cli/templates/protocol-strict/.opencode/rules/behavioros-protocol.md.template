@@ -1,0 +1,68 @@
+---
+description: BehaviorOS Protocol — Delegation & Enforcement Specification ({{ENFORCEMENT_LEVEL}} enforcement)
+globs: ["**/*"]
+---
+
+# BehaviorOS Protocol for {{PROJECT_NAME}}
+
+Canonical source of truth: `{{PROTOCOL_PATH}}`
+
+## 7 Mandatory Steps
+
+```
+┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
+│  1. DNA  │──▶│ 2. Show │──▶│ 3. Truth│──▶│ 4. Mission│──▶│ 5. Delegate│──▶│ 6. Audit │──▶│ 7. Learn │
+│  Select  │   │  Block  │   │ Resolve │   │  Create  │   │          │   │  Run    │   │  Record  │
+└──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘
+```
+
+| # | Step | Tool | When |
+|---|------|------|------|
+| 1 | Select DNA | `bos_select_dna` | Before ANY task |
+| 2 | Display DNA Block | Visual template | After step 1 |
+| 3 | Resolve Truth | `bos_resolve_truth` | Before delegating |
+| 4 | Create Mission | `create-mission` | Before starting work |
+| 5 | Delegate | Task tool | To execute work |
+| 6 | Run Audit | `bos_run_audit` | After completion |
+| 7 | Record Learning | `record-learning` | At the end |
+
+## Visual Block Template
+
+Display this after Step 1:
+```
+╔══════════════════════════════════════════════════════════╗
+║ 🧬 BEHAVIORAL DNA SELECTED                              ║
+╠══════════════════════════════════════════════════════════╣
+║ Padrão:    {pattern_name}                                ║
+║ Confiança: {X}%                                          ║
+║ Racional:  {rationale}                                   ║
+║ Domínio:   {domain}                                      ║
+║ Risco:     {riskLevel}                                   ║
+╠══════════════════════════════════════════════════════════╣
+║ 📏 PRINCÍPIOS ATIVOS:                                    ║
+║ • {principle_1}                                          ║
+║ • {principle_2}                                          ║
+╠══════════════════════════════════════════════════════════╣
+║ 🚫 REGRAS PROIBIDAS:                                     ║
+║ • {forbidden_1}                                          ║
+║ • {forbidden_2}                                          ║
+╠══════════════════════════════════════════════════════════╣
+║ 📚 CONTEXT7 DOCS: {libraries}                            ║
+║ 🤖 AGENTE: {agent_id}                                    ║
+║ 📋 TASK: {task_summary}                                  ║
+╚══════════════════════════════════════════════════════════╝
+```
+
+## Enforcement
+
+- **{{ENFORCEMENT_LEVEL}}** enforcement level is active
+- MCP server blocks action tools if protocol is violated
+- Direct file editing by the orchestrator is FORBIDDEN
+- Always delegate to specialized subagents
+- Quality gates must pass before mission completion
+
+## Local References
+
+- Protocol document: `{{PROTOCOL_PATH}}`
+- MCP server: `{{MCP_SERVER_COMMAND}}`
+- DNA config: `{{DNA_PATH}}`

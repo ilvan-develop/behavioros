@@ -1,0 +1,24 @@
+---
+description: BehaviorOS Protocol — Delegation & Enforcement Specification for {{PROJECT_NAME}} ({{ENFORCEMENT_LEVEL}})
+globs: ["**/*"]
+---
+
+Refer to the canonical protocol document at `{{PROTOCOL_PATH}}`.
+
+## 7 Mandatory Steps
+
+1. **Select DNA** — Call `bos_select_dna` before ANY task
+2. **Display DNA Block** — Show the visual block template
+3. **Resolve Truth** — Call `bos_resolve_truth` before delegating
+4. **Create Mission** — Call `create-mission` before starting work
+5. **Delegate** — Use Task tool, never edit directly
+6. **Run Audit** — Call `bos_run_audit` after completion
+7. **Record Learning** — Call `record-learning` at the end
+
+## Enforcement ({{ENFORCEMENT_LEVEL}})
+
+- These steps are mandatory. Do not skip any step.
+- The MCP server (`{{MCP_SERVER_COMMAND}}`) will block actions that violate the protocol.
+- DNA config is at `{{DNA_PATH}}`.
+- Direct file editing by the orchestrator is FORBIDDEN.
+- Always delegate to specialized subagents.

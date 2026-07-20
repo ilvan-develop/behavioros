@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { Command } from 'commander';
 import { compileCommand } from './commands/compile.js';
+import { complianceCommand } from './commands/compliance.js';
 import { deployCommand } from './commands/deploy.js';
 import { diffCommand } from './commands/diff.js';
 import { driftCheckCommand } from './commands/drift-check.js';
@@ -27,6 +28,7 @@ const program = new Command()
 
 initCommand(program);
 compileCommand(program);
+complianceCommand(program);
 validateCommand(program);
 statusCommand(program);
 diffCommand(program);

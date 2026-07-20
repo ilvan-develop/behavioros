@@ -1,0 +1,51 @@
+# {{PROJECT_NAME}} — AI Agent Rules
+
+## BehaviorOS Protocol
+
+Read the following file immediately — it is mandatory governance for all tasks:
+
+@rules/behavioros-protocol
+
+## 7 Mandatory Steps
+
+| # | Step | Tool | When | Enforcement |
+|---|------|------|------|-------------|
+| 1 | Select DNA | `bos_select_dna` | Before ANY task | **CRITICAL** — MCP blocks all tools if skipped |
+| 2 | Display DNA Block | Visual template | After step 1 | **HIGH** — Human visibility required |
+| 3 | Resolve Truth | `bos_resolve_truth` | Before delegating | **CRITICAL** — Delegation blocked if skipped |
+| 4 | Create Mission | `create-mission` | Before starting work | **HIGH** — No work without mission ID |
+| 5 | Delegate | Task tool | To execute work | **CRITICAL** — Direct execution blocked |
+| 6 | Run Audit | `bos_run_audit` | After completion | **CRITICAL** — Mission cannot complete without audit |
+| 7 | Record Learning | `record-learning` | At the end | **MEDIUM** — Warning if skipped |
+
+## Critical Rules
+
+- The orchestrator MUST NEVER edit files directly — always delegate
+- Every agent runs `bos_select_dna` before starting work (mandatory)
+- Every agent runs `bos_run_audit` after completing work (mandatory)
+- All quality gates must pass before mission completion
+- Governance rules are evaluated BEFORE actions are taken
+- Escalate to human for any `critical` risk level action
+
+## Project Configuration
+
+- **Protocol:** {{PROTOCOL_PATH}}
+- **MCP Server:** {{MCP_SERVER_COMMAND}}
+- **DNA Path:** {{DNA_PATH}}
+- **Enforcement:** {{ENFORCEMENT_LEVEL}}
+
+## Dev Commands
+
+```bash
+pnpm dev              # Run all packages in dev/watch mode
+pnpm build            # Build all packages
+pnpm test             # Run all tests
+pnpm lint             # Lint + auto-fix
+pnpm typecheck        # Type-check all packages
+```
+
+## Code Conventions
+
+- **Formatter/Linter:** Biome
+- **TypeScript:** strict mode
+- **Commits:** Conventional commits

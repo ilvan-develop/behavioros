@@ -8,6 +8,7 @@ import {
   DelegationEnforcementLayer,
   DNALoader,
   EscalationManager,
+  ProtocolStateTracker,
 } from '@behavioros/core';
 import type { DNAPackage } from '@behavioros/schemas';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -64,6 +65,7 @@ const __dirname_safe = _globalDirname ?? resolve(process.cwd());
 let _engine: BehaviorOSEngine | null = null;
 let _server: McpServer | null = null;
 let _delegationLayer: DelegationEnforcementLayer | null = null;
+let _protocolTracker: ProtocolStateTracker | null = null;
 
 function getAgentId(): string {
   return process.env.BEHAVIOROS_AGENT_ID ?? 'unknown';
@@ -90,35 +92,23 @@ const DELEGATION_WORKFLOW_TOOLS = new Set([
 ]);
 
 /**
- * Wrapper that checks delegation enforcement before executing action tools.
- * Only blocks orchestrator agents that attempt direct execution without delegation.
+ * Wrapper that checks protocol compliance before executing action tools.
+ * Uses ProtocolStateTracker to enforce the 7-step delegation protocol:
+ *   1. Select DNA   — bos_select_dna
+ *   2. Display DNA  — visual (not tracked via tool)
+ *   3. Resolve Truth — bos_resolve_truth
+ *   4. Create Mission — create-mission
+ *   5. Delegate     — Task tool (not tracked via tool)
+ *   6. Run Audit    — bos_run_audit
+ *   7. Record Learning — record-learning
+ *
  * Workflow tools (create-mission, bos_select_dna, etc.) are always allowed.
  */
 async function withDelegationCheck<T>(toolName: string, fn: () => Promise<T>): Promise<T> {
-  if (_delegationLayer && !DELEGATION_WORKFLOW_TOOLS.has(toolName)) {
-    const agentId = getAgentId();
-    const context = {
-      id: crypto.randomUUID(),
-      dnaId: '',
-      dnaMode: 'transactional' as const,
-      agentId,
-      agentAuthority: 'lead',
-      action: 'execute',
-      payload: {},
-      metadata: new Map<string, unknown>(),
-      startTime: Date.now(),
-      layerResults: [],
-      currentLayerIndex: 0,
-      failed: false,
-    };
-
-    const result = await _delegationLayer.execute(context);
-    if (!result.passed) {
-      const details = result.details as { reason?: string; requiredActions?: string[] };
-      throw new Error(
-        `Delegation enforcement failed: ${details.reason}\n` +
-          `Required actions: ${details.requiredActions?.join(', ')}`,
-      );
+  if (_protocolTracker && !DELEGATION_WORKFLOW_TOOLS.has(toolName)) {
+    const validation = _protocolTracker.validateBeforeDelegation();
+    if (!validation.valid) {
+      throw new Error(validation.message);
     }
   }
   return fn();
@@ -185,6 +175,9 @@ export async function createServer(): Promise<McpServer> {
   // Initialize delegation enforcement layer
   _delegationLayer = new DelegationEnforcementLayer();
 
+  // Initialize protocol state tracker for the 7-step delegation protocol
+  _protocolTracker = new ProtocolStateTracker();
+
   // Create MCP server
   _server = new McpServer({
     name: 'behavioros',
@@ -196,7 +189,12 @@ export async function createServer(): Promise<McpServer> {
     'create-mission',
     'Create a new mission in BehaviorOS',
     createMissionInput.shape,
-    async (args) => withDelegationCheck('create-mission', () => createMission(_engine!, args)),
+    async (args) =>
+      withDelegationCheck('create-mission', async () => {
+        const result = await createMission(_engine!, args);
+        _protocolTracker?.markMissionCreated();
+        return result;
+      }),
   );
 
   _server.tool(
@@ -209,7 +207,16 @@ export async function createServer(): Promise<McpServer> {
     'update-progress',
     'Update the progress/status of a mission',
     updateProgressInput.shape,
-    async (args) => withDelegationCheck('update-progress', () => updateProgress(_engine!, args)),
+    async (args) =>
+      withDelegationCheck('update-progress', async () => {
+        if (_protocolTracker && args.status === 'completed') {
+          const validation = _protocolTracker.validateBeforeComplete();
+          if (!validation.valid) {
+            throw new Error(validation.message);
+          }
+        }
+        return updateProgress(_engine!, args);
+      }),
   );
 
   _server.tool(
@@ -238,7 +245,12 @@ export async function createServer(): Promise<McpServer> {
     'record-learning',
     'Record a learning event',
     recordLearningInput.shape,
-    async (args) => withDelegationCheck('record-learning', () => recordLearning(_engine!, args)),
+    async (args) =>
+      withDelegationCheck('record-learning', async () => {
+        const result = await recordLearning(_engine!, args);
+        _protocolTracker?.markLearningRecorded();
+        return result;
+      }),
   );
 
   _server.tool(
@@ -267,7 +279,10 @@ export async function createServer(): Promise<McpServer> {
     'bos_select_dna',
     'Select the optimal behavioral DNA pattern for a given task context. Returns pattern name, principles, forbidden rules, and confidence score.',
     bosSelectDnaInput.shape,
-    async (args) => bosSelectDna(bosSelector, args),
+    async (args) => {
+      _protocolTracker?.markDnaSelected();
+      return bosSelectDna(bosSelector, args);
+    },
   );
 
   _server.tool(
@@ -288,7 +303,12 @@ export async function createServer(): Promise<McpServer> {
     'bos_run_audit',
     'Run the continuous audit chain for a given trigger (commit, PR, merge, staging, production). Returns gate results.',
     bosRunAuditInput.shape,
-    async (args) => withDelegationCheck('bos_run_audit', () => bosRunAudit(bosAuditChain, args)),
+    async (args) =>
+      withDelegationCheck('bos_run_audit', async () => {
+        const result = await bosRunAudit(bosAuditChain, args);
+        _protocolTracker?.markAuditDone();
+        return result;
+      }),
   );
 
   _server.tool(
@@ -310,7 +330,10 @@ export async function createServer(): Promise<McpServer> {
     'bos_resolve_truth',
     'Resolve behavioral DNA pattern + truth sources (context7 docs) for a task. Returns DNA pattern, principles, and instructions to fetch up-to-date library documentation. Use this before every delegation to ensure agents act with correct DNA and current docs.',
     bosResolveTruthInput.shape,
-    async (args) => bosResolveTruth(bosSelector, args),
+    async (args) => {
+      _protocolTracker?.markTruthResolved();
+      return bosResolveTruth(bosSelector, args);
+    },
   );
 
   // Register BOS LSP tools

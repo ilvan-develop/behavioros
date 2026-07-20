@@ -162,6 +162,19 @@ export type {
   PipelineOptions,
 } from './engines/pipeline/types';
 export type {
+  OrderViolation,
+  ProtocolState,
+  ProtocolStatus,
+  ProtocolStepNumber,
+  ProtocolValidation,
+} from './engines/protocol-engine';
+export {
+  PROTOCOL_STEP_NAMES,
+  PROTOCOL_STEP_TOOLS,
+  PROTOCOL_STEPS,
+  ProtocolStateTracker,
+} from './engines/protocol-engine';
+export type {
   QualityCheckResult,
   QualityEngineConfig,
   QualityReport,
