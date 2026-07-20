@@ -32,6 +32,7 @@ var index_exports = {};
 __export(index_exports, {
   AuditChain: () => AuditChain,
   AuditEngine: () => AuditEngine,
+  AuthorityVerifier: () => AuthorityVerifier,
   BehaviorCompiler: () => BehaviorCompiler,
   BehaviorOSEngine: () => BehaviorOSEngine,
   BehaviorSelector: () => BehaviorSelector,
@@ -43,6 +44,7 @@ __export(index_exports, {
   DNALoader: () => DNALoader,
   DNAValidator: () => DNAValidator,
   DecisionEngine: () => DecisionEngine,
+  DelegationEnforcementLayer: () => DelegationEnforcementLayer,
   DnaResolver: () => DnaResolver,
   DomainAgentACL: () => AgentACL,
   DomainAgentBoundary: () => AgentBoundary,
@@ -58,6 +60,8 @@ __export(index_exports, {
   GovernanceEngine: () => GovernanceEngine,
   HealthChecker: () => HealthChecker,
   LearningEngine: () => LearningEngine,
+  Logger: () => Logger,
+  MetricsCollector: () => MetricsCollector,
   MetricsInterceptor: () => MetricsInterceptor,
   MissionEngine: () => MissionEngine,
   OPAEvaluator: () => OPAEvaluator,
@@ -70,6 +74,7 @@ __export(index_exports, {
   QuarantineManager: () => QuarantineManager,
   ResponseCollector: () => ResponseCollector,
   RollbackManager: () => RollbackManager,
+  SQLiteAuditStore: () => SQLiteAuditStore,
   SQLiteStore: () => SQLiteStore,
   STAGE_100_CONFIG: () => STAGE_100_CONFIG,
   STAGE_100_THRESHOLDS: () => STAGE_100_THRESHOLDS,
@@ -87,8 +92,10 @@ __export(index_exports, {
   TrafficReplay: () => TrafficReplay,
   TrafficSplitter: () => TrafficSplitter,
   YAMLToOPACompiler: () => YAMLToOPACompiler,
+  analyzeIntent: () => analyzeIntent,
   bosMatchesGlob: () => matchesGlob,
   createDispatcherContext: () => createDispatcherContext,
+  sanitizeDNA: () => sanitizeDNA,
   shouldSkipForConversational: () => shouldSkipForConversational,
   shouldSkipForTransactional: () => shouldSkipForTransactional
 });
@@ -1432,12 +1439,30 @@ var CanaryDeployer = class extends import_eventemitter34.default {
 // src/domain/anti-corruption/agent-acl.ts
 var MALICIOUS_PATTERNS = ["DROP", "DELETE", "TRUNCATE", "EXEC", "UNION"];
 var SENSITIVE_FIELDS = ["password", "secret", "token", "key"];
+var ALLOWED_ACTIONS = [
+  "read",
+  "write",
+  "execute",
+  "deploy",
+  "review",
+  "create",
+  "update",
+  "delete",
+  "query",
+  "export"
+];
 var AgentACL = class {
   id = "agent-acl";
   name = "Agent Anti-Corruption Layer";
   validateInput(input) {
     if (!input.agentId || !input.action) {
       return { passed: false, reason: "Missing required fields: agentId, action" };
+    }
+    if (!ALLOWED_ACTIONS.includes(input.action)) {
+      return {
+        passed: false,
+        reason: `Action '${input.action}' is not in the allowlist: [${ALLOWED_ACTIONS.join(", ")}]`
+      };
     }
     const payloadStr = JSON.stringify(input.payload ?? {}).toUpperCase();
     const detected = MALICIOUS_PATTERNS.filter((pattern) => payloadStr.includes(pattern));
@@ -3428,11 +3453,166 @@ Conflicts: ${result.metadata.conflicts.length}`);
 };
 
 // src/engines/behavioral/dna-loader.ts
-var import_node_fs3 = require("fs");
+var import_promises = require("fs/promises");
 var import_node_path3 = require("path");
 var import_schemas2 = require("@behavioros/schemas");
+var import_yaml3 = require("yaml");
+
+// src/security/dna-sanitizer.ts
 var import_yaml2 = require("yaml");
-var DNALoader = class {
+var SUSPICIOUS_PATTERNS = [
+  /ignore\s+(previous|all)\s+instructions/i,
+  /you\s+are\s+now\s+(a|an)/i,
+  /forget\s+(your|all)\s+(rules|instructions)/i,
+  /bypass\s+(all|every|the)\s+(security|governance)/i,
+  /override\s+(all|every|the)\s+(restrictions)/i,
+  /disable\s+(all|every|the)\s+(safety)/i,
+  /eval\s*\(/i,
+  /exec\s*\(/i,
+  /<script/i,
+  /require\s*\(\s*['"]child_process['"]\s*\)/i,
+  /process\.exit/i,
+  /system\s*\(/i
+];
+var FORBIDDEN_GOVERNANCE_ACTIONS = ["auto_approve"];
+var FORBIDDEN_PERSONA_PATTERNS = [
+  /\badmin\b/i,
+  /\broot\b/i,
+  /\bsuperuser\b/i,
+  /\bunrestricted\b/i,
+  /\bno\s+limits?\b/i,
+  /\bbypass\s+all\b/i
+];
+function sanitizeDNA(yamlContent) {
+  const violations = [];
+  for (const pattern of SUSPICIOUS_PATTERNS) {
+    const match = yamlContent.match(pattern);
+    if (match) {
+      violations.push({
+        type: "prompt_injection",
+        severity: "critical",
+        description: `Suspicious pattern detected: ${pattern.source}`,
+        location: `Match: "${match[0]}"`
+      });
+    }
+  }
+  try {
+    const parsed = (0, import_yaml2.parse)(yamlContent);
+    if (parsed.governance) {
+      for (const rule of parsed.governance) {
+        if (FORBIDDEN_GOVERNANCE_ACTIONS.includes(rule.action)) {
+          violations.push({
+            type: "forbidden_action",
+            severity: "critical",
+            description: `Forbidden governance action: ${rule.action}`,
+            location: `Rule: ${rule.id}`
+          });
+        }
+      }
+    }
+    if (parsed.personas) {
+      for (const persona of parsed.personas) {
+        if (persona.description) {
+          for (const pattern of FORBIDDEN_PERSONA_PATTERNS) {
+            if (pattern.test(persona.description)) {
+              violations.push({
+                type: "suspicious_persona",
+                severity: "high",
+                description: `Suspicious persona description: ${persona.description}`,
+                location: `Persona: ${persona.role}`
+              });
+            }
+          }
+        }
+        if (persona.authority === "c-level" || persona.authority === "vp") {
+          violations.push({
+            type: "suspicious_persona",
+            severity: "medium",
+            description: `High authority persona: ${persona.authority}`,
+            location: `Persona: ${persona.role}`
+          });
+        }
+        if (!persona.boundaries || persona.boundaries.length === 0) {
+          violations.push({
+            type: "suspicious_persona",
+            severity: "medium",
+            description: "Persona has no boundaries defined",
+            location: `Persona: ${persona.role}`
+          });
+        }
+      }
+    }
+  } catch {
+    violations.push({
+      type: "suspicious_pattern",
+      severity: "high",
+      description: "Failed to parse YAML content"
+    });
+  }
+  const riskScore = calculateRiskScore(violations);
+  return {
+    safe: violations.filter((v) => v.severity === "critical").length === 0,
+    violations,
+    riskScore
+  };
+}
+function analyzeIntent(dna) {
+  const flags = [];
+  let riskScore = 0;
+  const authorityLevels = {
+    junior: 1,
+    senior: 2,
+    architect: 3,
+    lead: 4,
+    director: 5,
+    vp: 6,
+    "c-level": 7
+  };
+  const maxAuthority = Math.max(...dna.personas.map((p) => authorityLevels[p.authority] ?? 0));
+  if (maxAuthority >= 6) {
+    flags.push("high-authority-persona");
+    riskScore += 20;
+  }
+  if (dna.governance?.every((r) => r.action === "warn" || r.action === "log")) {
+    flags.push("no-enforcement-rules");
+    riskScore += 30;
+  }
+  const agentsWithoutBoundaries = dna.personas.filter(
+    (p) => !p.boundaries || p.boundaries.length === 0
+  );
+  if (agentsWithoutBoundaries.length > 0) {
+    flags.push("agents-without-boundaries");
+    riskScore += 15;
+  }
+  if (dna.personas.length > 10) {
+    flags.push("excessive-personas");
+    riskScore += 10;
+  }
+  return {
+    riskScore: Math.min(100, riskScore),
+    flags,
+    recommendation: riskScore > 70 ? "reject" : riskScore > 30 ? "review" : "approve"
+  };
+}
+function calculateRiskScore(violations) {
+  const severityWeights = {
+    critical: 40,
+    high: 25,
+    medium: 15,
+    low: 5
+  };
+  let score = 0;
+  for (const violation of violations) {
+    score += severityWeights[violation.severity] ?? 0;
+  }
+  return Math.min(100, score);
+}
+
+// src/engines/behavioral/dna-loader.ts
+var MAX_YAML_SIZE = 1024 * 1024;
+var MAX_NESTING_DEPTH = 10;
+var MAX_GOVERNANCE_RULES = 1e3;
+var DNALoader = class _DNALoader {
   basePath;
   validate;
   strict;
@@ -3445,33 +3625,60 @@ var DNALoader = class {
   /**
    * Carrega um pacote DNA de um diretório ou arquivo
    */
-  load(source) {
+  async load(source) {
     const resolved = (0, import_node_path3.resolve)(this.basePath, source);
+    const isAbsolute = source.startsWith("/") || /^[a-zA-Z]:/.test(source);
+    if (!isAbsolute && !resolved.startsWith((0, import_node_path3.resolve)(this.basePath))) {
+      throw new Error(`Path traversal detected: "${source}" resolves outside base path`);
+    }
     if (this.cache.has(resolved)) {
       return this.cache.get(resolved);
     }
     let raw;
-    if ((0, import_node_fs3.existsSync)((0, import_node_path3.join)(resolved, "behavioros.yaml"))) {
-      raw = (0, import_node_fs3.readFileSync)((0, import_node_path3.join)(resolved, "behavioros.yaml"), "utf-8");
-    } else if ((0, import_node_fs3.existsSync)((0, import_node_path3.join)(resolved, "index.yaml"))) {
-      raw = (0, import_node_fs3.readFileSync)((0, import_node_path3.join)(resolved, "index.yaml"), "utf-8");
-    } else if ((0, import_node_fs3.existsSync)(resolved)) {
-      raw = (0, import_node_fs3.readFileSync)(resolved, "utf-8");
-    } else {
-      throw new Error(`DNA source not found: ${source}`);
+    try {
+      await (0, import_promises.access)((0, import_node_path3.join)(resolved, "behavioros.yaml"));
+      raw = await (0, import_promises.readFile)((0, import_node_path3.join)(resolved, "behavioros.yaml"), "utf-8");
+    } catch {
+      try {
+        await (0, import_promises.access)((0, import_node_path3.join)(resolved, "index.yaml"));
+        raw = await (0, import_promises.readFile)((0, import_node_path3.join)(resolved, "index.yaml"), "utf-8");
+      } catch {
+        try {
+          await (0, import_promises.access)(resolved);
+          const fileStat = await (0, import_promises.stat)(resolved);
+          if (fileStat.size > MAX_YAML_SIZE) {
+            throw new Error(
+              `DNA file too large: ${(fileStat.size / MAX_YAML_SIZE).toFixed(1)}MB exceeds 1MB limit`
+            );
+          }
+          raw = await (0, import_promises.readFile)(resolved, "utf-8");
+        } catch {
+          throw new Error(`DNA source not found: ${source}`);
+        }
+      }
     }
+    this.sanitizeOrThrow(raw, resolved);
     return this.parse(raw, resolved);
   }
   /**
    * Carrega um pacote DNA de uma string YAML
    */
   loadFromString(yamlContent, sourceName) {
+    if (yamlContent.length > MAX_YAML_SIZE) {
+      throw new Error(
+        `DNA YAML content exceeds maximum size of ${MAX_YAML_SIZE} bytes (${yamlContent.length} bytes provided)`
+      );
+    }
+    this.sanitizeOrThrow(yamlContent, sourceName ?? "<inline>");
     return this.parse(yamlContent, sourceName ?? "<inline>");
   }
   /**
    * Carrega um pacote DNA de um objeto JSON
    */
   loadFromObject(obj) {
+    if (_DNALoader.getNestingDepth(obj) > MAX_NESTING_DEPTH) {
+      throw new Error(`DNA object exceeds maximum nesting depth of ${MAX_NESTING_DEPTH}`);
+    }
     if (this.validate) {
       return import_schemas2.DNAPackageSchema.parse(obj);
     }
@@ -3480,16 +3687,16 @@ var DNALoader = class {
   /**
    * Carrega todos os pacotes DNA de um diretório
    */
-  loadAll(directory) {
+  async loadAll(directory) {
     const dir = (0, import_node_path3.resolve)(this.basePath, directory);
     const results = [];
-    if ((0, import_node_fs3.existsSync)(dir)) {
-      const { readdirSync: readdirSync2 } = require("fs");
-      const files = readdirSync2(dir);
+    try {
+      await (0, import_promises.access)(dir);
+      const files = await (0, import_promises.readdir)(dir);
       for (const file of files) {
         if (file.endsWith(".yaml") || file.endsWith(".yml")) {
           try {
-            const dna = this.load((0, import_node_path3.join)(directory, file));
+            const dna = await this.load((0, import_node_path3.join)(directory, file));
             results.push(dna);
           } catch (error) {
             if (this.strict) throw error;
@@ -3497,11 +3704,12 @@ var DNALoader = class {
           }
         }
       }
+    } catch {
     }
     return results;
   }
   parse(yamlContent, source) {
-    const parsed = (0, import_yaml2.parse)(yamlContent);
+    const parsed = (0, import_yaml3.parse)(yamlContent);
     if (this.validate) {
       const result = import_schemas2.DNAPackageSchema.safeParse(parsed);
       if (!result.success) {
@@ -3509,11 +3717,32 @@ var DNALoader = class {
         throw new Error(`Invalid DNA package at ${source}:
 ${errors}`);
       }
+      if (result.data.governance && result.data.governance.length > MAX_GOVERNANCE_RULES) {
+        throw new Error(
+          `DNA package at ${source} has ${result.data.governance.length} governance rules, exceeding maximum of ${MAX_GOVERNANCE_RULES}`
+        );
+      }
       this.cache.set(source, result.data);
       return result.data;
     }
     this.cache.set(source, parsed);
     return parsed;
+  }
+  sanitizeOrThrow(raw, source) {
+    const result = sanitizeDNA(raw);
+    const riskLevel = result.riskScore >= 80 ? "critical" : result.riskScore >= 60 ? "high" : result.riskScore >= 30 ? "medium" : "low";
+    if (riskLevel === "critical" || riskLevel === "high") {
+      const details = result.violations.map((v) => `  - [${v.severity}] ${v.description}${v.location ? ` (${v.location})` : ""}`).join("\n");
+      throw new Error(
+        `DNA sanitization failed for ${source} (risk: ${riskLevel}, score: ${result.riskScore}):
+${details}`
+      );
+    }
+    if (riskLevel === "medium" || riskLevel === "low") {
+      console.warn(
+        `DNA sanitization warning for ${source} (risk: ${riskLevel}, score: ${result.riskScore}): ${result.violations.length} violation(s) detected`
+      );
+    }
   }
   /**
    * Valida um pacote DNA contra o schema
@@ -3546,12 +3775,28 @@ ${errors}`);
   clearCache() {
     this.cache.clear();
   }
+  static getNestingDepth(obj, depth = 0) {
+    if (depth > MAX_NESTING_DEPTH) return depth;
+    if (obj === null || obj === void 0 || typeof obj !== "object") return depth;
+    if (Array.isArray(obj)) {
+      let maxDepth2 = depth + 1;
+      for (const item of obj) {
+        maxDepth2 = Math.max(maxDepth2, _DNALoader.getNestingDepth(item, depth + 1));
+      }
+      return maxDepth2;
+    }
+    let maxDepth = depth + 1;
+    for (const value of Object.values(obj)) {
+      maxDepth = Math.max(maxDepth, _DNALoader.getNestingDepth(value, depth + 1));
+    }
+    return maxDepth;
+  }
 };
 
 // src/engines/behavioral/dna-resolver.ts
-var import_node_fs4 = require("fs");
+var import_node_fs3 = require("fs");
 var import_node_path4 = require("path");
-var import_yaml3 = require("yaml");
+var import_yaml4 = require("yaml");
 var DnaResolver = class _DnaResolver {
   catalog = /* @__PURE__ */ new Map();
   catalogPath;
@@ -3575,8 +3820,8 @@ var DnaResolver = class _DnaResolver {
   loadCatalog() {
     for (const name of _DnaResolver.CATALOG_NAMES) {
       try {
-        const content = (0, import_node_fs4.readFileSync)((0, import_node_path4.join)(this.catalogPath, `${name}.yaml`), "utf-8");
-        this.catalog.set(name, (0, import_yaml3.parse)(content));
+        const content = (0, import_node_fs3.readFileSync)((0, import_node_path4.join)(this.catalogPath, `${name}.yaml`), "utf-8");
+        this.catalog.set(name, (0, import_yaml4.parse)(content));
       } catch {
       }
     }
@@ -3590,6 +3835,7 @@ var DnaResolver = class _DnaResolver {
     }
     const squadDna = squadConfig?.dna ? this.catalog.get(String(squadConfig.dna)) : void 0;
     const agentOverrides = agentConfig.dnaOverrides ?? {};
+    this.validateAgentOverrides(agentOverrides);
     const resolved = {
       identity: {
         name: agentOverrides.identity?.name ?? baseDna.identity?.name ?? dnaSelection.primary,
@@ -3677,6 +3923,27 @@ var DnaResolver = class _DnaResolver {
       }
     }
     return result;
+  }
+  /**
+   * Validate that agent overrides do not weaken the security posture.
+   * Blocks attempts to:
+   * - Remove entries from `forbidden` array
+   * - Override `autonomy.never_do`
+   * - Set authority higher than the agent's declared level
+   */
+  validateAgentOverrides(overrides) {
+    if (overrides.forbidden !== void 0 && Array.isArray(overrides.forbidden)) {
+      console.warn(
+        "[DnaResolver] Agent override includes `forbidden` entries \u2014 these will be additive only"
+      );
+    }
+    const autonomy = overrides.autonomy;
+    if (autonomy?.never_do !== void 0) {
+      console.warn(
+        "[DnaResolver] SECURITY: Agent override attempted to set `autonomy.never_do` \u2014 ignoring override"
+      );
+      delete autonomy.never_do;
+    }
   }
   getCatalogDna(name) {
     return this.catalog.get(name);
@@ -4086,8 +4353,8 @@ var EscalationManager = class {
 };
 
 // src/engines/behavioral/governance-engine.ts
-var import_node_fs5 = require("fs");
-var import_yaml4 = require("yaml");
+var import_node_fs4 = require("fs");
+var import_yaml5 = require("yaml");
 var BosGovernanceEngine = class {
   config;
   /**
@@ -4096,8 +4363,8 @@ var BosGovernanceEngine = class {
    */
   constructor(configOrPath) {
     if (typeof configOrPath === "string") {
-      const content = (0, import_node_fs5.readFileSync)(configOrPath, "utf-8");
-      this.config = (0, import_yaml4.parse)(content);
+      const content = (0, import_node_fs4.readFileSync)(configOrPath, "utf-8");
+      this.config = (0, import_yaml5.parse)(content);
     } else {
       this.config = configOrPath;
     }
@@ -4345,20 +4612,76 @@ var BosLearningEngine = class {
 };
 
 // src/engines/core-engine.ts
-var import_node_crypto9 = require("crypto");
-var import_schemas4 = require("@behavioros/schemas");
+var import_node_crypto11 = require("crypto");
 var import_eventemitter35 = __toESM(require("eventemitter3"));
 
-// src/engines/governance/governance-engine.ts
+// src/engines/agent-manager.ts
+var import_node_crypto6 = require("crypto");
+var AgentManager = class {
+  agents = /* @__PURE__ */ new Map();
+  constructor(dna) {
+    this.initialize(dna);
+  }
+  initialize(dna) {
+    for (const persona of dna.personas) {
+      const agent = {
+        id: `agent-${persona.role}-${(0, import_node_crypto6.randomUUID)().slice(0, 8)}`,
+        role: persona.role,
+        status: "idle",
+        authority: persona.authority,
+        completedMissions: [],
+        reputation: 50
+      };
+      this.agents.set(agent.id, agent);
+    }
+    if (dna.agent_mapping) {
+      for (const mapping of Object.values(dna.agent_mapping)) {
+        for (const agentName of mapping.opencode_agents) {
+          if (this.agents.has(agentName)) continue;
+          const agent = {
+            id: agentName,
+            role: mapping.role,
+            status: "idle",
+            authority: mapping.authority,
+            completedMissions: [],
+            reputation: 50
+          };
+          this.agents.set(agent.id, agent);
+        }
+      }
+    }
+  }
+  get(id) {
+    return this.agents.get(id);
+  }
+  getByOpenCodeName(name) {
+    return Array.from(this.agents.values()).find((a) => a.id === name);
+  }
+  getAll() {
+    return Array.from(this.agents.values());
+  }
+  getByRole(role) {
+    return Array.from(this.agents.values()).filter((a) => a.role === role);
+  }
+  getRawMap() {
+    return this.agents;
+  }
+};
+
+// src/shared/authority-hierarchy.ts
 var AUTHORITY_HIERARCHY = {
   junior: 1,
   senior: 2,
   architect: 3,
   lead: 4,
+  tech_lead: 4,
   director: 5,
   vp: 6,
+  cto: 7,
   "c-level": 7
 };
+
+// src/engines/governance/governance-engine.ts
 var DAY_NAME_MAP = {
   sunday: 0,
   monday: 1,
@@ -4370,6 +4693,11 @@ var DAY_NAME_MAP = {
 };
 var GovernanceEngine = class _GovernanceEngine {
   rules;
+  ruleIndex = /* @__PURE__ */ new Map();
+  rulesWithoutScope = [];
+  timeRestrictedRules = [];
+  dependencyRules = [];
+  conditionIndex = /* @__PURE__ */ new Map();
   escalationChain = /* @__PURE__ */ new Map([
     ["junior", "senior"],
     ["senior", "architect"],
@@ -4380,6 +4708,85 @@ var GovernanceEngine = class _GovernanceEngine {
   ]);
   constructor(rules) {
     this.rules = rules;
+    this.buildIndex();
+  }
+  buildIndex() {
+    this.ruleIndex.clear();
+    this.conditionIndex.clear();
+    this.rulesWithoutScope = [];
+    this.timeRestrictedRules = [];
+    this.dependencyRules = [];
+    for (const rule of this.rules) {
+      if (!rule.scope || rule.scope.length === 0) {
+        this.rulesWithoutScope.push(rule);
+      } else {
+        for (const key of rule.scope) {
+          const existing = this.ruleIndex.get(key);
+          if (existing) {
+            existing.push(rule);
+          } else {
+            this.ruleIndex.set(key, [rule]);
+          }
+        }
+      }
+      if (rule.conditions) {
+        for (const condition of rule.conditions) {
+          if (condition.startsWith("type:") || condition.startsWith("impact:")) {
+            const existing = this.conditionIndex.get(condition);
+            if (existing) {
+              existing.push(rule);
+            } else {
+              this.conditionIndex.set(condition, [rule]);
+            }
+          }
+        }
+      }
+      if (rule.conditions && (rule.action === "block" || rule.action === "escalate")) {
+        for (const condition of rule.conditions) {
+          if (condition.startsWith("day:") || condition.startsWith("hours:")) {
+            this.timeRestrictedRules.push(rule);
+            break;
+          }
+          if (condition.startsWith("dependency:")) {
+            this.dependencyRules.push(rule);
+            break;
+          }
+        }
+      }
+    }
+  }
+  getCandidateRules(context) {
+    const seen = /* @__PURE__ */ new Set();
+    const candidates = [];
+    for (const rule of this.rulesWithoutScope) {
+      candidates.push(rule);
+      seen.add(rule);
+    }
+    const scopeKeys = [context.targetType, context.action];
+    for (const key of scopeKeys) {
+      const indexed = this.ruleIndex.get(key);
+      if (indexed) {
+        for (const rule of indexed) {
+          if (!seen.has(rule)) {
+            candidates.push(rule);
+            seen.add(rule);
+          }
+        }
+      }
+    }
+    const conditionKeys = [`type:${context.targetType}`, `impact:${context.impact}`];
+    for (const key of conditionKeys) {
+      const indexed = this.conditionIndex.get(key);
+      if (indexed) {
+        for (const rule of indexed) {
+          if (!seen.has(rule)) {
+            candidates.push(rule);
+            seen.add(rule);
+          }
+        }
+      }
+    }
+    return candidates;
   }
   /**
    * Avalia se um agente pode executar uma ação
@@ -4425,7 +4832,8 @@ var GovernanceEngine = class _GovernanceEngine {
     return impactMap[context.impact] ?? 1;
   }
   checkRules(context) {
-    for (const rule of this.rules) {
+    const candidates = this.getCandidateRules(context);
+    for (const rule of candidates) {
       if (this.ruleApplies(rule, context)) {
         if (rule.action === "block") {
           return {
@@ -4459,6 +4867,12 @@ var GovernanceEngine = class _GovernanceEngine {
     }
     if (rule.conditions && rule.conditions.length > 0) {
       for (const condition of rule.conditions) {
+        if (condition.startsWith("type:") || condition.startsWith("impact:")) {
+          if (condition === `type:${context.targetType}` || condition === `impact:${context.impact}`) {
+            return true;
+          }
+          continue;
+        }
         if (condition.includes(context.impact) || condition.includes(context.targetType)) {
           return true;
         }
@@ -4624,9 +5038,8 @@ var GovernanceEngine = class _GovernanceEngine {
     const now = context.currentTime ?? /* @__PURE__ */ new Date();
     const currentDay = now.getDay();
     const currentHour = now.getHours();
-    for (const rule of this.rules) {
+    for (const rule of this.timeRestrictedRules) {
       if (!rule.conditions || rule.conditions.length === 0) continue;
-      if (rule.action !== "block" && rule.action !== "escalate") continue;
       for (const condition of rule.conditions) {
         if (condition.startsWith("day:")) {
           const dayName = condition.slice(4).toLowerCase().trim();
@@ -4685,9 +5098,8 @@ var GovernanceEngine = class _GovernanceEngine {
     if (!context.targetDependency) {
       return { allowed: true, reason: "No dependency change detected", escalationRequired: false };
     }
-    for (const rule of this.rules) {
+    for (const rule of this.dependencyRules) {
       if (!rule.conditions || rule.conditions.length === 0) continue;
-      if (rule.action !== "block" && rule.action !== "escalate") continue;
       for (const condition of rule.conditions) {
         if (condition.startsWith("dependency:")) {
           const allowedList = condition.slice(11).split(",").map((d) => d.trim()).filter(Boolean);
@@ -4764,11 +5176,8 @@ var GovernanceEngine = class _GovernanceEngine {
       } else if (ch === "?") {
         regexStr += "[^/]";
         i += 1;
-      } else if (ch === ".") {
-        regexStr += "\\.";
-        i += 1;
       } else {
-        regexStr += ch;
+        regexStr += ch.replace(/[.+^${}()|[\]\\]/g, "\\$&");
         i += 1;
       }
     }
@@ -4788,7 +5197,7 @@ var GovernanceEngine = class _GovernanceEngine {
    * Lista todas as regras que se aplicam a um contexto
    */
   getApplicableRules(context) {
-    return this.rules.filter((rule) => this.ruleApplies(rule, context));
+    return this.getCandidateRules(context).filter((rule) => this.ruleApplies(rule, context));
   }
   /**
    * Resumo das regras de governança
@@ -4808,8 +5217,8 @@ var GovernanceEngine = class _GovernanceEngine {
 };
 
 // src/engines/learning/learning-engine.ts
-var import_node_crypto6 = require("crypto");
-var import_promises = require("fs/promises");
+var import_node_crypto7 = require("crypto");
+var import_promises2 = require("fs/promises");
 var LearningEngine = class {
   events = [];
   insights = [];
@@ -4821,7 +5230,7 @@ var LearningEngine = class {
   }
   record(event) {
     const enriched = {
-      id: (0, import_node_crypto6.randomUUID)(),
+      id: (0, import_node_crypto7.randomUUID)(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       ...event
     };
@@ -4940,7 +5349,7 @@ var LearningEngine = class {
   }
   generateReport() {
     return {
-      id: (0, import_node_crypto6.randomUUID)(),
+      id: (0, import_node_crypto7.randomUUID)(),
       totalEvents: this.events.length,
       insights: this.insights,
       appliedCount: this.events.filter((e) => e.applied).length,
@@ -4957,12 +5366,12 @@ var LearningEngine = class {
       events: this.events,
       insights: this.insights
     };
-    await (0, import_promises.writeFile)(target, JSON.stringify(state, null, 2), "utf-8");
+    await (0, import_promises2.writeFile)(target, JSON.stringify(state, null, 2), "utf-8");
   }
   async load(path) {
     const target = path ?? this.persistPath;
     if (!target) throw new Error("No load path configured");
-    const raw = await (0, import_promises.readFile)(target, "utf-8");
+    const raw = await (0, import_promises2.readFile)(target, "utf-8");
     const state = JSON.parse(raw);
     this.events = state.events ?? [];
     this.insights = state.insights ?? [];
@@ -5340,8 +5749,22 @@ var LearningEngine = class {
 };
 
 // src/engines/mission/mission-engine.ts
-var import_node_crypto7 = require("crypto");
+var import_node_crypto8 = require("crypto");
 var import_schemas3 = require("@behavioros/schemas");
+var VALID_TRANSITIONS = {
+  draft: ["queued", "cancelled"],
+  queued: ["planning", "executing", "cancelled"],
+  planning: ["executing", "cancelled"],
+  executing: ["review", "blocked", "completed", "failed", "cancelled"],
+  review: ["completed", "failed", "executing", "cancelled"],
+  blocked: ["executing", "cancelled"],
+  completed: [],
+  failed: ["queued", "cancelled"],
+  cancelled: []
+};
+function isValidTransition(from, to) {
+  return VALID_TRANSITIONS[from]?.includes(to) ?? false;
+}
 var MissionEngine = class {
   missions = /* @__PURE__ */ new Map();
   plans = /* @__PURE__ */ new Map();
@@ -5351,7 +5774,7 @@ var MissionEngine = class {
    */
   decompose(mission, subMissions) {
     const plan = {
-      id: (0, import_node_crypto7.randomUUID)(),
+      id: (0, import_node_crypto8.randomUUID)(),
       rootMission: mission.id,
       subMissions: [],
       dependencies: [],
@@ -5360,7 +5783,7 @@ var MissionEngine = class {
     };
     for (const sub of subMissions) {
       const subMission = import_schemas3.MissionSchema.parse({
-        id: (0, import_node_crypto7.randomUUID)(),
+        id: (0, import_node_crypto8.randomUUID)(),
         title: sub.title ?? `Sub-task of ${mission.title}`,
         description: sub.description,
         type: sub.type ?? mission.type,
@@ -5380,13 +5803,20 @@ var MissionEngine = class {
   updateProgress(missionId, updates) {
     const existing = this.progress.get(missionId) ?? {
       missionId,
-      status: "executing",
+      status: "queued",
       progress: 0,
       subTasks: 0,
       completedSubTasks: 0,
       blockers: [],
       lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
     };
+    if (updates.status && updates.status !== existing.status) {
+      if (!isValidTransition(existing.status, updates.status)) {
+        throw new Error(
+          `Invalid mission transition: ${existing.status} \u2192 ${updates.status}. Valid transitions: ${VALID_TRANSITIONS[existing.status]?.join(", ") ?? "none"}`
+        );
+      }
+    }
     const updated = { ...existing, ...updates, lastUpdated: (/* @__PURE__ */ new Date()).toISOString() };
     this.progress.set(missionId, updated);
     return updated;
@@ -5427,10 +5857,124 @@ var MissionEngine = class {
   }
 };
 
+// src/engines/mission-manager.ts
+var import_node_crypto9 = require("crypto");
+var import_schemas4 = require("@behavioros/schemas");
+var MissionManager = class {
+  missions = /* @__PURE__ */ new Map();
+  emitter;
+  auditFn;
+  constructor(emitter, auditFn) {
+    this.emitter = emitter;
+    this.auditFn = auditFn;
+  }
+  async create(input) {
+    const mission = import_schemas4.MissionSchema.parse({
+      id: (0, import_node_crypto9.randomUUID)(),
+      title: input.title,
+      description: input.description,
+      type: input.type,
+      priority: input.priority ?? "medium",
+      status: "draft",
+      context: input.context ?? {}
+    });
+    this.missions.set(mission.id, mission);
+    this.emitter.emit("mission:created", mission);
+    this.auditFn("mission:created", "info", "pass", `Mission created: ${mission.title}`, {
+      missionId: mission.id
+    });
+    return mission;
+  }
+  async start(missionId, agents) {
+    const mission = this.missions.get(missionId);
+    if (!mission) throw new Error(`Mission not found: ${missionId}`);
+    const updated = {
+      ...mission,
+      status: "executing",
+      startedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    this.missions.set(missionId, updated);
+    const assignedAgents = this.selectAgents(agents);
+    for (const agent of assignedAgents) {
+      agent.status = "working";
+      agent.currentMission = missionId;
+      this.emitter.emit("agent:assigned", agent, updated);
+    }
+    this.emitter.emit("mission:started", updated);
+    this.auditFn("mission:started", "info", "pass", `Mission started: ${updated.title}`, {
+      missionId
+    });
+    return updated;
+  }
+  async complete(missionId, agents, output) {
+    const mission = this.missions.get(missionId);
+    if (!mission) throw new Error(`Mission not found: ${missionId}`);
+    const updated = {
+      ...mission,
+      status: "completed",
+      completedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      output
+    };
+    this.missions.set(missionId, updated);
+    for (const agent of agents.values()) {
+      if (agent.currentMission === missionId) {
+        agent.status = "idle";
+        agent.currentMission = void 0;
+        agent.completedMissions.push(missionId);
+        agent.reputation = Math.min(100, agent.reputation + 2);
+      }
+    }
+    this.emitter.emit("mission:completed", updated);
+    this.auditFn("mission:completed", "info", "pass", `Mission completed: ${updated.title}`, {
+      missionId
+    });
+    return updated;
+  }
+  async fail(missionId, agents, error) {
+    const mission = this.missions.get(missionId);
+    if (!mission) throw new Error(`Mission not found: ${missionId}`);
+    const updated = {
+      ...mission,
+      status: "failed",
+      completedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    this.missions.set(missionId, updated);
+    for (const agent of agents.values()) {
+      if (agent.currentMission === missionId) {
+        agent.status = "idle";
+        agent.currentMission = void 0;
+        agent.reputation = Math.max(0, agent.reputation - 5);
+      }
+    }
+    this.emitter.emit("mission:failed", updated, error);
+    this.auditFn(
+      "mission:failed",
+      "error",
+      "fail",
+      `Mission failed: ${updated.title} \u2014 ${error.message}`,
+      { missionId }
+    );
+    return updated;
+  }
+  get(id) {
+    return this.missions.get(id);
+  }
+  getAll() {
+    return Array.from(this.missions.values());
+  }
+  getByStatus(status) {
+    return Array.from(this.missions.values()).filter((m) => m.status === status);
+  }
+  selectAgents(agents) {
+    const available = Array.from(agents.values()).filter((a) => a.status === "idle");
+    return available.sort((a, b) => b.reputation - a.reputation).slice(0, Math.min(3, available.length));
+  }
+};
+
 // src/engines/quality/quality-engine.ts
 var import_node_child_process3 = require("child_process");
-var import_node_crypto8 = require("crypto");
-var import_node_fs6 = require("fs");
+var import_node_crypto10 = require("crypto");
+var import_node_fs5 = require("fs");
 function runCommand2(cmd, cwd, timeout = 12e4) {
   try {
     const stdout = (0, import_node_child_process3.execSync)(cmd, {
@@ -5450,8 +5994,8 @@ function runCommand2(cmd, cwd, timeout = 12e4) {
   }
 }
 function detectPackageManager2(projectPath) {
-  if ((0, import_node_fs6.existsSync)(`${projectPath}/pnpm-lock.yaml`)) return "pnpm";
-  if ((0, import_node_fs6.existsSync)(`${projectPath}/yarn.lock`)) return "yarn";
+  if ((0, import_node_fs5.existsSync)(`${projectPath}/pnpm-lock.yaml`)) return "pnpm";
+  if ((0, import_node_fs5.existsSync)(`${projectPath}/yarn.lock`)) return "yarn";
   return "npm";
 }
 var QualityEngine = class {
@@ -5470,7 +6014,7 @@ var QualityEngine = class {
    * Run all quality gates against a real project
    */
   async runAll(projectPath) {
-    const reportId = (0, import_node_crypto8.randomUUID)();
+    const reportId = (0, import_node_crypto10.randomUUID)();
     const start = Date.now();
     const checks = [];
     const metrics = [];
@@ -5772,7 +6316,7 @@ var QualityEngine = class {
       timestamp: (/* @__PURE__ */ new Date()).toISOString()
     }));
     return {
-      id: (0, import_node_crypto8.randomUUID)(),
+      id: (0, import_node_crypto10.randomUUID)(),
       passed: score >= this.minScore && results.every((c) => c.passed),
       score,
       checks: results,
@@ -5783,7 +6327,7 @@ var QualityEngine = class {
   }
   // --- Existing API ---
   evaluate(metrics) {
-    const reportId = (0, import_node_crypto8.randomUUID)();
+    const reportId = (0, import_node_crypto10.randomUUID)();
     const start = Date.now();
     const checks = [];
     for (const gate of this.gates) {
@@ -5891,12 +6435,13 @@ var QualityEngine = class {
 // src/engines/core-engine.ts
 var BehaviorOSEngine = class extends import_eventemitter35.default {
   dna;
-  missions = /* @__PURE__ */ new Map();
-  agents = /* @__PURE__ */ new Map();
   auditLog = [];
   qualityMetrics = [];
   config;
-  // Real engine instances — public for advanced usage
+  // Extracted managers
+  missionManager;
+  agentManager;
+  // Sub-engines — public for advanced usage
   governanceEngine;
   qualityEngine;
   learningEngine;
@@ -5916,144 +6461,36 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
     });
     this.missionEngine = new MissionEngine();
     this.auditEngine = new AuditEngine();
-    this.initializeAgents();
+    this.agentManager = new AgentManager(this.dna);
+    this.missionManager = new MissionManager(this, this.auditEvent.bind(this));
   }
-  initializeAgents() {
-    for (const persona of this.dna.personas) {
-      const agent = {
-        id: `agent-${persona.role}-${(0, import_node_crypto9.randomUUID)().slice(0, 8)}`,
-        role: persona.role,
-        status: "idle",
-        authority: persona.authority,
-        completedMissions: [],
-        reputation: 50
-      };
-      this.agents.set(agent.id, agent);
-    }
-    if (this.dna.agent_mapping) {
-      for (const mapping of Object.values(this.dna.agent_mapping)) {
-        for (const agentName of mapping.opencode_agents) {
-          if (this.agents.has(agentName)) continue;
-          const agent = {
-            id: agentName,
-            role: mapping.role,
-            status: "idle",
-            authority: mapping.authority,
-            completedMissions: [],
-            reputation: 50
-          };
-          this.agents.set(agent.id, agent);
-        }
-      }
-    }
-  }
-  // ─── Mission Management ────────────────────────────────────
+  // ─── Mission Management (delegates to MissionManager) ─────
   async createMission(input) {
-    const mission = import_schemas4.MissionSchema.parse({
-      id: (0, import_node_crypto9.randomUUID)(),
-      title: input.title,
-      description: input.description,
-      type: input.type,
-      priority: input.priority ?? "medium",
-      status: "draft",
-      context: input.context ?? {}
-    });
-    this.missions.set(mission.id, mission);
-    this.emit("mission:created", mission);
-    this.auditEvent("mission:created", "info", "pass", `Mission created: ${mission.title}`, {
-      missionId: mission.id
-    });
-    return mission;
+    return this.missionManager.create(input);
   }
   async startMission(missionId) {
-    const mission = this.missions.get(missionId);
-    if (!mission) throw new Error(`Mission not found: ${missionId}`);
-    const updated = {
-      ...mission,
-      status: "executing",
-      startedAt: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    this.missions.set(missionId, updated);
-    const assignedAgents = this.selectAgents(updated);
-    for (const agent of assignedAgents) {
-      agent.status = "working";
-      agent.currentMission = missionId;
-      this.emit("agent:assigned", agent, updated);
-    }
-    this.emit("mission:started", updated);
-    this.auditEvent("mission:started", "info", "pass", `Mission started: ${updated.title}`, {
-      missionId
-    });
-    return updated;
+    return this.missionManager.start(missionId, this.agentManager.getRawMap());
   }
   async completeMission(missionId, output) {
-    const mission = this.missions.get(missionId);
-    if (!mission) throw new Error(`Mission not found: ${missionId}`);
-    const updated = {
-      ...mission,
-      status: "completed",
-      completedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      output
-    };
-    this.missions.set(missionId, updated);
-    for (const agent of this.agents.values()) {
-      if (agent.currentMission === missionId) {
-        agent.status = "idle";
-        agent.currentMission = void 0;
-        agent.completedMissions.push(missionId);
-        agent.reputation = Math.min(100, agent.reputation + 2);
-      }
-    }
-    this.emit("mission:completed", updated);
-    this.auditEvent("mission:completed", "info", "pass", `Mission completed: ${updated.title}`, {
-      missionId
-    });
-    return updated;
+    return this.missionManager.complete(missionId, this.agentManager.getRawMap(), output);
   }
   async failMission(missionId, error) {
-    const mission = this.missions.get(missionId);
-    if (!mission) throw new Error(`Mission not found: ${missionId}`);
-    const updated = {
-      ...mission,
-      status: "failed",
-      completedAt: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    this.missions.set(missionId, updated);
-    for (const agent of this.agents.values()) {
-      if (agent.currentMission === missionId) {
-        agent.status = "idle";
-        agent.currentMission = void 0;
-        agent.reputation = Math.max(0, agent.reputation - 5);
-      }
-    }
-    this.emit("mission:failed", updated, error);
-    this.auditEvent(
-      "mission:failed",
-      "error",
-      "fail",
-      `Mission failed: ${updated.title} \u2014 ${error.message}`,
-      { missionId }
-    );
-    return updated;
+    return this.missionManager.fail(missionId, this.agentManager.getRawMap(), error);
   }
-  selectAgents(_mission) {
-    const available = Array.from(this.agents.values()).filter((a) => a.status === "idle");
-    return available.sort((a, b) => b.reputation - a.reputation).slice(0, Math.min(3, available.length));
-  }
-  // ─── Agent Management ──────────────────────────────────────
+  // ─── Agent Management (delegates to AgentManager) ─────────
   getAgent(id) {
-    return this.agents.get(id);
+    return this.agentManager.get(id);
   }
   getAgentByOpenCodeName(name) {
-    return Array.from(this.agents.values()).find((a) => a.id === name);
+    return this.agentManager.getByOpenCodeName(name);
   }
   getAllAgents() {
-    return Array.from(this.agents.values());
+    return this.agentManager.getAll();
   }
   getAgentsByRole(role) {
-    return Array.from(this.agents.values()).filter((a) => a.role === role);
+    return this.agentManager.getByRole(role);
   }
-  // ─── Governance (delegates to real GovernanceEngine) ──────
+  // ─── Governance (delegates to GovernanceEngine) ──────────
   async evaluateGovernance(action, context) {
     if (!this.config.governance?.enabled)
       return {
@@ -6115,7 +6552,7 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
     }
     return "medium";
   }
-  // ─── Quality (delegates to real QualityEngine) ────────────
+  // ─── Quality (delegates to QualityEngine) ────────────────
   async evaluateQuality(metrics) {
     if (!this.config.quality?.enabled)
       return { passed: true, failedGates: [], metrics };
@@ -6133,7 +6570,7 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
     }
     return { passed: report.passed, failedGates, metrics: report.metrics };
   }
-  // ─── Learning (delegates to real LearningEngine) ──────────
+  // ─── Learning (delegates to LearningEngine) ──────────────
   async recordLearning(event) {
     const enriched = this.learningEngine.record(event);
     this.emit("learning:event", enriched);
@@ -6142,7 +6579,7 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
   getLearningEvents() {
     return this.learningEngine.getEvents();
   }
-  // ─── Audit (delegates to real AuditEngine) ────────────────
+  // ─── Audit (delegates to AuditEngine) ────────────────────
   async runAudit(projectPath, stages) {
     return this.auditEngine.execute({ projectPath }, stages);
   }
@@ -6152,7 +6589,7 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
   // ─── Internal Audit Log ───────────────────────────────────
   auditEvent(type, severity, result, description, details) {
     const event = {
-      id: (0, import_node_crypto9.randomUUID)(),
+      id: (0, import_node_crypto11.randomUUID)(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       type,
       severity,
@@ -6169,13 +6606,13 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
   }
   // ─── Query Methods ────────────────────────────────────────
   getMission(id) {
-    return this.missions.get(id);
+    return this.missionManager.get(id);
   }
   getAllMissions() {
-    return Array.from(this.missions.values());
+    return this.missionManager.getAll();
   }
   getMissionsByStatus(status) {
-    return Array.from(this.missions.values()).filter((m) => m.status === status);
+    return this.missionManager.getByStatus(status);
   }
   getPatternsByType(type) {
     return (this.dna.patterns ?? []).filter((p) => p.type === type);
@@ -6198,9 +6635,10 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
   // ─── Stats ────────────────────────────────────────────────
   getStats() {
     const missions = {};
-    for (const m of this.missions.values()) missions[m.status] = (missions[m.status] || 0) + 1;
+    for (const m of this.missionManager.getAll())
+      missions[m.status] = (missions[m.status] || 0) + 1;
     const agents = {};
-    for (const a of this.agents.values()) agents[a.status] = (agents[a.status] || 0) + 1;
+    for (const a of this.agentManager.getAll()) agents[a.status] = (agents[a.status] || 0) + 1;
     return {
       missions,
       agents,
@@ -6397,7 +6835,7 @@ var DecisionEngine = class {
 };
 
 // src/engines/pipeline/pipeline-engine.ts
-var import_node_crypto10 = require("crypto");
+var import_node_crypto12 = require("crypto");
 var import_schemas5 = require("@behavioros/schemas");
 var import_eventemitter36 = __toESM(require("eventemitter3"));
 var PipelineEngine = class extends import_eventemitter36.default {
@@ -6676,7 +7114,7 @@ var PipelineEngine = class extends import_eventemitter36.default {
   }
   createInitialState() {
     return {
-      id: (0, import_node_crypto10.randomUUID)(),
+      id: (0, import_node_crypto12.randomUUID)(),
       dnaId: this.dna.id,
       status: "created",
       currentLayer: this.options.startLayer ?? 1,
@@ -6893,17 +7331,152 @@ var PipelineEngine = class extends import_eventemitter36.default {
   }
 };
 
-// src/persistence/sqlite-store.ts
-var import_node_crypto11 = require("crypto");
-var import_node_fs7 = require("fs");
+// src/persistence/sqlite-audit-store.ts
+var import_node_crypto13 = require("crypto");
+var import_node_fs6 = require("fs");
 var import_node_path5 = require("path");
+var SQLiteAuditStore = class {
+  entries = [];
+  maxEntries;
+  dbPath;
+  enableHMAC;
+  hmacKey;
+  constructor(config) {
+    this.dbPath = config.dbPath;
+    this.maxEntries = config.maxEntries ?? 1e5;
+    this.enableHMAC = config.enableHMAC ?? false;
+    this.hmacKey = config.hmacKey;
+    const dir = (0, import_node_path5.dirname)(config.dbPath);
+    if (!(0, import_node_fs6.existsSync)(dir)) {
+      (0, import_node_fs6.mkdirSync)(dir, { recursive: true });
+    }
+    this.load();
+  }
+  /**
+   * Append a new entry to the audit trail
+   */
+  append(entry) {
+    const previousHash = this.entries.length > 0 ? this.entries[this.entries.length - 1].hash : "0".repeat(64);
+    const hash = this.computeHash({
+      ...entry,
+      previousHash
+    });
+    const fullEntry = {
+      ...entry,
+      previousHash,
+      hash
+    };
+    this.entries.push(fullEntry);
+    if (this.entries.length > this.maxEntries) {
+      this.entries = this.entries.slice(-this.maxEntries);
+    }
+    this.save();
+    return fullEntry;
+  }
+  /**
+   * Verify the integrity of the hash chain
+   */
+  verifyChain() {
+    if (this.entries.length === 0) {
+      return { valid: true, totalEntries: 0, verifiedEntries: 0 };
+    }
+    let brokenAt;
+    const tamperedAt = [];
+    for (let i = 0; i < this.entries.length; i++) {
+      const entry = this.entries[i];
+      if (i > 0) {
+        const expectedPrevious = this.entries[i - 1].hash;
+        if (entry.previousHash !== expectedPrevious) {
+          brokenAt = i;
+          break;
+        }
+      }
+      const expectedHash = this.computeHash({
+        id: entry.id,
+        timestamp: entry.timestamp,
+        previousHash: entry.previousHash,
+        agentId: entry.agentId,
+        missionId: entry.missionId,
+        action: entry.action,
+        payload: entry.payload,
+        metadata: entry.metadata
+      });
+      if (entry.hash !== expectedHash) {
+        tamperedAt.push(i);
+      }
+    }
+    return {
+      valid: brokenAt === void 0 && tamperedAt.length === 0,
+      totalEntries: this.entries.length,
+      verifiedEntries: this.entries.length - tamperedAt.length,
+      brokenAt,
+      tamperedAt: tamperedAt.length > 0 ? tamperedAt : void 0
+    };
+  }
+  /**
+   * Get all entries (for export or inspection)
+   */
+  getEntries() {
+    return [...this.entries];
+  }
+  /**
+   * Get entries by agent ID
+   */
+  getByAgent(agentId) {
+    return this.entries.filter((e) => e.agentId === agentId);
+  }
+  /**
+   * Get entries by mission ID
+   */
+  getByMission(missionId) {
+    return this.entries.filter((e) => e.missionId === missionId);
+  }
+  /**
+   * Get entry count
+   */
+  count() {
+    return this.entries.length;
+  }
+  computeHash(data) {
+    const canonical = JSON.stringify(data, Object.keys(data).sort());
+    let hash = (0, import_node_crypto13.createHash)("sha256").update(canonical).digest("hex");
+    if (this.enableHMAC && this.hmacKey) {
+      const { createHmac } = require("crypto");
+      hash = createHmac("sha256", this.hmacKey).update(canonical).digest("hex");
+    }
+    return hash;
+  }
+  save() {
+    try {
+      const { writeFileSync: writeFileSync4 } = require("fs");
+      writeFileSync4(this.dbPath, JSON.stringify(this.entries, null, 2));
+    } catch {
+    }
+  }
+  load() {
+    try {
+      const { readFileSync: readFileSync6 } = require("fs");
+      if ((0, import_node_fs6.existsSync)(this.dbPath)) {
+        const data = readFileSync6(this.dbPath, "utf-8");
+        this.entries = JSON.parse(data);
+      }
+    } catch {
+      this.entries = [];
+    }
+  }
+};
+
+// src/persistence/sqlite-store.ts
+var import_node_crypto14 = require("crypto");
+var import_node_fs7 = require("fs");
+var import_node_path6 = require("path");
 var import_better_sqlite3 = __toESM(require("better-sqlite3"));
 var SQLiteStore = class {
   db;
   constructor(config = {}) {
     const dbPath = config.dbPath ?? "./.behavioros/data/behavioros.db";
     if (!config.memory) {
-      const dir = (0, import_node_path5.dirname)(dbPath);
+      const dir = (0, import_node_path6.dirname)(dbPath);
       if (!(0, import_node_fs7.existsSync)(dir)) {
         (0, import_node_fs7.mkdirSync)(dir, { recursive: true });
       }
@@ -6911,6 +7484,10 @@ var SQLiteStore = class {
     this.db = config.memory ? new import_better_sqlite3.default(":memory:") : new import_better_sqlite3.default(dbPath);
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("foreign_keys = ON");
+    const integrity = this.db.pragma("integrity_check");
+    if (integrity[0]?.integrity_check !== "ok") {
+      throw new Error("SQLite integrity check failed \u2014 database may be corrupted");
+    }
     this.initialize();
   }
   initialize() {
@@ -7068,7 +7645,7 @@ var SQLiteStore = class {
   }
   // --- Quality Metrics ---
   saveQualityMetric(metric) {
-    const id = (0, import_node_crypto11.randomUUID)();
+    const id = (0, import_node_crypto14.randomUUID)();
     this.db.prepare(
       `INSERT INTO quality_metrics (id, name, value, data, timestamp)
          VALUES (?, ?, ?, ?, ?)`
@@ -7204,7 +7781,14 @@ var SQLiteStore = class {
   vacuum() {
     this.db.exec("VACUUM");
   }
-  clearAll() {
+  periodicIntegrityCheck() {
+    const result = this.db.pragma("integrity_check");
+    return result[0]?.integrity_check === "ok";
+  }
+  clearAll(authorized = false) {
+    if (!authorized) {
+      throw new Error("clearAll() requires explicit authorization");
+    }
     this.db.exec(`
       DELETE FROM missions;
       DELETE FROM agents;
@@ -7217,6 +7801,12 @@ var SQLiteStore = class {
       DELETE FROM decision_history;
       DELETE FROM kv_store;
     `);
+  }
+  confirmClearAll(confirmationToken) {
+    if (confirmationToken !== "CONFIRM_CLEAR_ALL") {
+      throw new Error("Invalid confirmation token for clearAll()");
+    }
+    this.clearAll(true);
   }
 };
 
@@ -7284,8 +7874,67 @@ var TimeoutInterceptor = class {
   }
 };
 
+// src/pipeline/layers/delegation-enforcement.layer.ts
+var DelegationEnforcementLayer = class {
+  id = "delegation-enforcement";
+  name = "Delegation Enforcement";
+  order = 0;
+  async execute(context) {
+    const start = Date.now();
+    const agentRole = context.agentId.split("-")[0];
+    if (agentRole !== "orchestrator") {
+      return {
+        layerId: this.id,
+        layerName: this.name,
+        passed: true,
+        score: 100,
+        duration: Date.now() - start,
+        details: { skipped: true, reason: "Not an orchestrator agent" }
+      };
+    }
+    const hasMission = context.metadata.get("missionId") !== void 0;
+    const hasDNA = context.metadata.get("dnaPattern") !== void 0;
+    const hasDelegation = context.metadata.get("delegatedTo") !== void 0;
+    if (!hasMission || !hasDNA || !hasDelegation) {
+      return {
+        layerId: this.id,
+        layerName: this.name,
+        passed: false,
+        score: 0,
+        duration: Date.now() - start,
+        details: {
+          blocked: true,
+          reason: "Orchestrator attempted direct execution without delegation",
+          missing: {
+            missionId: !hasMission,
+            dnaPattern: !hasDNA,
+            delegatedTo: !hasDelegation
+          },
+          requiredActions: [
+            "Run bos_select_dna to select DNA pattern",
+            "Run bos_resolve_truth to get truth sources",
+            "Create mission via create-mission",
+            "Delegate via Task tool to appropriate subagent"
+          ]
+        }
+      };
+    }
+    return {
+      layerId: this.id,
+      layerName: this.name,
+      passed: true,
+      score: 100,
+      duration: Date.now() - start,
+      details: { delegationVerified: true }
+    };
+  }
+  shouldExecute(_context) {
+    return true;
+  }
+};
+
 // src/pipeline/mode/conversational.adapter.ts
-var SKIPPED_LAYERS = ["domain-invariants", "governance", "decision", "audit-trail"];
+var SKIPPED_LAYERS = ["domain-invariants", "decision"];
 function shouldSkipForConversational(layerId) {
   return SKIPPED_LAYERS.includes(layerId);
 }
@@ -7304,6 +7953,135 @@ function createDispatcherContext(input) {
     currentLayerIndex: 0,
     failed: false
   };
+}
+
+// src/pipeline/telemetry/metrics.ts
+var MetricsCollector = class {
+  metrics = {
+    executions: 0,
+    successes: 0,
+    failures: 0,
+    avgLatency: 0,
+    p99Latency: 0,
+    layerMetrics: /* @__PURE__ */ new Map()
+  };
+  latencies = [];
+  recordExecution(duration, success, layerTimings) {
+    this.metrics.executions++;
+    if (success) this.metrics.successes++;
+    else this.metrics.failures++;
+    this.latencies.push(duration);
+    this.updateLatencies();
+    for (const [layerId, layerDuration] of layerTimings) {
+      const existing = this.metrics.layerMetrics.get(layerId) || {
+        count: 0,
+        avgLatency: 0,
+        errors: 0
+      };
+      existing.count++;
+      existing.avgLatency = (existing.avgLatency * (existing.count - 1) + layerDuration) / existing.count;
+      if (!success) existing.errors++;
+      this.metrics.layerMetrics.set(layerId, existing);
+    }
+  }
+  getMetrics() {
+    return {
+      ...this.metrics,
+      layerMetrics: new Map(this.metrics.layerMetrics)
+    };
+  }
+  reset() {
+    this.metrics = {
+      executions: 0,
+      successes: 0,
+      failures: 0,
+      avgLatency: 0,
+      p99Latency: 0,
+      layerMetrics: /* @__PURE__ */ new Map()
+    };
+    this.latencies = [];
+  }
+  updateLatencies() {
+    if (this.latencies.length === 0) return;
+    const sum = this.latencies.reduce((a, b) => a + b, 0);
+    this.metrics.avgLatency = sum / this.latencies.length;
+    const sorted = [...this.latencies].sort((a, b) => a - b);
+    const p99Index = Math.ceil(sorted.length * 0.99) - 1;
+    this.metrics.p99Latency = sorted[Math.max(0, p99Index)];
+  }
+};
+
+// src/pipeline/telemetry/tracing.ts
+var NoopSpan = class {
+  ended = false;
+  setAttribute(_key, _value) {
+  }
+  setStatus(_code, _message) {
+  }
+  end() {
+    this.ended = true;
+  }
+};
+var ConsoleSpan = class extends NoopSpan {
+  constructor(name) {
+    super();
+    this.name = name;
+    this.startTime = performance.now();
+  }
+  name;
+  attrs = {};
+  status = "UNSET" /* UNSET */;
+  statusMessage;
+  startTime;
+  setAttribute(key, value) {
+    this.attrs[key] = value;
+  }
+  setStatus(code, message) {
+    this.status = code;
+    this.statusMessage = message;
+  }
+  end() {
+    const duration = (performance.now() - this.startTime).toFixed(2);
+    console.debug(
+      `[trace] ${this.name} | ${this.status} | ${duration}ms`,
+      Object.keys(this.attrs).length > 0 ? this.attrs : ""
+    );
+    super.end();
+  }
+};
+var Tracer = class {
+  startSpan(name) {
+    if (process.env.BEHAVIOROS_TELEMETRY === "console") {
+      return new ConsoleSpan(name);
+    }
+    return new NoopSpan();
+  }
+};
+var _tracer;
+function getTracer() {
+  if (!_tracer) {
+    _tracer = new Tracer();
+  }
+  return _tracer;
+}
+
+// src/pipeline/telemetry/pipeline-tracer.ts
+async function traceLayer(layerName, pipelineId, layerIndex, fn) {
+  const tracer = getTracer();
+  const span = tracer.startSpan(`pipeline.layer.${layerName}`);
+  span.setAttribute("pipeline.id", pipelineId);
+  span.setAttribute("layer.name", layerName);
+  span.setAttribute("layer.index", layerIndex);
+  try {
+    const result = await fn();
+    span.setStatus("OK" /* OK */);
+    return result;
+  } catch (err) {
+    span.setStatus("ERROR" /* ERROR */, err instanceof Error ? err.message : String(err));
+    throw err;
+  } finally {
+    span.end();
+  }
 }
 
 // src/pipeline/pipeline-dispatcher.ts
@@ -7336,7 +8114,12 @@ var PipelineDispatcher = class {
       if (context.failed && i >= 4 && i < 7) {
         continue;
       }
-      const result = await this.executeWithInterceptors(context, layer);
+      const result = await traceLayer(
+        layer.name,
+        context.id,
+        i,
+        () => this.executeWithInterceptors(context, layer)
+      );
       context.layerResults.push(result);
       if (!result.passed && i < 4) {
         context.failed = true;
@@ -7359,12 +8142,13 @@ var PipelineDispatcher = class {
 };
 
 // src/resilience/agent-isolation/forensic-collector.ts
+var import_node_crypto15 = require("crypto");
 var import_eventemitter37 = __toESM(require("eventemitter3"));
 var ForensicCollector = class {
   config;
   entries = [];
   emitter = new import_eventemitter37.default();
-  lastHash = "0000000000000000";
+  lastHash = "0".repeat(64);
   flushTimer = null;
   constructor(config) {
     this.config = {
@@ -7490,7 +8274,7 @@ var ForensicCollector = class {
   verifyChain(entries) {
     const chain = entries ?? this.entries;
     if (chain.length === 0) return true;
-    let previousHash = "0000000000000000";
+    let previousHash = "0".repeat(64);
     for (const entry of chain) {
       if (entry.previousHash !== previousHash) {
         return false;
@@ -7545,7 +8329,7 @@ var ForensicCollector = class {
   }
   reset() {
     this.entries = [];
-    this.lastHash = "0000000000000000";
+    this.lastHash = "0".repeat(64);
     this.stopPeriodicFlush();
   }
   on(event, listener) {
@@ -7569,14 +8353,8 @@ var ForensicCollector = class {
     return { headers, body: capturedBody, sizeBytes, truncated };
   }
   computeHash(data, previousHash) {
-    let hash = 0;
     const combined = previousHash + data;
-    for (let i = 0; i < combined.length; i++) {
-      const char = combined.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(16).padStart(12, "0");
+    return (0, import_node_crypto15.createHash)("sha256").update(combined).digest("hex");
   }
   generateId() {
     const timestamp = Date.now().toString(36);
@@ -8461,7 +9239,7 @@ var ShadowEnvironment = class {
 };
 
 // src/sandbox/sandbox-engine.ts
-var import_node_crypto12 = require("crypto");
+var import_node_crypto16 = require("crypto");
 var EXPIRY_DURATION = {
   ephemeral: void 0,
   persistent: 24 * 60 * 60 * 1e3,
@@ -8470,7 +9248,7 @@ var EXPIRY_DURATION = {
 var SandboxEngine = class {
   environments = /* @__PURE__ */ new Map();
   createEnvironment(type, dnaId) {
-    const id = `sandbox-${Date.now()}-${(0, import_node_crypto12.randomUUID)().slice(0, 9)}`;
+    const id = `sandbox-${Date.now()}-${(0, import_node_crypto16.randomUUID)().slice(0, 9)}`;
     const now = Date.now();
     const env = {
       id,
@@ -8545,12 +9323,12 @@ var PromptSimulator = class {
 };
 
 // src/sandbox/simulation/response-collector.ts
-var import_node_crypto13 = require("crypto");
+var import_node_crypto17 = require("crypto");
 var ResponseCollector = class {
   responses = [];
   collect(scenarioId, response, metadata = {}) {
     const collected = {
-      id: `response-${Date.now()}-${(0, import_node_crypto13.randomUUID)().slice(0, 9)}`,
+      id: `response-${Date.now()}-${(0, import_node_crypto17.randomUUID)().slice(0, 9)}`,
       timestamp: Date.now(),
       scenarioId,
       response,
@@ -8574,12 +9352,12 @@ var ResponseCollector = class {
 };
 
 // src/sandbox/simulation/traffic-replay.ts
-var import_node_crypto14 = require("crypto");
+var import_node_crypto18 = require("crypto");
 var TrafficReplay = class {
   captures = [];
   capture(request, response, metadata = {}) {
     const capture = {
-      id: `capture-${Date.now()}-${(0, import_node_crypto14.randomUUID)().slice(0, 9)}`,
+      id: `capture-${Date.now()}-${(0, import_node_crypto18.randomUUID)().slice(0, 9)}`,
       timestamp: Date.now(),
       request,
       response,
@@ -8608,10 +9386,115 @@ var TrafficReplay = class {
     return this.captures.length;
   }
 };
+
+// src/security/authority-verifier.ts
+var import_node_crypto19 = require("crypto");
+var import_node_fs8 = require("fs");
+var import_node_path7 = require("path");
+var AuthorityVerifier = class {
+  privateKey;
+  publicKey;
+  defaultTtlMs;
+  constructor(config) {
+    this.defaultTtlMs = config.defaultTtlMs ?? 36e5;
+    const privateKeyPath = (0, import_node_path7.join)(config.keyDir, "authority-key.pem");
+    const publicKeyPath = (0, import_node_path7.join)(config.keyDir, "authority-key.pub.pem");
+    if ((0, import_node_fs8.existsSync)(privateKeyPath) && (0, import_node_fs8.existsSync)(publicKeyPath)) {
+      this.privateKey = (0, import_node_fs8.readFileSync)(privateKeyPath, "utf-8");
+      this.publicKey = (0, import_node_fs8.readFileSync)(publicKeyPath, "utf-8");
+    } else {
+      const keyPair = (0, import_node_crypto19.generateKeyPairSync)("ed25519");
+      this.privateKey = keyPair.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+      this.publicKey = keyPair.publicKey.export({ type: "spki", format: "pem" }).toString();
+      const dir = config.keyDir;
+      if (!(0, import_node_fs8.existsSync)(dir)) {
+        (0, import_node_fs8.writeFileSync)((0, import_node_path7.join)(dir, ".gitkeep"), "");
+      }
+      (0, import_node_fs8.writeFileSync)(privateKeyPath, this.privateKey);
+      (0, import_node_fs8.writeFileSync)(publicKeyPath, this.publicKey);
+    }
+  }
+  /**
+   * Generate a signed authority token for an agent
+   */
+  generateToken(agentId, level, ttlMs) {
+    const issuedAt = Date.now();
+    const expiresAt = issuedAt + (ttlMs ?? this.defaultTtlMs);
+    const payload = JSON.stringify({ agentId, level, issuedAt, expiresAt });
+    const signature = (0, import_node_crypto19.sign)(null, Buffer.from(payload), this.privateKey).toString("base64");
+    return { agentId, level, issuedAt, expiresAt, signature };
+  }
+  /**
+   * Verify an authority token's signature and expiry
+   */
+  verify(token) {
+    if (Date.now() > token.expiresAt) {
+      return { valid: false, reason: "Token expired" };
+    }
+    const payload = JSON.stringify({
+      agentId: token.agentId,
+      level: token.level,
+      issuedAt: token.issuedAt,
+      expiresAt: token.expiresAt
+    });
+    try {
+      const valid = (0, import_node_crypto19.verify)(
+        null,
+        Buffer.from(payload),
+        this.publicKey,
+        Buffer.from(token.signature, "base64")
+      );
+      return valid ? { valid: true, token } : { valid: false, reason: "Invalid signature" };
+    } catch {
+      return { valid: false, reason: "Verification failed" };
+    }
+  }
+  /**
+   * Get the public key for distribution (e.g., to MCP server)
+   */
+  getPublicKey() {
+    return this.publicKey;
+  }
+};
+
+// src/shared/logger.ts
+var Logger = class {
+  constructor(component) {
+    this.component = component;
+  }
+  component;
+  debug(message, metadata) {
+    this.log("debug", message, metadata);
+  }
+  info(message, metadata) {
+    this.log("info", message, metadata);
+  }
+  warn(message, metadata) {
+    this.log("warn", message, metadata);
+  }
+  error(message, metadata) {
+    this.log("error", message, metadata);
+  }
+  log(level, message, metadata) {
+    const entry = {
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      level,
+      component: this.component,
+      message,
+      metadata
+    };
+    if (process.env.BEHAVIOROS_LOG_FORMAT === "json") {
+      console.log(JSON.stringify(entry));
+    } else {
+      console.log(`[${entry.timestamp}] [${level.toUpperCase()}] [${entry.component}] ${message}`);
+    }
+  }
+};
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   AuditChain,
   AuditEngine,
+  AuthorityVerifier,
   BehaviorCompiler,
   BehaviorOSEngine,
   BehaviorSelector,
@@ -8623,6 +9506,7 @@ var TrafficReplay = class {
   DNALoader,
   DNAValidator,
   DecisionEngine,
+  DelegationEnforcementLayer,
   DnaResolver,
   DomainAgentACL,
   DomainAgentBoundary,
@@ -8638,6 +9522,8 @@ var TrafficReplay = class {
   GovernanceEngine,
   HealthChecker,
   LearningEngine,
+  Logger,
+  MetricsCollector,
   MetricsInterceptor,
   MissionEngine,
   OPAEvaluator,
@@ -8650,6 +9536,7 @@ var TrafficReplay = class {
   QuarantineManager,
   ResponseCollector,
   RollbackManager,
+  SQLiteAuditStore,
   SQLiteStore,
   STAGE_100_CONFIG,
   STAGE_100_THRESHOLDS,
@@ -8667,8 +9554,10 @@ var TrafficReplay = class {
   TrafficReplay,
   TrafficSplitter,
   YAMLToOPACompiler,
+  analyzeIntent,
   bosMatchesGlob,
   createDispatcherContext,
+  sanitizeDNA,
   shouldSkipForConversational,
   shouldSkipForTransactional
 });

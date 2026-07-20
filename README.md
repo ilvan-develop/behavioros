@@ -15,12 +15,12 @@
 </p>
 
 <p align="center">
-  Created by <strong><a href="https://github.com/ilvan-develop">Ilvan Joaquim</a></strong> from Angola
+  Created by <strong><a href="https://github.com/ilvan-develop">Ilvan Joaquim</a></strong> from Angola 🇦🇴
 </p>
 
 ---
 
-BehaviorOS is a behavioral governance framework for AI agent teams. It provides a 9-layer architecture with 7 specialized engines, 4 pre-built DNA patterns, and an MCP server — giving you full control over how autonomous agents make decisions, follow governance rules, and learn from outcomes.
+BehaviorOS is a behavioral governance framework for AI agent teams. It provides a 9-layer architecture with 7 specialized engines, 16 pre-built DNA patterns, and an MCP server — giving you full control over how autonomous agents make decisions, follow governance rules, and learn from outcomes.
 
 ## Quick Start
 
@@ -94,6 +94,17 @@ npx @behavioros/cli status        # Show system status
 └─────────────────────────────────────────────────────────┘
 ```
 
+## Features
+
+- **9-Layer Governance Pipeline** — DNA → Schema → Behavioral → Domain → Governance → Decision → Quality → Audit → Learning
+- **7 Behavioral Engines** — Governance, Decision, Audit, Quality, Learning, Mission, Behavioral
+- **DNA Pattern System** — YAML-based behavioral blueprints for AI agent teams
+- **MCP Server** — 36 tools for direct integration with Claude, Cursor, VS Code, and Windsurf
+- **TypeScript SDK** — Full-featured SDK with `BehaviorOS` class for programmatic access
+- **CLI** — init, compile, validate, status, diff, simulate, deploy, drift-check
+- **16 Pre-built DNA Patterns** — Enterprise, Military, Surgical, Lean Factory, EAARG
+- **EU AI Act Compliance Ready** — Audit trails, governance rules, and documentation built-in
+
 ### 7 Engines
 
 | Engine | Responsibility |
@@ -108,20 +119,18 @@ npx @behavioros/cli status        # Show system status
 
 ## Packages
 
-| Package | Description | Version |
-|---|---|---|
-| `@behavioros/schemas` | Zod v4.4.3 schemas for all BehaviorOS types | 0.1.0 |
-| `@behavioros/core` | 7 behavioral engines (Behavioral, Governance, Decision, Audit, Quality, Learning, Mission) | 0.1.0 |
-| `@behavioros/sdk` | TypeScript SDK with `BehaviorOS` class for high-level integration | 0.1.0 |
-| `@behavioros/cli` | CLI with init, compile, validate, status, and version commands | 0.1.0 |
-| `@behavioros/dnas` | 4 pre-built DNA patterns (Enterprise, Military, Surgical, Lean) | 0.1.0 |
-| `@behavioros/mcp-server` | MCP server with 36 tools and 5 resources | 0.1.0 |
-| `@behavioros/observability-dashboard` | Grafana dashboards, Prometheus rules, and alerting | 0.1.0 |
-| `@behavioros/finpay-integration` | FinPay + Brocolis integration example | 0.1.0 |
+| Package | Description |
+|---|---|
+| `@behavioros/schemas` | Zod schemas for all types |
+| `@behavioros/core` | 7 engines + PipelineDispatcher |
+| `@behavioros/sdk` | TypeScript SDK |
+| `@behavioros/cli` | CLI tools |
+| `@behavioros/dnas` | DNA pattern catalog |
+| `@behavioros/mcp-server` | MCP server (36 tools) |
 
 ## DNA Catalog
 
-BehaviorOS ships with 4 DNA patterns — composable behavioral blueprints for AI agent teams.
+BehaviorOS ships with 16 DNA patterns — composable behavioral blueprints for AI agent teams.
 
 | DNA | Description | Use Case |
 |---|---|---|
@@ -129,6 +138,28 @@ BehaviorOS ships with 4 DNA patterns — composable behavioral blueprints for AI
 | **Military Operations** | Strict chain of command, mission-focused execution, after-action reviews. | High-stakes coordination, crisis response |
 | **Surgical Team** | Zero-defect protocols, sterile field rules, timeout verification, SBAR handoffs. | Patient safety, critical systems, zero-tolerance |
 | **Lean Factory** | Kaizen events, 5S methodology, value stream mapping, standard work. | Continuous improvement, manufacturing ops |
+
+## DNA Example
+
+```yaml
+# dnas/enterprise-governance.yaml
+governance:
+  - id: security-review
+    name: Security Review Required
+    level: critical
+    action: escalate
+    conditions:
+      - type: security
+      - type: auth
+
+quality:
+  - id: test-coverage
+    type: test_coverage
+    threshold: 80
+  - id: lint
+    type: lint
+    threshold: 100
+```
 
 ## SDK Example
 
@@ -350,8 +381,12 @@ Add to your Windsurf MCP configuration:
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, coding standards, and how to contribute new DNA patterns.
+Contributions welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
 ## License
 
-[MIT](./LICENSE) — © 2026 BehaviorOS Team
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+Created by **Ilvan Joaquim** ([@ilvan-develop](https://github.com/ilvan-develop)) from Angola 🇦🇴

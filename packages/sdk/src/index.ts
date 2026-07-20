@@ -381,7 +381,7 @@ export {
   type DecisionVote,
   DNAComposer,
   DNALoader,
-  DNALoaderOptions,
+  type DNALoaderOptions,
   DNAValidator,
   type EvidenceValidationResult,
   type GateCheckResult,

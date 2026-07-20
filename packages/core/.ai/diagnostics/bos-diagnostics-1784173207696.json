@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-07-16T03:40:07.696Z",
+  "projectPath": "C:\\Users\\Ilvan\\Desktop\\GitHub Apps\\behavioros\\packages\\core",
+  "filePath": "C:\\Users\\Ilvan\\Desktop\\GitHub Apps\\behavioros\\packages\\core\\src\\engines\\behavioral\\audit-chain",
+  "results": [
+    {
+      "tool": "typescript",
+      "success": false,
+      "diagnostics": [],
+      "error": "Command failed: npx tsc --noEmit --pretty false 2>&1"
+    },
+    {
+      "tool": "biome",
+      "success": false,
+      "diagnostics": [],
+      "error": "Command failed: npx @biomejs/biome ci  \"src/engines/behavioral/audit-chain\" --reporter=json 2>&1"
+    }
+  ],
+  "summary": {
+    "total": 0,
+    "errors": 0,
+    "warnings": 0,
+    "hasErrors": true
+  }
+}
