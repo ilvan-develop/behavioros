@@ -15,9 +15,17 @@ export {
   bosListPatternsInput,
 } from './tools/bos-list-patterns.js';
 export {
+  bosResetProtocol,
+  bosResetProtocolInput,
+} from './tools/bos-reset-protocol.js';
+export {
   bosResolveConflict,
   bosResolveConflictInput,
 } from './tools/bos-resolve-conflict.js';
+export {
+  bosResolveTruth,
+  bosResolveTruthInput,
+} from './tools/bos-resolve-truth.js';
 export {
   bosRunAudit,
   bosRunAuditInput,
@@ -27,6 +35,10 @@ export {
   bosSelectDna,
   bosSelectDnaInput,
 } from './tools/bos-select-dna.js';
+export {
+  bosValidateProtocol,
+  bosValidateProtocolInput,
+} from './tools/bos-validate-protocol.js';
 // CI/CD tools
 export {
   type ApproveLayerInput,

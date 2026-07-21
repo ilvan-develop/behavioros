@@ -5,14 +5,17 @@
   "description": "BehaviorOS E2E test suite using Playwright",
   "scripts": {
     "test": "playwright test",
+    "test:unit": "vitest run",
     "test:ui": "playwright test --ui"
   },
   "dependencies": {
     "@behavioros/core": "workspace:*",
     "@behavioros/schemas": "workspace:*",
-    "@behavioros/sdk": "workspace:*"
+    "@behavioros/sdk": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.12.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.52.0"
+    "@playwright/test": "^1.52.0",
+    "vitest": "^4.0.0"
   }
 }

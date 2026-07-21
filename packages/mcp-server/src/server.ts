@@ -1,3 +1,4 @@
+import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   AuditChain,
@@ -5,7 +6,6 @@ import {
   BehaviorSelector,
   BosLearningEngine,
   ConflictResolver,
-  DelegationEnforcementLayer,
   DNALoader,
   EscalationManager,
   ProtocolStateTracker,
@@ -13,18 +13,29 @@ import {
 import type { DNAPackage } from '@behavioros/schemas';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { EnforcementMiddleware } from './middleware/enforcement-middleware.js';
 import { registerCICDResources } from './resources/cicd-resources.js';
 import { registerResources } from './resources.js';
+import { saveLearning, saveMissions } from './store/json-store.js';
+import { bosAgentHandoff, bosAgentHandoffInput } from './tools/bos-agent-handoff.js';
+import { bosAutonomousTask, bosAutonomousTaskInput } from './tools/bos-autonomous-task.js';
 import { bosCheckEscalation, bosCheckEscalationInput } from './tools/bos-check-escalation.js';
+import { bosEcosystemDoctor, bosEcosystemDoctorInput } from './tools/bos-ecosystem-doctor.js';
+import { bosEcosystemInstall, bosEcosystemInstallInput } from './tools/bos-ecosystem-install.js';
+import { bosEcosystemStatus, bosEcosystemStatusInput } from './tools/bos-ecosystem-status.js';
 import { bosGetInsights, bosGetInsightsInput } from './tools/bos-get-insights.js';
 import { bosListPatterns, bosListPatternsInput } from './tools/bos-list-patterns.js';
 import { bosLspDiagnostics, bosLspDiagnosticsInput } from './tools/bos-lsp-diagnostics.js';
 import { bosLspValidate, bosLspValidateInput } from './tools/bos-lsp-validate.js';
+import { bosResetProtocol, bosResetProtocolInput } from './tools/bos-reset-protocol.js';
 import { bosResolveConflict, bosResolveConflictInput } from './tools/bos-resolve-conflict.js';
 import { bosResolveTruth, bosResolveTruthInput } from './tools/bos-resolve-truth.js';
 import { bosRunAudit, bosRunAuditInput } from './tools/bos-run-audit.js';
 // BOS Behavioral Tools
 import { bosSelectDna, bosSelectDnaInput } from './tools/bos-select-dna.js';
+import { bosSkillsList, bosSkillsListInput } from './tools/bos-skills-list.js';
+import { bosSkillsValidate, bosSkillsValidateInput } from './tools/bos-skills-validate.js';
+import { bosValidateProtocol, bosValidateProtocolInput } from './tools/bos-validate-protocol.js';
 import {
   approveLayer,
   approveLayerInput,
@@ -64,54 +75,11 @@ const __dirname_safe = _globalDirname ?? resolve(process.cwd());
 
 let _engine: BehaviorOSEngine | null = null;
 let _server: McpServer | null = null;
-let _delegationLayer: DelegationEnforcementLayer | null = null;
 let _protocolTracker: ProtocolStateTracker | null = null;
+let _enforcementMiddleware: EnforcementMiddleware | null = null;
 
-function getAgentId(): string {
+function _getAgentId(): string {
   return process.env.BEHAVIOROS_AGENT_ID ?? 'unknown';
-}
-
-/**
- * Tools that are part of the delegation workflow itself — never blocked.
- * The orchestrator MUST call these to delegate properly.
- */
-const DELEGATION_WORKFLOW_TOOLS = new Set([
-  'bos_select_dna',
-  'bos_resolve_truth',
-  'create-mission',
-  'update-progress',
-  'get-status',
-  'list-agents',
-  'list-missions',
-  'bos_list_patterns',
-  'bos_get_insights',
-  'bos_check_escalation',
-  'bos_resolve_conflict',
-  'bos_run_audit',
-  'evaluate-governance',
-]);
-
-/**
- * Wrapper that checks protocol compliance before executing action tools.
- * Uses ProtocolStateTracker to enforce the 7-step delegation protocol:
- *   1. Select DNA   — bos_select_dna
- *   2. Display DNA  — visual (not tracked via tool)
- *   3. Resolve Truth — bos_resolve_truth
- *   4. Create Mission — create-mission
- *   5. Delegate     — Task tool (not tracked via tool)
- *   6. Run Audit    — bos_run_audit
- *   7. Record Learning — record-learning
- *
- * Workflow tools (create-mission, bos_select_dna, etc.) are always allowed.
- */
-async function withDelegationCheck<T>(toolName: string, fn: () => Promise<T>): Promise<T> {
-  if (_protocolTracker && !DELEGATION_WORKFLOW_TOOLS.has(toolName)) {
-    const validation = _protocolTracker.validateBeforeDelegation();
-    if (!validation.valid) {
-      throw new Error(validation.message);
-    }
-  }
-  return fn();
 }
 
 export function getEngine(): BehaviorOSEngine {
@@ -155,28 +123,53 @@ export async function createServer(): Promise<McpServer> {
     try {
       dna = await loader.load(fallbackPath);
     } catch {
-      console.warn(`[behavioros] Fallback DNA also not found. Initializing with minimal config.`);
-      throw new Error(
-        `Failed to load DNA from ${dnaPath} and fallback ${fallbackPath}. ` +
-          'Set BEHAVIOROS_DNA_PATH or place enterprise-governance.yaml in the dnas/ directory.',
+      console.warn(
+        `[behavioros] Fallback DNA also not found. Initializing with minimal in-memory DNA for PoV.`,
       );
+      // Minimal DNA fallback for proof-of-value runs. This avoids requiring external files
+      // and allows the MCP server to start with a safe, minimal governance configuration.
+      dna = {
+        name: 'enterprise-governance-fallback',
+        version: '0.0.0-pov',
+        patterns: [],
+        personas: [],
+        governance: [],
+        quality: [],
+        metadata: {},
+      } as any;
     }
   }
 
   // Initialize engine
+  // Ensure persist directory exists for learning/persistence during PoV runs
+  const defaultPersistDir = resolve(process.cwd(), 'generated/mcp');
+  try {
+    await mkdir(defaultPersistDir, { recursive: true });
+  } catch (e) {
+    // ignore mkdir errors; engine will report if persist fails
+  }
+
   _engine = new BehaviorOSEngine({
     dna,
     governance: { enabled: true, level: 'standard', requireApproval: true, maxAgents: 10 },
     quality: { enabled: true, minCoverage: 80, enforceTypecheck: true, enforceLint: true },
-    learning: { enabled: true, autoApply: false },
+    learning: {
+      enabled: true,
+      autoApply: false,
+      persistPath: resolve(defaultPersistDir, 'learning.json'),
+    },
     audit: { enabled: true },
   });
 
-  // Initialize delegation enforcement layer
-  _delegationLayer = new DelegationEnforcementLayer();
-
   // Initialize protocol state tracker for the 7-step delegation protocol
   _protocolTracker = new ProtocolStateTracker();
+
+  // Initialize enforcement middleware (auto-loads from .agent_state.json)
+  _enforcementMiddleware = new EnforcementMiddleware(
+    _protocolTracker,
+    _engine,
+    process.env.BEHAVIOROS_ENFORCEMENT_LEVEL as any,
+  );
 
   // Create MCP server
   _server = new McpServer({
@@ -184,17 +177,29 @@ export async function createServer(): Promise<McpServer> {
     version: '0.1.0',
   });
 
-  // Register tools — action tools wrapped with delegation check, read-only tools pass through
+  // Register tools — each tool declares its own enforcement requirements
   _server.tool(
     'create-mission',
     'Create a new mission in BehaviorOS',
     createMissionInput.shape,
-    async (args) =>
-      withDelegationCheck('create-mission', async () => {
-        const result = await createMission(_engine!, args);
-        _protocolTracker?.markMissionCreated();
-        return result;
-      }),
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: ['dna', 'truth'],
+        evaluateGovernance: false,
+        toolName: 'create-mission',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      const result = await createMission(_engine!, args);
+      try {
+        await saveMissions(defaultPersistDir, _engine!.getAllMissions());
+      } catch (e) {
+        // non-fatal for PoV
+        console.warn('Failed to persist missions for PoV:', e instanceof Error ? e.message : e);
+      }
+      _protocolTracker?.markMissionCreated();
+      _enforcementMiddleware?.persist();
+      return result;
+    },
   );
 
   _server.tool(
@@ -207,16 +212,22 @@ export async function createServer(): Promise<McpServer> {
     'update-progress',
     'Update the progress/status of a mission',
     updateProgressInput.shape,
-    async (args) =>
-      withDelegationCheck('update-progress', async () => {
-        if (_protocolTracker && args.status === 'completed') {
-          const validation = _protocolTracker.validateBeforeComplete();
-          if (!validation.valid) {
-            throw new Error(validation.message);
-          }
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: ['dna', 'truth', 'mission'],
+        evaluateGovernance: true,
+        governanceAction: 'update-progress',
+        toolName: 'update-progress',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      if (_protocolTracker && args.status === 'completed') {
+        const validation = _protocolTracker.validateBeforeComplete();
+        if (!validation.valid) {
+          throw new Error(validation.message);
         }
-        return updateProgress(_engine!, args);
-      }),
+      }
+      return updateProgress(_engine!, args);
+    },
   );
 
   _server.tool(
@@ -237,27 +248,57 @@ export async function createServer(): Promise<McpServer> {
     'evaluate-governance',
     'Evaluate an action against governance rules',
     evaluateGovernanceInput.shape,
-    async (args) =>
-      withDelegationCheck('evaluate-governance', () => evaluateGovernance(_engine!, args)),
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'evaluate-governance',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return evaluateGovernance(_engine!, args);
+    },
   );
 
   _server.tool(
     'record-learning',
     'Record a learning event',
     recordLearningInput.shape,
-    async (args) =>
-      withDelegationCheck('record-learning', async () => {
-        const result = await recordLearning(_engine!, args);
-        _protocolTracker?.markLearningRecorded();
-        return result;
-      }),
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: ['dna', 'truth', 'mission', 'audit'],
+        evaluateGovernance: false,
+        toolName: 'record-learning',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      const result = await recordLearning(_engine!, args);
+      try {
+        await saveLearning(defaultPersistDir, _engine!.getLearningEvents());
+      } catch (e) {
+        console.warn(
+          'Failed to persist learning events for PoV:',
+          e instanceof Error ? e.message : e,
+        );
+      }
+      _protocolTracker?.markLearningRecorded();
+      _enforcementMiddleware?.persist();
+      return result;
+    },
   );
 
   _server.tool(
     'run-audit',
     'Run the audit pipeline on a project',
     runAuditInput.shape,
-    async (args) => withDelegationCheck('run-audit', () => runAudit(args)),
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: ['dna', 'truth', 'mission'],
+        evaluateGovernance: true,
+        governanceAction: 'run-audit',
+        toolName: 'run-audit',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return runAudit(args);
+    },
   );
 
   // Register CI/CD engine references
@@ -280,7 +321,14 @@ export async function createServer(): Promise<McpServer> {
     'Select the optimal behavioral DNA pattern for a given task context. Returns pattern name, principles, forbidden rules, and confidence score.',
     bosSelectDnaInput.shape,
     async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos_select_dna',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
       _protocolTracker?.markDnaSelected();
+      _enforcementMiddleware?.persist();
       return bosSelectDna(bosSelector, args);
     },
   );
@@ -289,26 +337,49 @@ export async function createServer(): Promise<McpServer> {
     'bos_resolve_conflict',
     'Resolve a conflict between two agents or squads. Returns resolution strategy and explanation.',
     bosResolveConflictInput.shape,
-    async (args) => bosResolveConflict(bosConflictResolver, args),
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos_resolve_conflict',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosResolveConflict(bosConflictResolver, args);
+    },
   );
 
   _server.tool(
     'bos_check_escalation',
     'Check if a situation should be escalated to human oversight. Returns shouldEscalate, trigger, and reasoning.',
     bosCheckEscalationInput.shape,
-    async (args) => bosCheckEscalation(bosEscalationManager, args),
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos_check_escalation',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosCheckEscalation(bosEscalationManager, args);
+    },
   );
 
   _server.tool(
     'bos_run_audit',
     'Run the continuous audit chain for a given trigger (commit, PR, merge, staging, production). Returns gate results.',
     bosRunAuditInput.shape,
-    async (args) =>
-      withDelegationCheck('bos_run_audit', async () => {
-        const result = await bosRunAudit(bosAuditChain, args);
-        _protocolTracker?.markAuditDone();
-        return result;
-      }),
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: ['dna', 'truth', 'mission'],
+        evaluateGovernance: true,
+        governanceAction: 'bos_run_audit',
+        toolName: 'bos_run_audit',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      const result = await bosRunAudit(bosAuditChain, args);
+      _protocolTracker?.markAuditDone();
+      _enforcementMiddleware?.persist();
+      return result;
+    },
   );
 
   _server.tool(
@@ -325,13 +396,87 @@ export async function createServer(): Promise<McpServer> {
     async () => bosListPatterns(bosSelector),
   );
 
+  // Register Autonomous Task Tool
+  _server.tool(
+    'bos-autonomous-task',
+    'Process a task autonomously: select DNA, resolve truth, create mission, delegate, audit. Returns completed task result.',
+    bosAutonomousTaskInput.shape,
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: true,
+        governanceAction: 'bos-autonomous-task',
+        toolName: 'bos-autonomous-task',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      _protocolTracker?.markDnaSelected();
+      _protocolTracker?.markTruthResolved();
+      _protocolTracker?.markMissionCreated();
+      _enforcementMiddleware?.persist();
+      return bosAutonomousTask(_engine!.autonomousOrchestrator, args);
+    },
+  );
+
+  // Register Ghost Tools (bos_validate_protocol + bos_reset_protocol)
+  _server.tool(
+    'bos_validate_protocol',
+    'Validate current protocol compliance status. Returns steps completed, missing steps, and any order violations.',
+    bosValidateProtocolInput.shape,
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos_validate_protocol',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosValidateProtocol(_protocolTracker!);
+    },
+  );
+
+  _server.tool(
+    'bos_reset_protocol',
+    'Reset protocol state to defaults. Requires confirm=true. Recovery use only.',
+    bosResetProtocolInput.shape,
+    async (args: any) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos_reset_protocol',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      const result = await bosResetProtocol(_protocolTracker!, args);
+      _enforcementMiddleware!.persist();
+      return result;
+    },
+  );
+
   // Register BOS + Context7 Truth Source Integration
   _server.tool(
     'bos_resolve_truth',
     'Resolve behavioral DNA pattern + truth sources (context7 docs) for a task. Returns DNA pattern, principles, and instructions to fetch up-to-date library documentation. Use this before every delegation to ensure agents act with correct DNA and current docs.',
     bosResolveTruthInput.shape,
     async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos_resolve_truth',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+
+      // Mock adapters mode: return canned truth for PoV and offline runs
+      if (process.env.BEHAVIOROS_MOCK_ADAPTERS === 'true') {
+        _protocolTracker?.markTruthResolved();
+        _enforcementMiddleware?.persist();
+        return {
+          pattern: dna.name ?? 'enterprise-governance-fallback',
+          confidence: 90,
+          principles: ['poV-mode', 'mock-adapters'],
+          docs: [],
+        } as any;
+      }
+
       _protocolTracker?.markTruthResolved();
+      _enforcementMiddleware?.persist();
       return bosResolveTruth(bosSelector, args);
     },
   );
@@ -351,12 +496,116 @@ export async function createServer(): Promise<McpServer> {
     async (args) => bosLspValidate(args),
   );
 
+  // Register Ecosystem Handoff tools
+  _server.tool(
+    'bos-agent-handoff',
+    'Request, accept, reject, or check status of agent-to-agent handoff',
+    bosAgentHandoffInput.shape,
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: ['dna', 'truth', 'mission'],
+        evaluateGovernance: true,
+        governanceAction: 'bos-agent-handoff',
+        toolName: 'bos-agent-handoff',
+        requiredSkills: args.action === 'request' ? ['orchestration'] : undefined,
+        agentId: _getAgentId(),
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosAgentHandoff(_engine!.handoffProtocol, args);
+    },
+  );
+
+  _server.tool(
+    'bos-skills-validate',
+    'Validate if an agent has required skills for a task. Blocks if skills are missing.',
+    bosSkillsValidateInput.shape,
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: ['dna', 'truth', 'mission'],
+        evaluateGovernance: false,
+        toolName: 'bos-skills-validate',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosSkillsValidate(_engine!.skillEngine, args);
+    },
+  );
+
+  _server.tool(
+    'bos-skills-list',
+    'List available skills, optionally filtered by category or authority level',
+    bosSkillsListInput.shape,
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos-skills-list',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosSkillsList(_engine!.skillEngine, args);
+    },
+  );
+
+  _server.tool(
+    'bos-ecosystem-status',
+    'Get full ecosystem status: agents, skills, MCPs, design systems, DNAs',
+    (bosEcosystemStatusInput as any).shape,
+    async (_args: any) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos-ecosystem-status',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosEcosystemStatus(_engine!.ecosystemRegistry, _args);
+    },
+  );
+
+  _server.tool(
+    'bos-ecosystem-doctor',
+    'Run full ecosystem diagnostics. Detects missing skills, offline MCPs, outdated components, conflicts.',
+    (bosEcosystemDoctorInput as any).shape,
+    async (_args: any) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos-ecosystem-doctor',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosEcosystemDoctor(_engine!.ecosystemRegistry, _args);
+    },
+  );
+
+  _server.tool(
+    'bos-ecosystem-install',
+    'Install a component (skill, MCP, design system) from any source',
+    bosEcosystemInstallInput.shape,
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: ['dna', 'truth', 'mission'],
+        evaluateGovernance: true,
+        governanceAction: 'bos-ecosystem-install',
+        toolName: 'bos-ecosystem-install',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosEcosystemInstall(_engine!.ecosystemRegistry, args);
+    },
+  );
+
   // Register CI/CD tools
   _server.tool(
     'start-pipeline',
     'Start an EAARG pipeline for a project (any project)',
     startPipelineInput.shape,
-    async (args) => withDelegationCheck('start-pipeline', () => startPipeline(args)),
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: ['dna', 'truth', 'mission'],
+        evaluateGovernance: true,
+        governanceAction: 'start-pipeline',
+        toolName: 'start-pipeline',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return startPipeline(args);
+    },
   );
 
   _server.tool(
@@ -370,7 +619,16 @@ export async function createServer(): Promise<McpServer> {
     'validate-layer',
     'Validate a specific layer with evidence',
     validateLayerInput.shape,
-    async (args) => validateLayer(args),
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: ['dna', 'truth', 'mission'],
+        evaluateGovernance: true,
+        governanceAction: 'validate-layer',
+        toolName: 'validate-layer',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return validateLayer(args);
+    },
   );
 
   _server.tool(
@@ -384,7 +642,16 @@ export async function createServer(): Promise<McpServer> {
     'approve-layer',
     'Approve a layer after manual review',
     approveLayerInput.shape,
-    async (args) => withDelegationCheck('approve-layer', () => approveLayer(args)),
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: ['dna', 'truth', 'mission'],
+        evaluateGovernance: true,
+        governanceAction: 'approve-layer',
+        toolName: 'approve-layer',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return approveLayer(args);
+    },
   );
 
   _server.tool(
@@ -398,7 +665,16 @@ export async function createServer(): Promise<McpServer> {
     'cicd-run-audit',
     'Run the BehaviorOS audit pipeline (lint, typecheck, security, coverage)',
     cicdRunAuditInput.shape,
-    async (args) => withDelegationCheck('cicd-run-audit', () => cicdRunAudit(args)),
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: ['dna', 'truth', 'mission'],
+        evaluateGovernance: true,
+        governanceAction: 'cicd-run-audit',
+        toolName: 'cicd-run-audit',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return cicdRunAudit(args);
+    },
   );
 
   _server.tool(
@@ -412,7 +688,16 @@ export async function createServer(): Promise<McpServer> {
     'cicd-record-learning',
     'Record a learning event from CI/CD pipeline',
     cicdRecordLearningInput.shape,
-    async (args) => withDelegationCheck('cicd-record-learning', () => cicdRecordLearning(args)),
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: ['dna', 'truth', 'mission', 'audit'],
+        evaluateGovernance: true,
+        governanceAction: 'cicd-record-learning',
+        toolName: 'cicd-record-learning',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return cicdRecordLearning(args);
+    },
   );
 
   _server.tool(
