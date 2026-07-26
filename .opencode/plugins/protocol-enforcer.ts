@@ -1,4 +1,94 @@
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Plugin } from '@opencode-ai/plugin';
+
+const STATE_FILE = '.agent_state.json';
+
+interface ProtocolState {
+  protocol: {
+    dnaSelected: boolean;
+    truthResolved: boolean;
+    missionCreated: boolean;
+    auditDone: boolean;
+    learningRecorded: boolean;
+    lastStep: number | null;
+    lastUpdated: string | null;
+  };
+}
+
+function defaultState(): ProtocolState {
+  return {
+    protocol: {
+      dnaSelected: false,
+      truthResolved: false,
+      missionCreated: false,
+      auditDone: false,
+      learningRecorded: false,
+      lastStep: null,
+      lastUpdated: null,
+    },
+  };
+}
+
+function getStatePath(projectPath: string): string {
+  return join(projectPath, STATE_FILE);
+}
+
+function loadState(projectPath: string): ProtocolState {
+  const path = getStatePath(projectPath);
+  if (!existsSync(path)) {
+    const state = defaultState();
+    writeFileSync(path, JSON.stringify(state, null, 2), 'utf-8');
+    return state;
+  }
+  try {
+    const raw = readFileSync(path, 'utf-8');
+    return JSON.parse(raw) as ProtocolState;
+  } catch {
+    const state = defaultState();
+    writeFileSync(path, JSON.stringify(state, null, 2), 'utf-8');
+    return state;
+  }
+}
+
+function saveState(projectPath: string, state: ProtocolState): void {
+  state.protocol.lastUpdated = new Date().toISOString();
+  writeFileSync(getStatePath(projectPath), JSON.stringify(state, null, 2), 'utf-8');
+}
+
+function updateState(state: ProtocolState, toolName: string): void {
+  switch (toolName) {
+    case 'bos_select_dna':
+      state.protocol.dnaSelected = true;
+      state.protocol.lastStep = 1;
+      break;
+    case 'bos_resolve_truth':
+      state.protocol.truthResolved = true;
+      state.protocol.lastStep = 2;
+      break;
+    case 'create-mission':
+      state.protocol.missionCreated = true;
+      state.protocol.lastStep = 3;
+      break;
+    case 'bos_run_audit':
+      state.protocol.auditDone = true;
+      state.protocol.lastStep = 4;
+      break;
+    case 'record-learning':
+      state.protocol.learningRecorded = true;
+      state.protocol.lastStep = 5;
+      break;
+    case 'bos_reset_protocol':
+      const fresh = defaultState();
+      state.protocol.dnaSelected = fresh.protocol.dnaSelected;
+      state.protocol.truthResolved = fresh.protocol.truthResolved;
+      state.protocol.missionCreated = fresh.protocol.missionCreated;
+      state.protocol.auditDone = fresh.protocol.auditDone;
+      state.protocol.learningRecorded = fresh.protocol.learningRecorded;
+      state.protocol.lastStep = fresh.protocol.lastStep;
+      break;
+  }
+}
 
 const PROTOCOL_REMINDER = `## BehaviorOS Protocol — 7 Mandatory Steps
 
@@ -14,152 +104,79 @@ Every task MUST pass through all 7 steps in order:
 | 6 | Run Audit | \`bos_run_audit\` |
 | 7 | Record Learning | \`record-learning\` |
 
-**Critical rules:**
-- Call \`bos_select_dna\` before ANY task — no exceptions
-- Never edit files directly — always delegate to subagents
-- Always run \`bos_run_audit\` before marking mission complete
-- Record learning events at the end of every mission
+**Enforcement is now automatic (persistent state via .agent_state.json):**
+- Action tools require steps 1+3+4 complete
+- \`edit\` tool requires \`bos_select_dna\` first
+- Use \`bos_validate_protocol\` to check current compliance status
+- Use \`bos_reset_protocol\` to reset state (recovery only)
+- Protocol state persists between sessions via .agent_state.json
 `;
-
-const DELEGATION_WORKFLOW_TOOLS = new Set([
-  'bos_select_dna',
-  'bos_resolve_truth',
-  'create-mission',
-  'update-progress',
-  'get-status',
-  'list-agents',
-  'list-missions',
-  'bos_list_patterns',
-  'bos_get_insights',
-  'bos_check_escalation',
-  'bos_resolve_conflict',
-  'bos_run_audit',
-  'evaluate-governance',
-  'record-learning',
-]);
-
-const WRITE_COMMANDS = [
-  /^echo\s+.*[>»]/,
-  /^cat\s+<<.*[>»]/,
-  /^printf\s+.*[>»]/,
-  /^cp\s+/,
-  /^mv\s+/,
-  /^mkdir\s+/,
-  /^rm\s+/,
-  /^touch\s+/,
-  /^write\s+/,
-  /^fs\.write/,
-  /^npx\s+.*create-/,
-  /^npm\s+init/,
-];
-
-interface ProtocolState {
-  dnaSelected: boolean;
-  truthResolved: boolean;
-  missionCreated: boolean;
-  auditDone: boolean;
-  learningRecorded: boolean;
-}
-
-const protocolState: ProtocolState = {
-  dnaSelected: false,
-  truthResolved: false,
-  missionCreated: false,
-  auditDone: false,
-  learningRecorded: false,
-};
-
-function resetState(): void {
-  protocolState.dnaSelected = false;
-  protocolState.truthResolved = false;
-  protocolState.missionCreated = false;
-  protocolState.auditDone = false;
-  protocolState.learningRecorded = false;
-}
-
-function updateState(toolName: string): void {
-  switch (toolName) {
-    case 'bos_select_dna':
-      protocolState.dnaSelected = true;
-      break;
-    case 'bos_resolve_truth':
-      protocolState.truthResolved = true;
-      break;
-    case 'create-mission':
-      protocolState.missionCreated = true;
-      break;
-    case 'bos_run_audit':
-      protocolState.auditDone = true;
-      break;
-    case 'record-learning':
-      protocolState.learningRecorded = true;
-      break;
-  }
-}
-
-function isWriteCommand(command: string): boolean {
-  return WRITE_COMMANDS.some((re) => re.test(command.trim()));
-}
 
 export const ProtocolEnforcerPlugin: Plugin = async () => {
   return {
-    'tool.execute.before': async (input: { toolName: string; args: Record<string, unknown> }) => {
+    'tool.execute.before': async (input: { toolName: string; args: Record<string, unknown>; project?: { path: string } }) => {
       const toolName = input?.toolName;
-
       if (!toolName) return;
 
-      // Always allow delegation workflow tools
-      if (DELEGATION_WORKFLOW_TOOLS.has(toolName)) {
-        updateState(toolName);
-        return;
-      }
+      const projectPath = input?.project?.path ?? process.cwd();
+      const state = loadState(projectPath);
 
-      // For task (delegation) tool: require DNA selected + truth resolved
+      updateState(state, toolName);
+
+      let blocked = false;
+
       if (toolName === 'task') {
-        if (!protocolState.dnaSelected) {
+        const missing: string[] = [];
+        if (!state.protocol.dnaSelected) missing.push('bos_select_dna');
+        if (!state.protocol.truthResolved) missing.push('bos_resolve_truth');
+        if (!state.protocol.missionCreated) missing.push('create-mission');
+        if (missing.length > 0) {
+          blocked = true;
           throw new Error(
-            'Delegation enforcement failed: bos_select_dna must be called before delegation.',
+            `Delegation enforcement failed: prerequisite steps must be completed before delegation. Missing: ${missing.join(', ')}. Use \`bos_validate_protocol\` for full status.`,
           );
         }
-        if (!protocolState.truthResolved) {
-          throw new Error(
-            'Delegation enforcement failed: bos_resolve_truth must be called before delegation.',
-          );
-        }
-        if (!protocolState.missionCreated) {
-          throw new Error(
-            'Delegation enforcement failed: create-mission must be called before delegation.',
-          );
-        }
-        return;
       }
 
-      // For file-editing tools: require DNA selected
-      if (toolName === 'edit') {
-        if (!protocolState.dnaSelected) {
+      if (toolName === 'edit' || toolName === 'write') {
+        if (!state.protocol.dnaSelected) {
+          blocked = true;
           throw new Error(
-            'Protocol violation: bos_select_dna must be called before any edit operation.',
+            `Protocol violation: bos_select_dna must be called before any ${toolName} operation.`,
           );
         }
-        return;
       }
 
-      // For bash: only block if the command is a write/create operation
-      if (toolName === 'bash') {
-        const command = input?.args?.command as string | undefined;
-        if (command && isWriteCommand(command) && !protocolState.dnaSelected) {
-          throw new Error(
-            'Protocol violation: bos_select_dna must be called before modifying files.',
-          );
-        }
-        return;
-      }
-
-      // Any other tool: require at least DNA selected
-      if (!protocolState.dnaSelected) {
+      if (state.protocol.truthResolved && !state.protocol.dnaSelected) {
+        blocked = true;
         throw new Error(
-          'Delegation enforcement failed: bos_select_dna must be called before any action tool.',
+          'Protocol order violation: bos_select_dna must be called before bos_resolve_truth.',
         );
+      }
+
+      if (state.protocol.missionCreated && !state.protocol.truthResolved) {
+        blocked = true;
+        throw new Error(
+          'Protocol order violation: bos_resolve_truth must be called before create-mission.',
+        );
+      }
+
+      if (state.protocol.auditDone && !state.protocol.missionCreated) {
+        blocked = true;
+        throw new Error(
+          'Protocol order violation: create-mission must be called before bos_run_audit.',
+        );
+      }
+
+      if (state.protocol.learningRecorded && !state.protocol.auditDone) {
+        blocked = true;
+        throw new Error(
+          'Protocol order violation: bos_run_audit must be called before record-learning.',
+        );
+      }
+
+      if (!blocked) {
+        saveState(projectPath, state);
       }
     },
     'experimental.chat.system.transform': async (

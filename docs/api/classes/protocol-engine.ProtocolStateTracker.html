@@ -1,0 +1,354 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>ProtocolStateTracker | BehaviorOS API Reference - v1.0.1</title><meta name="description" content="Documentation for BehaviorOS API Reference"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<div class="tsd-toolbar-contents container"><a href="../index.html" class="title">BehaviorOS API Reference - v1.0.1</a>
+<div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/>
+<ul role="listbox" id="tsd-search-results"></ul>
+<div id="tsd-search-status" aria-live="polite" aria-atomic="true">
+<div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-menu"></use></svg></a></div></header>
+<div class="container container-main">
+<div class="col-content">
+<div class="tsd-page-title">
+<ul class="tsd-breadcrumb" aria-label="Breadcrumb">
+<li><a href="../modules/protocol-engine.html">protocol-engine</a></li>
+<li><a href="" aria-current="page">ProtocolStateTracker</a></li></ul>
+<h1>Class ProtocolStateTracker</h1></div>
+<section class="tsd-panel tsd-comment">
+<div class="tsd-comment tsd-typography"><p>Tracks the state of the BehaviorOS 7-Step Delegation Protocol.</p>
+<p>This tracker is a singleton-like state machine that records each protocol step
+as it is completed and provides validation gates to enforce correct sequencing.</p>
+</div></section><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L138">core/src/engines/protocol-engine.ts:138</a></li></ul></aside>
+<section class="tsd-panel-group tsd-index-group">
+<section class="tsd-panel tsd-index-panel">
+<details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h5 class="tsd-index-heading uppercase">Index</h5></summary>
+<div class="tsd-accordion-details">
+<section class="tsd-index-section">
+<h3 class="tsd-index-heading tsd-anchor-link" id="constructors">Constructors<a href="#constructors" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-index-list"><a href="#constructor" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Constructor"><use href="../assets/icons.svg#icon-512"></use></svg><span>constructor</span></a>
+</div></section>
+<section class="tsd-index-section">
+<h3 class="tsd-index-heading tsd-anchor-link" id="methods">Methods<a href="#methods" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-index-list"><a href="#markdnaselected" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Dna<wbr/>Selected</span></a>
+<a href="#marktruthresolved" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Truth<wbr/>Resolved</span></a>
+<a href="#markmissioncreated" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Mission<wbr/>Created</span></a>
+<a href="#markauditdone" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Audit<wbr/>Done</span></a>
+<a href="#marklearningrecorded" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Learning<wbr/>Recorded</span></a>
+<a href="#validatebeforeaction" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>validate<wbr/>Before<wbr/>Action</span></a>
+<a href="#validatebeforedelegation" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>validate<wbr/>Before<wbr/>Delegation</span></a>
+<a href="#validatebeforeaudit" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>validate<wbr/>Before<wbr/>Audit</span></a>
+<a href="#validatebeforecomplete" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>validate<wbr/>Before<wbr/>Complete</span></a>
+<a href="#getnextrequiredstep" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Next<wbr/>Required<wbr/>Step</span></a>
+<a href="#getstatus" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Status</span></a>
+<a href="#getstate" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>State</span></a>
+<a href="#getcurrentstep" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Current<wbr/>Step</span></a>
+<a href="#isdnaselected" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>is<wbr/>Dna<wbr/>Selected</span></a>
+<a href="#istruthresolved" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>is<wbr/>Truth<wbr/>Resolved</span></a>
+<a href="#ismissioncreated" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>is<wbr/>Mission<wbr/>Created</span></a>
+<a href="#isauditdone" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>is<wbr/>Audit<wbr/>Done</span></a>
+<a href="#islearningrecorded" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>is<wbr/>Learning<wbr/>Recorded</span></a>
+<a href="#reset" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>reset</span></a>
+<a href="#save" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>save</span></a>
+<a href="#load" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>load</span></a>
+<a href="#getdefaultstatefilepath" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Default<wbr/>State<wbr/>File<wbr/>Path</span></a>
+</div></section></div></details></section></section>
+<details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h2 class="tsd-anchor-link" id="constructors-1">Constructors<a href="#constructors-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
+<section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="constructor"><span>constructor</span><a href="#constructor" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="constructorprotocolstatetracker"><span class="tsd-signature-keyword">new</span> <span class="tsd-kind-constructor-signature">ProtocolStateTracker</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">ProtocolStateTracker</a><a href="#constructorprotocolstatetracker" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">ProtocolStateTracker</a></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L141">core/src/engines/protocol-engine.ts:141</a></li></ul></aside></div></li></ul></section></section></details>
+<details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
+<section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="markdnaselected"><span>mark<wbr/>Dna<wbr/>Selected</span><a href="#markdnaselected" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="markdnaselected-1"><span class="tsd-kind-call-signature">markDnaSelected</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#markdnaselected-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Mark Step 1 (Select DNA) as completed</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L272">core/src/engines/protocol-engine.ts:272</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="marktruthresolved"><span>mark<wbr/>Truth<wbr/>Resolved</span><a href="#marktruthresolved" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="marktruthresolved-1"><span class="tsd-kind-call-signature">markTruthResolved</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#marktruthresolved-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Mark Step 3 (Resolve Truth) as completed</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L279">core/src/engines/protocol-engine.ts:279</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="markmissioncreated"><span>mark<wbr/>Mission<wbr/>Created</span><a href="#markmissioncreated" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="markmissioncreated-1"><span class="tsd-kind-call-signature">markMissionCreated</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#markmissioncreated-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Mark Step 4 (Create Mission) as completed</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L286">core/src/engines/protocol-engine.ts:286</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="markauditdone"><span>mark<wbr/>Audit<wbr/>Done</span><a href="#markauditdone" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="markauditdone-1"><span class="tsd-kind-call-signature">markAuditDone</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#markauditdone-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Mark Step 6 (Run Audit) as completed</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L293">core/src/engines/protocol-engine.ts:293</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="marklearningrecorded"><span>mark<wbr/>Learning<wbr/>Recorded</span><a href="#marklearningrecorded" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="marklearningrecorded-1"><span class="tsd-kind-call-signature">markLearningRecorded</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#marklearningrecorded-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Mark Step 7 (Record Learning) as completed</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L300">core/src/engines/protocol-engine.ts:300</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="validatebeforeaction"><span>validate<wbr/>Before<wbr/>Action</span><a href="#validatebeforeaction" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="validatebeforeaction-1"><span class="tsd-kind-call-signature">validateBeforeAction</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/protocol-engine.ProtocolValidation.html" class="tsd-signature-type tsd-kind-interface">ProtocolValidation</a><a href="#validatebeforeaction-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Validate before any action tool execution (non-delegation tools).
+Required: Step 1 (Select DNA) must be complete.
+Per <a href="http://PROTOCOL.md">PROTOCOL.md</a>: &quot;Step 1 skipped → MCP blocks ALL action tools&quot;</p>
+</div>
+<h4 class="tsd-returns-title">Returns <a href="../interfaces/protocol-engine.ProtocolValidation.html" class="tsd-signature-type tsd-kind-interface">ProtocolValidation</a></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L313">core/src/engines/protocol-engine.ts:313</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="validatebeforedelegation"><span>validate<wbr/>Before<wbr/>Delegation</span><a href="#validatebeforedelegation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="validatebeforedelegation-1"><span class="tsd-kind-call-signature">validateBeforeDelegation</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/protocol-engine.ProtocolValidation.html" class="tsd-signature-type tsd-kind-interface">ProtocolValidation</a><a href="#validatebeforedelegation-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Validate before delegation.
+Required: Step 1 (Select DNA), Step 3 (Resolve Truth), Step 4 (Create Mission).
+Per <a href="http://PROTOCOL.md">PROTOCOL.md</a>: &quot;Step 3 skipped → Delegation is blocked&quot;</p>
+</div>
+<h4 class="tsd-returns-title">Returns <a href="../interfaces/protocol-engine.ProtocolValidation.html" class="tsd-signature-type tsd-kind-interface">ProtocolValidation</a></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L342">core/src/engines/protocol-engine.ts:342</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="validatebeforeaudit"><span>validate<wbr/>Before<wbr/>Audit</span><a href="#validatebeforeaudit" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="validatebeforeaudit-1"><span class="tsd-kind-call-signature">validateBeforeAudit</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/protocol-engine.ProtocolValidation.html" class="tsd-signature-type tsd-kind-interface">ProtocolValidation</a><a href="#validatebeforeaudit-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Validate before running audit.
+Required: Steps 1, 3, 4.</p>
+</div>
+<h4 class="tsd-returns-title">Returns <a href="../interfaces/protocol-engine.ProtocolValidation.html" class="tsd-signature-type tsd-kind-interface">ProtocolValidation</a></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L376">core/src/engines/protocol-engine.ts:376</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="validatebeforecomplete"><span>validate<wbr/>Before<wbr/>Complete</span><a href="#validatebeforecomplete" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="validatebeforecomplete-1"><span class="tsd-kind-call-signature">validateBeforeComplete</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/protocol-engine.ProtocolValidation.html" class="tsd-signature-type tsd-kind-interface">ProtocolValidation</a><a href="#validatebeforecomplete-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Validate before marking a mission as completed.
+Required: Steps 1, 3, 4, 6.
+Per <a href="http://PROTOCOL.md">PROTOCOL.md</a>: &quot;Step 6 skipped → Mission cannot be marked completed&quot;</p>
+</div>
+<h4 class="tsd-returns-title">Returns <a href="../interfaces/protocol-engine.ProtocolValidation.html" class="tsd-signature-type tsd-kind-interface">ProtocolValidation</a></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L411">core/src/engines/protocol-engine.ts:411</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="getnextrequiredstep"><span>get<wbr/>Next<wbr/>Required<wbr/>Step</span><a href="#getnextrequiredstep" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="getnextrequiredstep-1"><span class="tsd-kind-call-signature">getNextRequiredStep</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><a href="#getnextrequiredstep-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Get the name of the next step that should be taken</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L447">core/src/engines/protocol-engine.ts:447</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="getstatus"><span>get<wbr/>Status</span><a href="#getstatus" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="getstatus-1"><span class="tsd-kind-call-signature">getStatus</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/protocol-engine.ProtocolStatus.html" class="tsd-signature-type tsd-kind-interface">ProtocolStatus</a><a href="#getstatus-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Get a detailed status snapshot for the protocol validation tool</p>
+</div>
+<h4 class="tsd-returns-title">Returns <a href="../interfaces/protocol-engine.ProtocolStatus.html" class="tsd-signature-type tsd-kind-interface">ProtocolStatus</a></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L467">core/src/engines/protocol-engine.ts:467</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="getstate"><span>get<wbr/>State</span><a href="#getstate" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="getstate-1"><span class="tsd-kind-call-signature">getState</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/protocol-engine.ProtocolState.html" class="tsd-signature-type tsd-kind-interface">ProtocolState</a><a href="#getstate-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Get the raw protocol state</p>
+</div>
+<h4 class="tsd-returns-title">Returns <a href="../interfaces/protocol-engine.ProtocolState.html" class="tsd-signature-type tsd-kind-interface">ProtocolState</a></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L510">core/src/engines/protocol-engine.ts:510</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="getcurrentstep"><span>get<wbr/>Current<wbr/>Step</span><a href="#getcurrentstep" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="getcurrentstep-1"><span class="tsd-kind-call-signature">getCurrentStep</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">0</span> <span class="tsd-signature-symbol">|</span> <a href="../types/protocol-engine.ProtocolStepNumber.html" class="tsd-signature-type tsd-kind-type-alias">ProtocolStepNumber</a><a href="#getcurrentstep-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Get the current step number (0 = none)</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">0</span> <span class="tsd-signature-symbol">|</span> <a href="../types/protocol-engine.ProtocolStepNumber.html" class="tsd-signature-type tsd-kind-type-alias">ProtocolStepNumber</a></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L515">core/src/engines/protocol-engine.ts:515</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="isdnaselected"><span>is<wbr/>Dna<wbr/>Selected</span><a href="#isdnaselected" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="isdnaselected-1"><span class="tsd-kind-call-signature">isDnaSelected</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><a href="#isdnaselected-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Check if Step 1 is complete</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L520">core/src/engines/protocol-engine.ts:520</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="istruthresolved"><span>is<wbr/>Truth<wbr/>Resolved</span><a href="#istruthresolved" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="istruthresolved-1"><span class="tsd-kind-call-signature">isTruthResolved</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><a href="#istruthresolved-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Check if Step 3 is complete</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L525">core/src/engines/protocol-engine.ts:525</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="ismissioncreated"><span>is<wbr/>Mission<wbr/>Created</span><a href="#ismissioncreated" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="ismissioncreated-1"><span class="tsd-kind-call-signature">isMissionCreated</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><a href="#ismissioncreated-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Check if Step 4 is complete</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L530">core/src/engines/protocol-engine.ts:530</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="isauditdone"><span>is<wbr/>Audit<wbr/>Done</span><a href="#isauditdone" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="isauditdone-1"><span class="tsd-kind-call-signature">isAuditDone</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><a href="#isauditdone-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Check if Step 6 is complete</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L535">core/src/engines/protocol-engine.ts:535</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="islearningrecorded"><span>is<wbr/>Learning<wbr/>Recorded</span><a href="#islearningrecorded" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="islearningrecorded-1"><span class="tsd-kind-call-signature">isLearningRecorded</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><a href="#islearningrecorded-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Check if Step 7 is complete</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L540">core/src/engines/protocol-engine.ts:540</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="reset"><span>reset</span><a href="#reset" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="reset-1"><span class="tsd-kind-call-signature">reset</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#reset-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Reset the tracker to initial state (all steps incomplete)</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L545">core/src/engines/protocol-engine.ts:545</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="save"><span>save</span><a href="#save" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="save-1"><span class="tsd-kind-call-signature">save</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">filePath</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#save-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Save current protocol state to a JSON file</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">filePath</span>: <span class="tsd-signature-type">string</span></span></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L552">core/src/engines/protocol-engine.ts:552</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="load"><span>load</span><a href="#load" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="load-1"><span class="tsd-kind-call-signature">load</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">filePath</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><a href="#load-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Load protocol state from a JSON file. Returns true on success, false if file is missing or corrupted.</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">filePath</span>: <span class="tsd-signature-type">string</span></span></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L570">core/src/engines/protocol-engine.ts:570</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="getdefaultstatefilepath"><code class="tsd-tag">Static</code><span>get<wbr/>Default<wbr/>State<wbr/>File<wbr/>Path</span><a href="#getdefaultstatefilepath" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="getdefaultstatefilepath-1"><span class="tsd-kind-call-signature">getDefaultStateFilePath</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">projectRoot</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><a href="#getdefaultstatefilepath-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Get the default state file path for a project root</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">projectRoot</span>: <span class="tsd-signature-type">string</span></span></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ilvan-develop/behavioros/blob/b77ae6b54b0e4984c05eb618cdcd1ea4c32b30e3/packages/core/src/engines/protocol-engine.ts#L593">core/src/engines/protocol-engine.ts:593</a></li></ul></aside></div></li></ul></section></section></details></div>
+<div class="col-sidebar">
+<div class="page-menu">
+<div class="tsd-navigation settings">
+<details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>Settings</h3></summary>
+<div class="tsd-accordion-details">
+<div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span>
+<ul id="tsd-filter-options">
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li></ul></div>
+<div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div>
+<details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>On This Page</h3></summary>
+<div class="tsd-accordion-details">
+<details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Constructors</summary>
+<div><a href="#constructor"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Constructor"><use href="../assets/icons.svg#icon-512"></use></svg><span>constructor</span></a></div></details>
+<details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Methods</summary>
+<div><a href="#markdnaselected"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Dna<wbr/>Selected</span></a><a href="#marktruthresolved"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Truth<wbr/>Resolved</span></a><a href="#markmissioncreated"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Mission<wbr/>Created</span></a><a href="#markauditdone"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Audit<wbr/>Done</span></a><a href="#marklearningrecorded"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Learning<wbr/>Recorded</span></a><a href="#validatebeforeaction"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>validate<wbr/>Before<wbr/>Action</span></a><a href="#validatebeforedelegation"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>validate<wbr/>Before<wbr/>Delegation</span></a><a href="#validatebeforeaudit"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>validate<wbr/>Before<wbr/>Audit</span></a><a href="#validatebeforecomplete"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>validate<wbr/>Before<wbr/>Complete</span></a><a href="#getnextrequiredstep"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Next<wbr/>Required<wbr/>Step</span></a><a href="#getstatus"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Status</span></a><a href="#getstate"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>State</span></a><a href="#getcurrentstep"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Current<wbr/>Step</span></a><a href="#isdnaselected"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>is<wbr/>Dna<wbr/>Selected</span></a><a href="#istruthresolved"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>is<wbr/>Truth<wbr/>Resolved</span></a><a href="#ismissioncreated"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>is<wbr/>Mission<wbr/>Created</span></a><a href="#isauditdone"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>is<wbr/>Audit<wbr/>Done</span></a><a href="#islearningrecorded"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>is<wbr/>Learning<wbr/>Recorded</span></a><a href="#reset"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>reset</span></a><a href="#save"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>save</span></a><a href="#load"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>load</span></a><a href="#getdefaultstatefilepath"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Default<wbr/>State<wbr/>File<wbr/>Path</span></a></div></details></div></details></div>
+<div class="site-menu">
+<nav class="tsd-navigation"><a href="../index.html">BehaviorOS API Reference - v1.0.1</a>
+<ul class="tsd-small-nested-navigation" id="tsd-nav-container">
+<li>Loading...</li></ul></nav></div></div></div><footer>
+<p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer>
+<div class="overlay"></div></body></html>

@@ -2,12 +2,17 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { Command } from 'commander';
+import { agentCommand } from './commands/agent.js';
+import { autonomousCommand } from './commands/autonomous.js';
 import { compileCommand } from './commands/compile.js';
 import { complianceCommand } from './commands/compliance.js';
 import { deployCommand } from './commands/deploy.js';
 import { diffCommand } from './commands/diff.js';
 import { driftCheckCommand } from './commands/drift-check.js';
+import { ecosystemCommand } from './commands/ecosystem.js';
+import { enforceCommand } from './commands/enforce.js';
 import { initCommand } from './commands/init.js';
+import { protocolCommand } from './commands/protocol.js';
 import { simulateCommand } from './commands/simulate.js';
 import { statusCommand } from './commands/status.js';
 import { validateCommand } from './commands/validate.js';
@@ -26,15 +31,20 @@ const program = new Command()
   .description('BehaviorOS CLI — Command-line interface for BehaviorOS')
   .version(pkg.version);
 
-initCommand(program);
+agentCommand(program);
+autonomousCommand(program);
 compileCommand(program);
 complianceCommand(program);
-validateCommand(program);
-statusCommand(program);
-diffCommand(program);
-simulateCommand(program);
 deployCommand(program);
+diffCommand(program);
 driftCheckCommand(program);
+ecosystemCommand(program);
+enforceCommand(program);
+initCommand(program);
+protocolCommand(program);
+simulateCommand(program);
+statusCommand(program);
+validateCommand(program);
 
 export function run(argv = process.argv) {
   program.parse(argv);

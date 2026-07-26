@@ -112,7 +112,7 @@ export class GovernanceLayer implements PipelineLayer {
         return {
           layerId: this.id,
           layerName: this.name,
-          passed: this.strict ? false : true,
+          passed: !this.strict,
           score: 0,
           duration: Date.now() - start,
           details: {

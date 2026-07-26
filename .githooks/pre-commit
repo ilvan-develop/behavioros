@@ -1,0 +1,28 @@
+#!/bin/sh
+# BehaviorOS Protocol Enforcement — Pre-commit Hook
+
+echo "  🔍 BehaviorOS: Running quality checks..."
+
+# Run lint
+echo "  📝 Linting..."
+pnpm lint 2>/dev/null || pnpm lint:check 2>/dev/null || {
+  echo "  ❌ Lint failed."
+  exit 1
+}
+
+# Run typecheck
+echo "  🔎 Typechecking..."
+pnpm typecheck 2>/dev/null || {
+  echo "  ❌ Typecheck failed."
+  exit 1
+}
+
+# Run protocol compliance
+echo "  🔒 Running protocol compliance check..."
+npx @behavioros/cli enforce check 2>/dev/null || npx behavioros enforce check 2>/dev/null || {
+  echo "  ❌ BehaviorOS: Protocol compliance check failed."
+  echo "  👉 Run 'npx behavioros enforce doctor' for fix suggestions."
+  exit 1
+}
+
+echo "  ✅ All checks passed."

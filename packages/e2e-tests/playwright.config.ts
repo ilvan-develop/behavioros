@@ -1,5 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
+const PORT = 3001;
+
 export default defineConfig({
   testDir: './src',
   fullyParallel: true,
@@ -9,6 +11,7 @@ export default defineConfig({
   reporter: 'list',
   use: {
     trace: 'on-first-retry',
+    baseURL: `http://localhost:${PORT}`,
   },
   projects: [
     {
@@ -16,4 +19,13 @@ export default defineConfig({
       use: { browserName: 'chromium' },
     },
   ],
+  webServer: {
+    command: `pnpm --filter @behavioros/web dev`,
+    url: `http://localhost:${PORT}`,
+    env: {
+      PORT: String(PORT),
+    },
+    reuseExistingServer: false,
+    timeout: 120_000,
+  },
 });

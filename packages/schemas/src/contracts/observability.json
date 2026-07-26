@@ -1,0 +1,307 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://behavioros.io/schemas/contracts/observability.json",
+  "title": "Observability Contracts",
+  "description": "JSON Schema for all BehaviorOS observability contract types: Metrics, Tracing, Logging, Audit, and FinOps",
+  "type": "object",
+  "definitions": {
+    "MetricType": {
+      "type": "string",
+      "title": "MetricType",
+      "description": "Supported metric types",
+      "enum": ["counter", "gauge", "histogram", "timer"],
+      "examples": ["counter", "gauge"]
+    },
+    "Metric": {
+      "type": "object",
+      "title": "Metric",
+      "description": "A time-series metric data point collected by the MetricsEngine",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Metric identifier name"
+        },
+        "type": {
+          "$ref": "#/definitions/MetricType"
+        },
+        "value": {
+          "type": "number",
+          "description": "Numeric value of the metric"
+        },
+        "labels": {
+          "type": "object",
+          "description": "Key-value label pairs for metric dimensionality",
+          "additionalProperties": { "type": "string" },
+          "examples": [{ "service": "api", "env": "production" }]
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the metric was recorded"
+        }
+      },
+      "required": ["name", "type", "value", "labels", "timestamp"]
+    },
+    "Span": {
+      "type": "object",
+      "title": "Span",
+      "description": "A single span in a distributed trace, representing a unit of work",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique span identifier"
+        },
+        "traceId": {
+          "type": "string",
+          "description": "Trace identifier grouping related spans"
+        },
+        "parentId": {
+          "type": "string",
+          "description": "Optional parent span ID for hierarchical traces"
+        },
+        "name": {
+          "type": "string",
+          "description": "Span operation name (e.g. 'HTTP GET /api/users')"
+        },
+        "startTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the span started"
+        },
+        "endTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the span ended"
+        },
+        "duration": {
+          "type": "number",
+          "description": "Span duration in milliseconds"
+        },
+        "attributes": {
+          "type": "object",
+          "description": "Arbitrary key-value attributes attached to the span",
+          "additionalProperties": true
+        },
+        "status": {
+          "type": "string",
+          "description": "Span execution status",
+          "enum": ["ok", "error"]
+        }
+      },
+      "required": ["id", "traceId", "name", "startTime", "attributes", "status"]
+    },
+    "LogLevel": {
+      "type": "string",
+      "title": "LogLevel",
+      "description": "Severity levels for log entries",
+      "enum": ["debug", "info", "warn", "error", "fatal"],
+      "examples": ["info", "error"]
+    },
+    "LogEntry": {
+      "type": "object",
+      "title": "LogEntry",
+      "description": "A single log entry produced by the LoggingEngine",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique log entry identifier"
+        },
+        "level": {
+          "$ref": "#/definitions/LogLevel"
+        },
+        "message": {
+          "type": "string",
+          "description": "Log message content"
+        },
+        "source": {
+          "type": "string",
+          "description": "Component or service that produced the log"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the log was recorded"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional structured metadata associated with the log entry",
+          "additionalProperties": true
+        }
+      },
+      "required": ["id", "level", "message", "source", "timestamp"]
+    },
+    "AuditEvent": {
+      "type": "object",
+      "title": "AuditEvent",
+      "description": "An auditable action recorded by the AuditStream",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique audit event identifier"
+        },
+        "actor": {
+          "type": "string",
+          "description": "Identity of the entity that performed the action"
+        },
+        "action": {
+          "type": "string",
+          "description": "Description of the action performed"
+        },
+        "resource": {
+          "type": "string",
+          "description": "Identifier of the resource acted upon"
+        },
+        "resourceType": {
+          "type": "string",
+          "description": "Type/category of the resource"
+        },
+        "result": {
+          "type": "string",
+          "description": "Outcome of the action",
+          "enum": ["success", "failure", "denied"]
+        },
+        "details": {
+          "type": "object",
+          "description": "Additional contextual details about the event",
+          "additionalProperties": true
+        },
+        "ip": {
+          "type": "string",
+          "description": "IP address of the actor"
+        },
+        "userAgent": {
+          "type": "string",
+          "description": "User agent string from the request"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the event occurred"
+        }
+      },
+      "required": ["id", "actor", "action", "resource", "resourceType", "result", "timestamp"]
+    },
+    "AuditQuery": {
+      "type": "object",
+      "title": "AuditQuery",
+      "description": "Filter parameters for querying audit events",
+      "properties": {
+        "actor": { "type": "string", "description": "Filter by actor identity" },
+        "action": { "type": "string", "description": "Filter by action description" },
+        "resource": { "type": "string", "description": "Filter by resource identifier" },
+        "result": { "type": "string", "description": "Filter by result type" },
+        "since": { "type": "string", "format": "date-time", "description": "Start of time range" },
+        "until": { "type": "string", "format": "date-time", "description": "End of time range" },
+        "limit": { "type": "integer", "minimum": 0, "description": "Maximum results to return" },
+        "offset": { "type": "integer", "minimum": 0, "description": "Number of results to skip" }
+      }
+    },
+    "Budget": {
+      "type": "object",
+      "title": "Budget",
+      "description": "A cost budget with alert thresholds, managed by the FinOpsEngine",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique budget identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable budget name"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Total budgeted amount in currency units"
+        },
+        "period": {
+          "type": "string",
+          "description": "Billing period for the budget",
+          "enum": ["monthly", "quarterly", "yearly"]
+        },
+        "spent": {
+          "type": "number",
+          "description": "Amount already spent in the current period"
+        },
+        "alerts": {
+          "type": "array",
+          "description": "Threshold percentages at which alerts fire",
+          "items": { "type": "number", "minimum": 0, "maximum": 100 },
+          "examples": [[50, 80, 90, 100]]
+        },
+        "notified": {
+          "type": "array",
+          "description": "Thresholds that have already triggered notifications",
+          "items": { "type": "number", "minimum": 0, "maximum": 100 }
+        }
+      },
+      "required": ["id", "name", "amount", "period", "spent", "alerts", "notified"]
+    },
+    "ChargebackAllocation": {
+      "type": "object",
+      "title": "ChargebackAllocation",
+      "description": "A cost allocation record for chargeback/showback to a specific team and project",
+      "properties": {
+        "team": { "type": "string", "description": "Team responsible for the cost" },
+        "project": { "type": "string", "description": "Project that incurred the cost" },
+        "amount": { "type": "number", "description": "Total allocated cost amount" },
+        "resources": {
+          "type": "array",
+          "description": "Breakdown of individual resource costs",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "description": "Resource type (e.g. compute, storage)" },
+              "cost": { "type": "number", "description": "Cost of this resource" }
+            },
+            "required": ["type", "cost"]
+          }
+        },
+        "period": {
+          "type": "string",
+          "description": "Billing period (e.g. '2026-07')"
+        }
+      },
+      "required": ["team", "project", "amount", "resources", "period"]
+    },
+    "CostOptimization": {
+      "type": "object",
+      "title": "CostOptimization",
+      "description": "A cost optimization recommendation for a specific resource",
+      "properties": {
+        "resourceId": {
+          "type": "string",
+          "description": "Identifier of the resource being optimized"
+        },
+        "currentCost": {
+          "type": "number",
+          "description": "Current cost in currency units"
+        },
+        "projectedCost": {
+          "type": "number",
+          "description": "Projected cost after optimization"
+        },
+        "savings": {
+          "type": "number",
+          "description": "Estimated savings from optimization"
+        },
+        "recommendation": {
+          "type": "string",
+          "description": "Human-readable recommendation description"
+        },
+        "effort": {
+          "type": "string",
+          "description": "Estimated effort to implement the recommendation",
+          "enum": ["low", "medium", "high"]
+        }
+      },
+      "required": [
+        "resourceId",
+        "currentCost",
+        "projectedCost",
+        "savings",
+        "recommendation",
+        "effort"
+      ]
+    }
+  }
+}

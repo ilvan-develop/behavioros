@@ -6,6 +6,11 @@ import type { AgentState, DNAPackage } from '@behavioros/schemas';
 // Manages agent registration and queries
 // ============================================================
 
+/**
+ * AgentManager — Extracted from BehaviorOSEngine.
+ *
+ * Methods: get, getByOpenCodeName, getAll, getByRole, getRawMap.
+ */
 export class AgentManager {
   private agents: Map<string, AgentState> = new Map();
 

@@ -11,6 +11,9 @@ export {
 export type { MetricsCollectorConfig } from './metrics-collector';
 // --- Classes ---
 export { MetricsCollector } from './metrics-collector';
+export type { ObservabilityDashboardConfig } from './observability-dashboard';
+// --- High-level Facade ---
+export { ObservabilityDashboard } from './observability-dashboard';
 // --- Types ---
 export type {
   AggregationType,
@@ -22,6 +25,7 @@ export type {
   AlertResult,
   AlertRule,
   AlertSeverity,
+  AlertStats,
   AlertStatus,
   BehaviorOSGovernance,
   BehaviorOSLayers,

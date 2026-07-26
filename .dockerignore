@@ -1,0 +1,11 @@
+.git/
+.gitignore
+node_modules/
+packages/*/node_modules/
+packages/*/dist/
+apps/
+coverage/
+docs/
+.ai/
+.turbo/
+*.md

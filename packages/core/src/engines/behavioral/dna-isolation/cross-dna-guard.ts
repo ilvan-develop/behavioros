@@ -1,6 +1,9 @@
 import { ContextManager } from './context-manager';
 import { PermissionMatrixManager } from './permission-matrix';
 
+/**
+ * CrossDNARequest — Request/response data for cross d n a operations.
+ */
 export interface CrossDNARequest {
   sourceDnaId: string;
   targetDnaId: string;
@@ -9,12 +12,20 @@ export interface CrossDNARequest {
   payload: unknown;
 }
 
+/**
+ * CrossDNAResult — Result data for cross d n a operations.
+ */
 export interface CrossDNAResult {
   allowed: boolean;
   reason: string;
   requiresApproval: boolean;
 }
 
+/**
+ * CrossDNAGuard — cross d n a guard.
+ *
+ * Methods: validate, getContextManager, getPermissionMatrix.
+ */
 export class CrossDNAGuard {
   private readonly contextManager: ContextManager;
   private readonly permissionMatrix: PermissionMatrixManager;

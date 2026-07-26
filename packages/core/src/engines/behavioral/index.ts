@@ -39,3 +39,5 @@ export type {
 export { BosGovernanceEngine, matchesGlob } from './governance-engine';
 export type { BehavioralRecord, DnaMutation, PatternInsight } from './learning-engine';
 export { BosLearningEngine } from './learning-engine';
+export { AITMPLAdapter } from '../adapters/aitmpl-adapter';
+export { OpenDesignAdapter } from '../adapters/open-design-adapter';

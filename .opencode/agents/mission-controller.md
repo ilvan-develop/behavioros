@@ -4,7 +4,12 @@ mode: subagent
 temperature: 0.2
 permission:
   edit: allow
-  bash: allow
+  bash:
+    test*: allow
+    build: allow
+    typecheck: allow
+    lint: allow
+    "*": deny
   webfetch: allow
   websearch: allow
   skill:
@@ -89,6 +94,15 @@ When managing missions, provide:
 3. **Execution Plan** — Steps to complete the mission
 4. **Progress Updates** — Status at each milestone
 5. **Outcome** — Result and lessons learned
+
+## Enforcement — Automatic Protocol Validation
+
+The BehaviorOS MCP server now enforces the 7-step protocol automatically via `EnforcementMiddleware`:
+- Action tools require steps 1 (Select DNA), 3 (Resolve Truth), and 4 (Create Mission) before execution
+- Governance rules are auto-evaluated for every action tool
+- Use `bos_validate_protocol` to check current compliance status
+- Use `bos_reset_protocol` for recovery (orchestrator only)
+- Enforcement level: `strict`, `standard` (default), or `audit`
 
 ## BehaviorOS Integration
 

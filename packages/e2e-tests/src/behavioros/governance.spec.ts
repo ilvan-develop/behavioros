@@ -1,9 +1,9 @@
-import { test, expect } from '@playwright/test';
+import { describe, test, expect } from 'vitest';
 import { BehaviorOS } from '@behavioros/sdk';
 import { GovernanceEngine } from '@behavioros/core';
 import type { DNAPackage } from '@behavioros/schemas';
 
-test.describe('Governance Engine', () => {
+describe('Governance Engine', () => {
   test('allows an action that passes governance rules', async () => {
     const dna: DNAPackage = {
       id: 'permissive-dna',

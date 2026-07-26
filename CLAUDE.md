@@ -1,80 +1,47 @@
-# BehaviorOS — Claude Integration
+# BehaviorOS Kernel v1.0
 
-## Setup
+You are under BehaviorOS governance. Before ANY task, follow these mandatory steps:
 
-Add this to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS or `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+## 7-Step Protocol
+| # | Step | Tool |
+|---|------|------|
+| 1 | Select DNA | `bos_select_dna` |
+| 2 | Display DNA Block | Visual template |
+| 3 | Resolve Truth | `bos_resolve_truth` |
+| 4 | Create Mission | `create-mission` |
+| 5 | Delegate | Task tool |
+| 6 | Run Audit | `bos_run_audit` |
+| 7 | Record Learning | `record-learning` |
 
-```json
-{
-  "mcpServers": {
-    "behavioros": {
-      "command": "node",
-      "args": ["/absolute/path/to/behavioros/packages/mcp-server/dist/index.js"],
-      "env": {
-        "BEHAVIOROS_DNA_PATH": "./dnas/enterprise-governance.yaml"
-      }
-    }
-  }
-}
-```
+## Critical Rules
+- Read `.agent_state.json` at session start. Write it after each step.
+- Protocol state persists between sessions via `.agent_state.json`.
+- Call `bos_select_dna` before EVERY task — no exceptions.
+- Show the DNA block to the human every time.
+- Never edit files directly — always delegate.
+- Always run `bos_run_audit` before marking a mission complete.
+- Record learning events at the end of every mission.
 
-## Available Tools
+## Source of Truth
+`docs/PROTOCOL.md` — the canonical protocol specification.
 
-Once connected, you have access to 30+ BehaviorOS tools:
+## MCP Server
+BehaviorOS MCP server provides 35+ tools for protocol enforcement, DNA selection, mission management, audit, learning, ecosystem integration, and autonomous task execution.
 
-### Mission Management
-- `create-mission` — Create a new mission
-- `update-progress` — Update mission status
-- `list-missions` — List all missions
-- `list-agents` — List all agents
-- `get-status` — System health check
+Quick start (dev):
 
-### Governance
-- `evaluate-governance` — Check rules before acting
-- `bos_select_dna` — Select optimal DNA pattern
-- `bos_resolve_conflict` — Resolve agent conflicts
-- `bos_check_escalation` — Check if human approval needed
+- Create workspace state file:
 
-### Audit
-- `run-audit` — Run quality pipeline
-- `bos_run_audit` — Continuous audit chain
-- `bos_lsp_diagnostics` — TypeScript/ESLint diagnostics
-- `bos_lsp_validate` — Quality gate validation
+	```bash
+	cp templates/.agent_state.json.example .agent_state.json
+	```
 
-### Learning
-- `record-learning` — Capture insights
-- `bos_get_insights` — System health insights
-- `bos_resolve_truth` — DNA + docs for delegation
-- `bos_list_patterns` — Available DNA patterns
+- Build and run a local MCP server (required for runtime protocol tools):
 
-## BehaviorOS Protocol
+	```bash
+	# from repository root
+	pnpm --filter @behavioros/mcp-server build
+	node packages/mcp-server/dist/server.js
+	```
 
-This project follows the BehaviorOS Delegation Protocol defined in `docs/PROTOCOL.md`.
-
-### 7 Mandatory Steps
-
-| # | Step | Tool | When |
-|---|------|------|------|
-| 1 | Select DNA | `bos_select_dna` | Before ANY task |
-| 2 | Display DNA Block | Visual template | After step 1 |
-| 3 | Resolve Truth | `bos_resolve_truth` | Before delegating |
-| 4 | Create Mission | `create-mission` | Before starting work |
-| 5 | Delegate | Task tool | To execute work |
-| 6 | Run Audit | `bos_run_audit` | After completion |
-| 7 | Record Learning | `record-learning` | At the end |
-
-### Critical Rules
-
-- Call `bos_select_dna` before every single task — no exceptions
-- Show the DNA block to the human every time
-- Never edit files directly — always delegate
-- Always run `bos_run_audit` before marking a mission complete
-- Record learning events at the end of every mission
-
-## Usage
-
-Ask Claude to:
-- "Create a mission to implement the auth module"
-- "Evaluate governance for a production deployment"
-- "Run audit on my project"
-- "Select the best DNA pattern for a security review"
+If you cannot run the MCP server locally, tests or integrations that call the protocol tools must use mocks. See `docs/RUNBOOK.md` for troubleshooting and environment notes.

@@ -40,11 +40,27 @@
     },
     "edit": "ask",
     "external_directory": {
-      "~/**": "deny"
+      "~/Desktop/GitHub Apps/finpay-app/**": "allow",
+      "~/Desktop/GitHub Apps/behavioros/.opencode/skills/**": "allow",
+      "~/.opencode/skills/**": "allow",
+      "~/.agents/skills/**": "allow",
+      "~/.local/share/opencode/tool-output/**": "allow",
+      "~/AppData/Local/Temp/opencode/**": "allow"
     },
     "skill": {
       "*": "allow",
       "behavioros-*": "allow"
+    }
+  },
+  "mcpServers": {
+    "behavioros": {
+      "command": "node",
+      "args": ["packages/mcp-server/dist/server.js"],
+      "env": {
+        "BEHAVIOROS_DNA_PATH": "./dnas/enterprise-governance.yaml",
+        "BEHAVIOROS_PROJECT": "behavioros",
+        "BEHAVIOROS_LOG_LEVEL": "debug"
+      }
     }
   },
   "mcp": {
@@ -62,6 +78,14 @@
   "instructions": ["docs/PROTOCOL.md", "AGENTS.md"],
   "plugin": ["./.opencode/plugins/protocol-enforcer.ts"],
   "agent": {
+    "orchestrator": {
+      "permission": {
+        "edit": "deny",
+        "write": "deny",
+        "bash": { "*": "deny" },
+        "task": { "*": "allow" }
+      }
+    },
     "build": {
       "permission": {
         "bash": {

@@ -8,6 +8,7 @@ coverage/
 .DS_Store
 *.log
 .next/
+.agent_state.json
 nul
 demo*.mjs
 generated/

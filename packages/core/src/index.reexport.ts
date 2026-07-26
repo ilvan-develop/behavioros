@@ -21,6 +21,8 @@ export type {
 } from './engines/behavioral';
 // Behavioral Engine
 export { DNAComposer, DNALoader, DNAValidator } from './engines/behavioral';
+export type { BehaviorOSEngineConfig, EngineEvents } from './engines/core-engine';
+export { BehaviorOSEngine } from './engines/core-engine';
 export type {
   DecisionContext,
   DecisionOption,
@@ -46,5 +48,3 @@ export { MissionEngine } from './engines/mission';
 export type { QualityCheckResult, QualityReport } from './engines/quality';
 // Quality Engine
 export { QualityEngine } from './engines/quality';
-export type { BehaviorOSEngineConfig, EngineEvents } from './index';
-export { BehaviorOSEngine } from './index';

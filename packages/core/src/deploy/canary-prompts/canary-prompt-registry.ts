@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import {
   type CanaryPromptCategory,
   type CanaryPromptCreate,
@@ -175,9 +174,5 @@ export class CanaryPromptRegistry {
     const parsed = CanaryPromptCreateSchema.safeParse(result);
     if (!parsed.success) return null;
     return parsed.data;
-  }
-
-  private generateId(): string {
-    return `canary-${randomUUID().slice(0, 8)}`;
   }
 }

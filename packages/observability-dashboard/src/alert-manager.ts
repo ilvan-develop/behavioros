@@ -17,10 +17,17 @@ import type {
 // ============================================================
 
 export class AlertManager {
+  private readonly rules: AlertRule[];
   private readonly activeAlerts: Map<string, Alert> = new Map();
   private readonly alertHistory: AlertHistory[] = [];
 
-  constructor(_rules?: AlertRule[]) {}
+  constructor(rules: AlertRule[] = []) {
+    this.rules = rules;
+  }
+
+  getRules(): AlertRule[] {
+    return [...this.rules];
+  }
 
   async evaluateAlert(rule: AlertRule, metrics: UnifiedMetrics): Promise<AlertResult> {
     const currentValue = this.extractMetricValue(rule.name, metrics);

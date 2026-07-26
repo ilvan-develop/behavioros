@@ -2,6 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import type { LearningEvent } from '@behavioros/schemas';
 
+/**
+ * PatternCategory — Type alias for pattern category.
+ */
 export type PatternCategory =
   | 'temporal'
   | 'correlation'
@@ -11,6 +14,9 @@ export type PatternCategory =
   | 'failure'
   | 'source';
 
+/**
+ * PatternInsight — Defines the shape and contract for pattern insight in the BehaviorOS system.
+ */
 export interface PatternInsight {
   id: string;
   pattern: string;
@@ -22,6 +28,9 @@ export interface PatternInsight {
   lastDetected: string;
 }
 
+/**
+ * TrendInfo — Defines the shape and contract for trend info in the BehaviorOS system.
+ */
 export interface TrendInfo {
   type: string;
   direction: 'increasing' | 'decreasing' | 'stable';
@@ -31,6 +40,9 @@ export interface TrendInfo {
   currentRate: number;
 }
 
+/**
+ * AnomalyInfo — Defines the shape and contract for anomaly info in the BehaviorOS system.
+ */
 export interface AnomalyInfo {
   type: string;
   detectedAt: string;
@@ -41,6 +53,9 @@ export interface AnomalyInfo {
   eventIds: string[];
 }
 
+/**
+ * SourceReputation — Defines the shape and contract for source reputation in the BehaviorOS system.
+ */
 export interface SourceReputation {
   source: string;
   totalEvents: number;
@@ -50,6 +65,9 @@ export interface SourceReputation {
   averageConfidence: number;
 }
 
+/**
+ * LearningReport — Result data for learning operations.
+ */
 export interface LearningReport {
   id: string;
   totalEvents: number;
@@ -66,6 +84,11 @@ interface PersistedState {
   insights: PatternInsight[];
 }
 
+/**
+ * LearningEngine — learning engine.
+ *
+ * Methods: record, getEvents, getInsights, getInsightsByCategory, getTrends, getAnomalies, getSourceReputation, applyInsight, +4 more.
+ */
 export class LearningEngine {
   private events: LearningEvent[] = [];
   private insights: PatternInsight[] = [];

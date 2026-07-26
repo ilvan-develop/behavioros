@@ -5,6 +5,9 @@ import { AUTHORITY_HIERARCHY } from '../../shared/authority-hierarchy';
 // Governance Engine — Authority, Boundaries, Policies, Escalation
 // ============================================================
 
+/**
+ * AuthorityLevelValue — Type alias for authority level value.
+ */
 export type AuthorityLevelValue =
   | 'junior'
   | 'senior'
@@ -14,6 +17,9 @@ export type AuthorityLevelValue =
   | 'vp'
   | 'c-level';
 
+/**
+ * GovernanceContext — State and context data for governance operations.
+ */
 export interface GovernanceContext {
   agentId: string;
   agentRole: string;
@@ -39,6 +45,9 @@ export interface GovernanceContext {
   currentTime?: Date;
 }
 
+/**
+ * GovernanceDecision — Defines the shape and contract for governance decision in the BehaviorOS system.
+ */
 export interface GovernanceDecision {
   allowed: boolean;
   reason: string;
@@ -57,6 +66,11 @@ const DAY_NAME_MAP: Record<string, number> = {
   saturday: 6,
 };
 
+/**
+ * GovernanceEngine — governance engine.
+ *
+ * Methods: evaluate, escalate, getApplicableRules, summary.
+ */
 export class GovernanceEngine {
   private rules: GovernanceRule[];
   private ruleIndex = new Map<string, GovernanceRule[]>();

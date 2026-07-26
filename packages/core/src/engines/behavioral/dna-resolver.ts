@@ -7,6 +7,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
+/**
+ * ResolvedDna — Defines the shape and contract for resolved dna in the BehaviorOS system.
+ */
 export interface ResolvedDna {
   identity: {
     name: string;
@@ -27,6 +30,11 @@ export interface ResolvedDna {
   _sources: string[];
 }
 
+/**
+ * DnaResolver — dna resolver.
+ *
+ * Methods: resolve, getCatalogDna, listCatalogDnas.
+ */
 export class DnaResolver {
   private catalog: Map<string, Record<string, unknown>> = new Map();
   private catalogPath: string;

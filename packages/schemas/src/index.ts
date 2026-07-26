@@ -4,6 +4,11 @@ import { z } from 'zod';
 // BehaviorOS Core Schemas — Zod v4.4.3
 // ============================================================
 
+// --- Ecosystem (Phase 0 - Schema Universal) ---
+import { SkillRefSchema } from './ecosystem';
+
+export * from './ecosystem';
+
 // --- DNA Pattern ---
 export const AgentRoleSchema = z.enum([
   'engineer',
@@ -52,7 +57,7 @@ export const AgentPersonaSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
   boundaries: z.array(BoundaryRuleSchema).optional(),
-  skills: z.array(z.string()).optional(),
+  skills: z.array(z.union([z.string(), SkillRefSchema])).optional(),
   tools: z.array(z.string()).optional(),
 });
 export type AgentPersona = z.infer<typeof AgentPersonaSchema>;
@@ -281,7 +286,7 @@ export const AgentStateSchema = z.object({
   id: z.string(),
   role: AgentRoleSchema,
   status: AgentStatusSchema.default('idle'),
-  authority: AuthorityLevelSchema.default('junior'),
+  authority: AuthorityLevelSchema.default('senior'),
   currentMission: z.string().uuid().optional(),
   completedMissions: z.array(z.string().uuid()).default([]),
   reputation: z.number().min(0).max(100).default(50),

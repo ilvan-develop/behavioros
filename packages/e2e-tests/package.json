@@ -3,6 +3,12 @@
   "private": true,
   "version": "0.1.1",
   "description": "BehaviorOS E2E test suite using Playwright",
+  "author": "Ilvan Joaquim",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ilvan-develop/behavioros"
+  },
+  "homepage": "https://github.com/ilvan-develop/behavioros",
   "scripts": {
     "test": "playwright test",
     "test:unit": "vitest run",

@@ -17,6 +17,9 @@ export interface BehavioralRecord {
   feedback?: string;
 }
 
+/**
+ * PatternInsight — Defines the shape and contract for pattern insight in the BehaviorOS system.
+ */
 export interface PatternInsight {
   pattern: string;
   successRate: number;
@@ -27,6 +30,9 @@ export interface PatternInsight {
   suggestedMutation?: string;
 }
 
+/**
+ * DnaMutation — Defines the shape and contract for dna mutation in the BehaviorOS system.
+ */
 export interface DnaMutation {
   dna: string;
   field: string;
@@ -44,6 +50,11 @@ const SUCCESS_RATE_MUTATE_THRESHOLD = 0.8;
 const LOW_QUALITY_THRESHOLD = 0.7;
 const LONG_DURATION_MS = 300_000;
 
+/**
+ * BosLearningEngine — bos learning engine.
+ *
+ * Methods: record, analyze, suggestMutations, getRecords, getStats.
+ */
 export class BosLearningEngine {
   private records: BehavioralRecord[] = [];
   private patterns: Map<string, BehavioralRecord[]> = new Map();

@@ -1,3 +1,6 @@
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 /**
  * ProtocolStateTracker — Tracks compliance with the BehaviorOS 7-Step Delegation Protocol.
  *
@@ -23,6 +26,9 @@ export const PROTOCOL_STEPS = {
   LEARNING_RECORDED: 5,
 } as const;
 
+/**
+ * ProtocolStepNumber — Type alias for protocol step number.
+ */
 export type ProtocolStepNumber = (typeof PROTOCOL_STEPS)[keyof typeof PROTOCOL_STEPS];
 
 export const PROTOCOL_STEP_NAMES: Record<ProtocolStepNumber, string> = {
@@ -41,6 +47,9 @@ export const PROTOCOL_STEP_TOOLS: Record<ProtocolStepNumber, string> = {
   [PROTOCOL_STEPS.LEARNING_RECORDED]: 'record-learning',
 };
 
+/**
+ * ProtocolState — State and context data for protocol operations.
+ */
 export interface ProtocolState {
   /** Whether Step 1 (Select DNA) has been completed */
   dnaSelected: boolean;
@@ -104,6 +113,20 @@ export interface ProtocolStatus {
   orderViolations: OrderViolation[];
   /** Timestamps for each completed step */
   lastActionTimestamps: { step: string; timestamp: string }[];
+}
+
+/** Data format for protocol state files on disk */
+export interface ProtocolFileData {
+  version: string;
+  protocol: {
+    dnaSelected: boolean;
+    truthResolved: boolean;
+    missionCreated: boolean;
+    auditDone: boolean;
+    learningRecorded: boolean;
+    lastStep: number;
+    lastUpdated: string;
+  };
 }
 
 /**
@@ -521,5 +544,56 @@ export class ProtocolStateTracker {
   /** Reset the tracker to initial state (all steps incomplete) */
   reset(): void {
     this.state = this.createInitialState();
+  }
+
+  // ─── Persistence ──────────────────────────────────────────────
+
+  /** Save current protocol state to a JSON file */
+  save(filePath?: string): void {
+    const targetPath = filePath ?? ProtocolStateTracker.getDefaultStateFilePath();
+    const data: ProtocolFileData = {
+      version: '1.0',
+      protocol: {
+        dnaSelected: this.state.dnaSelected,
+        truthResolved: this.state.truthResolved,
+        missionCreated: this.state.missionCreated,
+        auditDone: this.state.auditDone,
+        learningRecorded: this.state.learningRecorded,
+        lastStep: this.state.currentStep,
+        lastUpdated: new Date().toISOString(),
+      },
+    };
+    writeFileSync(targetPath, JSON.stringify(data, null, 2), 'utf-8');
+  }
+
+  /** Load protocol state from a JSON file. Returns true on success, false if file is missing or corrupted. */
+  load(filePath?: string): boolean {
+    const targetPath = filePath ?? ProtocolStateTracker.getDefaultStateFilePath();
+    try {
+      if (!existsSync(targetPath)) {
+        return false;
+      }
+      const raw = readFileSync(targetPath, 'utf-8');
+      const data = JSON.parse(raw) as Partial<ProtocolFileData>;
+      if (data.protocol) {
+        this.state.dnaSelected = data.protocol.dnaSelected ?? false;
+        this.state.truthResolved = data.protocol.truthResolved ?? false;
+        this.state.missionCreated = data.protocol.missionCreated ?? false;
+        this.state.auditDone = data.protocol.auditDone ?? false;
+        this.state.learningRecorded = data.protocol.learningRecorded ?? false;
+        this.recalcCurrentStep();
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Get the default state file path for a project root */
+  static getDefaultStateFilePath(projectRoot?: string): string {
+    if (projectRoot) {
+      return join(projectRoot, '.agent_state.json');
+    }
+    return '.agent_state.json';
   }
 }

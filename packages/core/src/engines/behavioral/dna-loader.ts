@@ -12,6 +12,9 @@ const MAX_YAML_SIZE = 1024 * 1024; // 1MB
 const MAX_NESTING_DEPTH = 10;
 const MAX_GOVERNANCE_RULES = 1000;
 
+/**
+ * DNALoaderOptions — Configuration options for d n a loader.
+ */
 export interface DNALoaderOptions {
   basePath?: string;
   validate?: boolean;
@@ -19,6 +22,11 @@ export interface DNALoaderOptions {
   sanitize?: boolean;
 }
 
+/**
+ * DNALoader — d n a loader.
+ *
+ * Methods: load, loadFromString, loadFromObject, loadAll, clearCache.
+ */
 export class DNALoader {
   private basePath: string;
   private validate: boolean;

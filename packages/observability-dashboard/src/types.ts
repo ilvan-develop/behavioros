@@ -82,6 +82,14 @@ export interface PanelVisualization {
 
 // --- Alert Rules ---
 
+export interface AlertStats {
+  total: number;
+  firing: number;
+  acknowledged: number;
+  resolved: number;
+  bySeverity: Record<AlertSeverity, number>;
+}
+
 export type AlertSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 export type AlertCondition = 'above' | 'below' | 'equals' | 'not_equals' | 'change' | 'absent';
 export type AlertChannel = 'slack' | 'email' | 'pagerduty' | 'webhook' | 'sms';

@@ -11,6 +11,9 @@ export interface EscalationTrigger {
   severity: 'low' | 'medium' | 'high' | 'critical';
 }
 
+/**
+ * EscalationEvent — Defines the shape and contract for escalation event in the BehaviorOS system.
+ */
 export interface EscalationEvent {
   triggerId: string;
   timestamp: string;
@@ -21,6 +24,9 @@ export interface EscalationEvent {
   retries: number;
 }
 
+/**
+ * GovernanceRule — Defines the shape and contract for governance rule in the BehaviorOS system.
+ */
 export interface GovernanceRule {
   id: string;
   name?: string;
@@ -30,6 +36,11 @@ export interface GovernanceRule {
   conditions?: string[];
 }
 
+/**
+ * EscalationManager — escalation manager.
+ *
+ * Methods: loadGovernanceRules, check, resolve, retry, getActiveEscalations, getEscalationHistory, prune.
+ */
 export class EscalationManager {
   private triggers: EscalationTrigger[];
   private events: EscalationEvent[] = [];

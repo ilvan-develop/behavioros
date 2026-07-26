@@ -4,6 +4,9 @@
 
 import { execSync } from 'node:child_process';
 
+/**
+ * AuditStep — Defines the shape and contract for audit step in the BehaviorOS system.
+ */
 export interface AuditStep {
   name: string;
   trigger: 'commit' | 'pr' | 'merge' | 'deploy_staging' | 'deploy_production';
@@ -15,6 +18,9 @@ export interface AuditStep {
   optional?: boolean;
 }
 
+/**
+ * AuditResult — Result data for audit operations.
+ */
 export interface AuditResult {
   step: string;
   status: 'pass' | 'warn' | 'fail' | 'skip';
@@ -23,6 +29,9 @@ export interface AuditResult {
   timestamp: string;
 }
 
+/**
+ * AuditChainReport — Result data for audit chain operations.
+ */
 export interface AuditChainReport {
   trigger: string;
   results: AuditResult[];
@@ -31,6 +40,11 @@ export interface AuditChainReport {
   timestamp: string;
 }
 
+/**
+ * AuditChain — audit chain.
+ *
+ * Methods: execute, addStep, removeStep, getStepsForTrigger, listSteps.
+ */
 export class AuditChain {
   private steps: AuditStep[];
 

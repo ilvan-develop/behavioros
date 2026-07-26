@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-07-24T08:48:53.562Z",
+  "projectPath": "C:\\Users\\Ilvan\\Desktop\\GitHub Apps\\behavioros\\packages\\core",
+  "results": [
+    {
+      "tool": "typescript",
+      "success": false,
+      "diagnostics": [],
+      "error": "Command failed: npx tsc --noEmit --pretty false 2>&1"
+    },
+    {
+      "tool": "eslint",
+      "success": false,
+      "diagnostics": [],
+      "error": "No ESLint or Biome config found"
+    }
+  ],
+  "summary": {
+    "total": 0,
+    "errors": 0,
+    "warnings": 0,
+    "hasErrors": true
+  }
+}

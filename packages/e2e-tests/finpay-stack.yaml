@@ -1,0 +1,198 @@
+name: finpay-integration-test
+version: '1.0.0'
+description: Stack de teste para validar integração BOS + FinPay — cobre protocolo, skills, decomposição, handoff, ecossistema e documentação
+tags:
+  - fintech
+  - payments
+  - integration-test
+  - behavioros
+
+dna:
+  - autonomous-orchestrator
+  - enterprise-governance
+
+agents:
+  orchestrator:
+    role: orchestrator
+    authority: lead
+    description: Coordenador central — nunca edita ficheiros diretamente, delega tudo via Task tool
+    skills:
+      - task-decomposition
+      - skill-routing
+      - autonomous-delegation
+    mcp:
+      - bos_select_dna
+      - bos_resolve_truth
+      - bos_resolve_conflict
+      - bos_check_escalation
+      - bos_run_audit
+      - create-mission
+      - update-progress
+      - record-learning
+      - evaluate-governance
+
+  audit-analyst:
+    role: qa
+    authority: senior
+    description: Executa pipelines de auditoria multi-estágio e valida conformidade
+    skills:
+      - pipeline-execution
+      - compliance-validation
+    mcp:
+      - bos_run_audit
+      - bos_lsp_diagnostics
+      - bos_lsp_validate
+
+  quality-guardian:
+    role: qa
+    authority: senior
+    description: Garante a qualidade do código através de gates de qualidade
+    skills:
+      - test-strategy
+      - quality-gates
+    mcp:
+      - evaluate-governance
+      - bos_lsp_validate
+
+  engineer:
+    role: engineer
+    authority: senior
+    description: Implementa lógica de pagamento, APIs e integrações
+    skills:
+      - payment-implementation
+      - api-design
+
+  security:
+    role: security
+    authority: architect
+    description: Audita segurança, valida PCI-DSS e LGPD
+    skills:
+      - security-audit
+      - compliance-validation
+
+  devops:
+    role: devops
+    authority: senior
+    description: Gerencia deploys, CI/CD e infraestrutura
+    skills:
+      - pipeline-execution
+      - infrastructure
+
+governance:
+  - id: block-no-skill
+    name: Block Delegation Without Required Skill
+    level: critical
+    action: block
+    conditions:
+      - type:delegation
+      - missing:skill
+    description: Bloqueia delegação se o agente alvo não tiver a skill necessária
+
+  - id: block-protocol-skip
+    name: Block Protocol Step Skip
+    level: critical
+    action: block
+    conditions:
+      - protocol:skip
+    description: Bloqueia ações se um passo obrigatório do protocolo for pulado
+
+  - id: escalate-payment
+    name: Payment Changes Escalation
+    level: high
+    action: escalate
+    conditions:
+      - type:payment
+      - impact:high
+    description: Alterações em pagamentos requerem escalonamento para segurança/arquitetura
+
+quality:
+  - id: test-coverage
+    name: Test Coverage
+    metric: coverage
+    threshold: 80
+    operator: '>='
+    action: warn
+
+  - id: lint-pass
+    name: Lint Pass
+    metric: lint
+    threshold: 100
+    operator: '>='
+    action: block
+
+  - id: typecheck-pass
+    name: Typecheck Pass
+    metric: typecheck
+    threshold: 100
+    operator: '>='
+    action: block
+
+  - id: security-scan
+    name: Security Scan
+    metric: security
+    threshold: 100
+    operator: '>='
+    action: block
+
+patterns:
+  - id: payment-pipeline
+    name: Payment Integration Pipeline
+    type: deployment
+    triggers:
+      - payment_feature
+      - payment_change
+    actions:
+      - decompose_task
+      - route_to_engineer
+      - implement_payment
+      - security_audit
+      - qa_validation
+      - generate_docs
+    conditions:
+      - type:payment
+
+  - id: autonomous-delegation
+    name: Autonomous Delegation Pattern
+    type: collaboration
+    triggers:
+      - task_created
+      - subtask_ready
+    actions:
+      - select_agent_by_skill
+      - handoff_with_context
+      - accept_or_reject
+      - fallback_on_rejection
+    conditions:
+      - type:delegation
+
+workflows:
+  - id: finpay-payment-feature
+    name: FinPay Payment Feature Workflow
+    type: sequential
+    agent: orchestrator
+    input:
+      steps:
+        - create_mission
+        - decompose_into_subtasks
+        - route_backend_to_engineer
+        - route_security_to_auditor
+        - route_testing_to_qa
+        - collect_results
+        - record_learning
+        - complete_mission
+    timeout: 600000
+    retries: 1
+
+  - id: finpay-handoff-cycle
+    name: FinPay Handoff Cycle
+    type: gate
+    agent: orchestrator
+    input:
+      steps:
+        - request_handoff
+        - wait_acceptance
+        - execute_task
+        - return_output
+        - complete_handoff
+    timeout: 300000
+    retries: 2

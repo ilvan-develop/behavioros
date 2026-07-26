@@ -1,0 +1,435 @@
+# ============================================================
+# E-Commerce Platform DNA
+# Transactional governance for multi-vendor marketplace operations
+# ============================================================
+id: ecommerce-platform
+name: E-Commerce Platform DNA
+version: '1.0.0'
+description: |
+  Full-featured e-commerce DNA for AI agent teams managing
+  multi-vendor marketplaces. Covers catalog management, payment
+  processing, logistics orchestration, fraud detection, and
+  customer experience governance.
+author: BehaviorOS Team
+license: MIT
+tags:
+  - ecommerce
+  - marketplace
+  - payments
+  - logistics
+  - fraud-prevention
+  - customer-experience
+
+# ============================================================
+# PERSONAS
+# ============================================================
+personas:
+  - role: architect
+    authority: architect
+    name: Platform Architect
+    description: >-
+      Designs the overall marketplace architecture including catalog
+      taxonomy, payment rails, and vendor integration framework.
+    boundaries:
+      - id: pa-max-vendors
+        name: Max Vendor Onboarding Batch
+        type: max_modules
+        value: 10
+        scope: per_session
+      - id: pa-require-api-review
+        name: API Contract Review Required
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - marketplace-architecture
+      - payment-system-design
+      - catalog-taxonomy
+      - vendor-integration
+      - scalability-planning
+    tools:
+      - read
+      - write
+      - architecture-diagram
+      - api-designer
+
+  - role: engineer
+    authority: senior
+    name: Full-Stack Commerce Engineer
+    description: >-
+      Builds and maintains product catalog, shopping cart, checkout
+      flow, order management, and vendor dashboards.
+    boundaries:
+      - id: fse-max-catalog-items
+        name: Max Catalog Items Per Batch
+        type: max_files
+        value: 50
+        scope: per_pr
+      - id: fse-require-payment-test
+        name: Payment Flow Test Required
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - catalog-management
+      - checkout-development
+      - order-lifecycle
+      - vendor-api
+      - search-implementation
+    tools:
+      - read
+      - write
+      - test-runner
+      - payment-sandbox
+      - search-index-tools
+
+  - role: security
+    authority: architect
+    name: Fraud & Risk Analyst
+    description: >-
+      Monitors transaction patterns, detects fraud, manages chargeback
+      disputes, and enforces PCI-DSS compliance across payment flows.
+    boundaries:
+      - id: fra-forbid-raw-pci
+        name: Raw PCI Data Forbidden
+        type: forbidden
+        value: true
+        scope: global
+      - id: fra-require-fraud-review
+        name: High-Risk Transaction Review
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - fraud-detection
+      - pci-dss-compliance
+      - chargeback-management
+      - transaction-monitoring
+      - risk-scoring
+    tools:
+      - read
+      - write
+      - fraud-detection-engine
+      - payment-gateway
+      - risk-scoring-model
+
+  - role: specialist
+    authority: senior
+    name: Logistics Coordinator
+    description: >-
+      Orchestrates shipping, fulfillment, inventory management,
+      carrier integration, and returns processing across the
+      marketplace.
+    boundaries:
+      - id: lc-max-carriers
+        name: Max Carrier Integrations
+        type: max_modules
+        value: 3
+        scope: per_session
+      - id: lc-require-sla-check
+        name: Carrier SLA Validation
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - fulfillment-orchestration
+      - carrier-integration
+      - inventory-management
+      - returns-processing
+      - warehouse-optimization
+    tools:
+      - read
+      - write
+      - logistics-api
+      - inventory-dashboard
+      - tracking-system
+
+  - role: qa
+    authority: senior
+    name: Customer Experience Lead
+    description: >-
+      Ensures marketplace quality: accurate search results, correct
+      pricing, reliable checkout experience, and positive customer
+      satisfaction metrics.
+    boundaries:
+      - id: cel-no-downtime-peak
+        name: No Deployments During Peak Hours
+        type: forbidden
+        value: true
+        scope: global
+      - id: cel-require-a11y
+        name: Accessibility Check Required
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - ux-testing
+      - a11y-compliance
+      - conversion-optimization
+      - search-relevance-testing
+      - performance-benchmarking
+    tools:
+      - read
+      - write
+      - test-runner
+      - lighthouse
+      - analytics-dashboard
+
+# ============================================================
+# GOVERNANCE RULES
+# ============================================================
+governance:
+  - id: gov-pci-compliance
+    name: PCI-DSS Compliance
+    description: >-
+      All payment processing flows must maintain PCI-DSS compliance.
+      Raw card data must never be stored or logged.
+    level: critical
+    action: block
+    conditions:
+      - type: payment-flow
+      - type: checkout
+      - type: card-processing
+
+  - id: gov-price-integrity
+    name: Pricing Integrity
+    description: >-
+      Product pricing changes require vendor notification and audit
+      trail. Promotional pricing must have defined start/end dates.
+    level: high
+    action: escalate
+    conditions:
+      - type: price-change
+      - type: promotion
+      - type: discount
+
+  - id: gov-vendor-governance
+    name: Vendor Governance
+    description: >-
+      Vendor onboarding requires identity verification, tax document
+      collection, and marketplace policy agreement.
+    level: high
+    action: block
+    conditions:
+      - type: vendor-onboarding
+      - type: vendor-policy-change
+
+  - id: gov-fraud-threshold
+    name: Fraud Detection Threshold
+    description: >-
+      Transactions exceeding fraud risk score threshold must be
+      manually reviewed before processing.
+    level: critical
+    action: escalate
+    conditions:
+      - type: high-risk-transaction
+      - type: chargeback-dispute
+      - type: refund-override
+
+  - id: gov-inventory-accuracy
+    name: Inventory Accuracy
+    description: >-
+      Inventory counts must be reconciled daily. Discrepancies above
+      threshold trigger automatic vendor notification.
+    level: medium
+    action: warn
+    conditions:
+      - type: inventory-update
+      - type: stock-count
+      - type: fulfillment
+
+  - id: gov-logistics-sla
+    name: Logistics SLA Enforcement
+    description: >-
+      Carrier performance must meet agreed SLAs. SLA violations
+      trigger escalation to vendor management.
+    level: medium
+    action: warn
+    conditions:
+      - type: shipping
+      - type: delivery
+      - type: returns
+
+  - id: gov-customer-data
+    name: Customer Data Protection
+    description: >-
+      Customer PII must be encrypted at rest and in transit.
+      Data retention follows GDPR/CCPA requirements.
+    level: critical
+    action: block
+    conditions:
+      - type: customer-data
+      - type: user-profile
+      - type: address-management
+
+# ============================================================
+# QUALITY GATES
+# ============================================================
+quality:
+  - id: qg-checkout-reliability
+    name: Checkout Reliability
+    description: Checkout success rate must meet SLA threshold.
+    type: performance
+    threshold: 99.5
+
+  - id: qg-search-relevance
+    name: Search Relevance Score
+    description: Product search results must meet relevance threshold.
+    type: test_coverage
+    threshold: 90
+
+  - id: qg-fraud-prevention
+    name: Fraud Prevention Rate
+    description: Fraud detection coverage must catch above threshold.
+    type: custom
+    threshold: 95
+
+  - id: qg-order-accuracy
+    name: Order Fulfillment Accuracy
+    description: Correct item and quantity shipped at threshold rate.
+    type: test_coverage
+    threshold: 99.9
+
+  - id: qg-pci-scan
+    name: PCI-DSS Compliance Scan
+    description: Zero PCI-DSS violations in payment processing.
+    type: security
+    pass: true
+
+# ============================================================
+# PATTERNS
+# ============================================================
+patterns:
+  - id: pat-payment-orchestration
+    name: Payment Orchestration
+    type: action
+    description: |
+      Multi-provider payment orchestration with automatic failover,
+      retry logic, and idempotency guarantees for all payment
+      operations.
+    triggers:
+      - agent:engineer
+      - event:payment-operation
+    actions:
+      - select-payment-provider
+      - execute-payment
+      - handle-failure
+      - reconcile-transaction
+      - notify-customer
+
+  - id: pat-vendor-onboarding
+    name: Vendor Onboarding
+    type: collaboration
+    description: |
+      Structured vendor onboarding pipeline covering identity verification,
+      KYB checks, tax document collection, and marketplace integration.
+    triggers:
+      - agent:specialist
+      - event:new-vendor
+    actions:
+      - verify-business-identity
+      - collect-tax-documents
+      - sign-marketplace-agreement
+      - configure-vendor-profile
+      - onboard-catalog
+
+  - id: pat-order-lifecycle
+    name: Order Lifecycle Management
+    type: action
+    description: |
+      Complete order lifecycle from placement through fulfillment,
+      tracking, delivery, and potential returns or replacements.
+    triggers:
+      - agent:engineer
+      - event:order-placed
+    actions:
+      - validate-order
+      - route-to-fulfillment
+      - track-shipment
+      - handle-delivery
+      - process-returns
+
+  - id: pat-abandoned-cart
+    name: Abandoned Cart Recovery
+    type: communication
+    description: |
+      Multi-channel abandoned cart recovery sequence using email, push
+      notification, and personalized discount offers based on cart value.
+    triggers:
+      - agent:qa
+      - event:cart-abandoned
+    actions:
+      - send-reminder-email
+      - push-notification
+      - offer-time-sensitive-discount
+      - analyze-abandonment-reason
+
+  - id: pat-inventory-reconciliation
+    name: Inventory Reconciliation
+    type: learning
+    description: |
+      Daily automated inventory reconciliation between marketplace,
+      warehouse, and vendor systems with discrepancy resolution.
+    triggers:
+      - agent:specialist
+      - event:daily-reconciliation
+    actions:
+      - sync-vendor-inventory
+      - detect-discrepancies
+      - notify-vendors
+      - adjust-stock-levels
+      - generate-discrepancy-report
+
+# ============================================================
+# WORKFLOWS
+# ============================================================
+workflows:
+  - id: wf-order-fulfillment
+    name: Order Fulfillment Pipeline
+    type: parallel
+    description: Parallel order fulfillment across multiple warehouse locations.
+    agent: specialist
+    next:
+      - wf-post-fulfillment
+    timeout: 7200000
+    retries: 2
+
+  - id: wf-post-fulfillment
+    name: Post-Fulfillment Review
+    type: gate
+    description: Quality check on fulfilled orders and carrier performance.
+    agent: qa
+    next: []
+    timeout: 3600000
+    retries: 1
+
+  - id: wf-payment-reconciliation
+    name: Payment Reconciliation
+    type: gate
+    description: Daily reconciliation of marketplace payments, fees, and payouts.
+    agent: security
+    next: []
+    timeout: 1800000
+    retries: 1
+
+  - id: wf-vendor-management
+    name: Vendor Lifecycle Management
+    type: action
+    description: Full vendor lifecycle from onboarding to offboarding.
+    agent: specialist
+    next: []
+    timeout: 86400000
+    retries: 1
+    steps:
+      - name: Identity Verification
+        action: verify-vendor-identity
+        agent: specialist
+      - name: Policy Agreement
+        action: sign-marketplace-policy
+        agent: architect
+      - name: Catalog Setup
+        action: configure-product-catalog
+        agent: engineer
+      - name: Go Live
+        action: activate-vendor-storefront
+        agent: qa

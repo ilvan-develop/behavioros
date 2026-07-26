@@ -2,6 +2,11 @@ import type { AuthorityLevel } from '../../../domain/boundaries/agent-boundary';
 import { AgentContext } from '../../../domain/contexts/agent-context';
 import { DNAContext } from '../../../domain/contexts/dna-context';
 
+/**
+ * ContextManager — context manager.
+ *
+ * Methods: createDNAContext, createAgentContext, getDNAContext, getAgentContext, validateCrossDNAAccess, clear.
+ */
 export class ContextManager {
   private dnaContexts: Map<string, DNAContext> = new Map();
   private agentContexts: Map<string, AgentContext> = new Map();

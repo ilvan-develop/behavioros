@@ -4,6 +4,9 @@ import type { BehaviorPattern, DNAPackage } from '@behavioros/schemas';
 // DNA Composer — Combina e transforma padrões comportamentais
 // ============================================================
 
+/**
+ * CompositionResult — Result data for composition operations.
+ */
 export interface CompositionResult {
   patterns: BehaviorPattern[];
   metadata: {
@@ -13,6 +16,11 @@ export interface CompositionResult {
   };
 }
 
+/**
+ * DNAComposer — d n a composer.
+ *
+ * Methods: compose, filterByType, filterByTrigger, sortByPriority, summary.
+ */
 export class DNAComposer {
   /**
    * Compõe múltiplos pacotes DNA em um único conjunto de padrões

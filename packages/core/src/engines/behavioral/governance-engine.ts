@@ -15,6 +15,9 @@ import { parse as parseYaml } from 'yaml';
 // Interfaces — matching the BOS original contract
 // ============================================================
 
+/**
+ * AgentAuthority — Defines the shape and contract for agent authority in the BehaviorOS system.
+ */
 export interface AgentAuthority {
   role: 'junior' | 'senior' | 'architect' | 'tech_lead' | 'cto';
   domain: string;
@@ -35,6 +38,9 @@ export interface AgentAuthority {
   authority?: string[];
 }
 
+/**
+ * ValidationResult — Result data for validation operations.
+ */
 export interface ValidationResult {
   allowed: boolean;
   reason?: string;
@@ -43,6 +49,9 @@ export interface ValidationResult {
   severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
+/**
+ * EscalationRule — Defines the shape and contract for escalation rule in the BehaviorOS system.
+ */
 export interface EscalationRule {
   trigger: string;
   action: string;
@@ -51,12 +60,18 @@ export interface EscalationRule {
   severity: 'low' | 'medium' | 'high' | 'critical';
 }
 
+/**
+ * ConflictResolution — Defines the shape and contract for conflict resolution in the BehaviorOS system.
+ */
 export interface ConflictResolution {
   protocol: Array<{ step: string }>;
   timeout: string;
   escalation: string;
 }
 
+/**
+ * GovernanceConfig — Configuration options for governance.
+ */
 export interface GovernanceConfig {
   authorityMatrix: Record<string, AgentAuthority>;
   domainBoundaries: Record<
@@ -84,6 +99,9 @@ export interface GovernanceConfig {
 // BosGovernanceEngine — YAML/config-driven governance
 // ============================================================
 
+/**
+ * BosGovernanceEngine — YAML/config-driven governance for agent authority, domain boundaries, and escalation.
+ */
 export class BosGovernanceEngine {
   private readonly config: GovernanceConfig;
 

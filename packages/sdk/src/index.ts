@@ -14,29 +14,17 @@ import {
   GovernanceEngine,
   LearningEngine,
   type LearningReport,
-  MissionEngine,
   PipelineEngine,
   type PipelineOptions,
-  QualityEngine,
 } from '@behavioros/core';
 import type {
-  AgentPersona,
-  AgentRole,
-  AgentStatus,
-  AuditResult,
-  AuditSeverity,
-  AuthorityLevel,
-  BoundaryRule,
   DNAPackage,
   LayerResult,
   LearningEvent,
   Mission,
-  MissionPriority,
-  MissionStatus,
   PipelineReport,
   PipelineState,
   QualityMetric,
-  VotingStrategy,
 } from '@behavioros/schemas';
 
 // ============================================================

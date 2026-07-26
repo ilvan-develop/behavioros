@@ -4,12 +4,18 @@ import type { DNAPackage } from '@behavioros/schemas';
 // DNA Validator — Validação avançada de pacotes DNA
 // ============================================================
 
+/**
+ * ValidationResult — Result data for validation operations.
+ */
 export interface ValidationResult {
   valid: boolean;
   errors: ValidationError[];
   warnings: ValidationWarning[];
 }
 
+/**
+ * ValidationError — Defines the shape and contract for validation error in the BehaviorOS system.
+ */
 export interface ValidationError {
   code: string;
   message: string;
@@ -17,6 +23,9 @@ export interface ValidationError {
   severity: 'error';
 }
 
+/**
+ * ValidationWarning — Defines the shape and contract for validation warning in the BehaviorOS system.
+ */
 export interface ValidationWarning {
   code: string;
   message: string;
@@ -25,6 +34,9 @@ export interface ValidationWarning {
 }
 
 // biome-ignore lint/complexity/noStaticOnlyClass: static utility class pattern for DNA validation
+/**
+ * DNAValidator — d n a validator.
+ */
 export class DNAValidator {
   /**
    * Validação completa de um pacote DNA

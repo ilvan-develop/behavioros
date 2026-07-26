@@ -17,7 +17,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 11
 
       - uses: actions/setup-node@v4
         with:
@@ -30,17 +30,17 @@ jobs:
       - name: Build core packages
         run: pnpm build
 
-      - name: EAARG pipeline validation
-        run: npx @behavioros/cli eaarg start
-        continue-on-error: true
-        id: eaarg
+      - name: Build CLI
+        run: pnpm --filter @behavioros/cli build
 
-      - name: Fallback — DNA validate
-        if: steps.eaarg.outcome == 'failure'
-        run: npx @behavioros/cli validate
+      - name: Protocol compliance check
+        run: node packages/cli/dist/bin.mjs protocol check
+
+      - name: DNA validate
+        run: node packages/cli/dist/bin.mjs validate dnas/enterprise-governance.yaml
 
       - name: Block merge on failure
         if: failure()
         run: |
-          echo "::error::Quality gate failed — EAARG pipeline did not pass."
+          echo "::error::Quality gate failed — protocol or DNA validation did not pass."
           exit 1

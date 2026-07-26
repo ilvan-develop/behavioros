@@ -1,0 +1,110 @@
+[
+  {
+    "id": "be4c7d53-9e8d-46d6-8d56-6b31f64080fb",
+    "timestamp": "2026-07-21T08:58:47.356Z",
+    "missionId": "test-mission",
+    "phase": "analysis",
+    "coverage": 0,
+    "contextHash": "ctx-69b",
+    "state": 50
+  },
+  {
+    "id": "a956ec84-af62-4971-8e18-13d1c06f061f",
+    "timestamp": "2026-07-21T09:00:38.241Z",
+    "missionId": "test-mission",
+    "phase": "analysis",
+    "coverage": 0,
+    "contextHash": "ctx-69b",
+    "state": 50
+  },
+  {
+    "id": "37c12c31-7e58-4daf-bed3-553a327c54b8",
+    "timestamp": "2026-07-21T09:01:58.184Z",
+    "missionId": "test-mission",
+    "phase": "analysis",
+    "coverage": 0,
+    "contextHash": "ctx-69b",
+    "state": 50
+  },
+  {
+    "id": "f47f9dad-e4ed-4501-9e4a-280a2c34012f",
+    "timestamp": "2026-07-21T09:10:31.065Z",
+    "missionId": "test-mission",
+    "phase": "analysis",
+    "coverage": 0,
+    "contextHash": "ctx-69b",
+    "state": 50
+  },
+  {
+    "id": "f64ce185-181e-446e-a038-8556d379f9d4",
+    "timestamp": "2026-07-21T09:11:05.460Z",
+    "missionId": "test-mission",
+    "phase": "analysis",
+    "coverage": 0,
+    "contextHash": "ctx-69b",
+    "state": 50
+  },
+  {
+    "id": "e7668241-eefe-4531-b08b-b5da14d16656",
+    "timestamp": "2026-07-21T09:24:24.966Z",
+    "missionId": "test-mission",
+    "phase": "analysis",
+    "coverage": 0,
+    "contextHash": "ctx-69b",
+    "state": 50
+  },
+  {
+    "id": "3ef8530e-f0fd-467e-8225-23392d6992c1",
+    "timestamp": "2026-07-21T09:25:23.146Z",
+    "missionId": "test-mission",
+    "phase": "analysis",
+    "coverage": 0,
+    "contextHash": "ctx-69b",
+    "state": 50
+  },
+  {
+    "id": "77e131d6-ee0d-487e-91ce-06fab847fae1",
+    "timestamp": "2026-07-21T09:52:29.193Z",
+    "missionId": "test-mission",
+    "phase": "analysis",
+    "coverage": 0,
+    "contextHash": "ctx-69b",
+    "state": 50
+  },
+  {
+    "id": "771a501a-5ba7-40aa-9208-b3b912c3af91",
+    "timestamp": "2026-07-21T11:47:30.089Z",
+    "missionId": "test-mission",
+    "phase": "analysis",
+    "coverage": 0,
+    "contextHash": "ctx-69b",
+    "state": 50
+  },
+  {
+    "id": "9e0dd2e2-e316-4bbe-bc62-c78f44e0862a",
+    "timestamp": "2026-07-21T11:50:10.809Z",
+    "missionId": "test-mission",
+    "phase": "analysis",
+    "coverage": 0,
+    "contextHash": "ctx-69b",
+    "state": 50
+  },
+  {
+    "id": "adf906b1-d3ef-4127-8d74-43e4199031b7",
+    "timestamp": "2026-07-21T11:54:29.656Z",
+    "missionId": "test-mission",
+    "phase": "analysis",
+    "coverage": 0,
+    "contextHash": "ctx-69b",
+    "state": 50
+  },
+  {
+    "id": "8ca0c5db-314a-4dd7-b9e7-a8527161a1ce",
+    "timestamp": "2026-07-21T12:44:36.714Z",
+    "missionId": "test-mission",
+    "phase": "analysis",
+    "coverage": 0,
+    "contextHash": "ctx-69b",
+    "state": 50
+  }
+]

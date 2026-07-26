@@ -4,6 +4,9 @@ import type { VotingStrategy } from '@behavioros/schemas';
 // Decision Engine — Voting, Consensus, Leader Election, Risk
 // ============================================================
 
+/**
+ * DecisionContext — State and context data for decision operations.
+ */
 export interface DecisionContext {
   id: string;
   title: string;
@@ -14,6 +17,9 @@ export interface DecisionContext {
   deadline?: string;
 }
 
+/**
+ * DecisionParticipant — Defines the shape and contract for decision participant in the BehaviorOS system.
+ */
 export interface DecisionParticipant {
   id: string;
   role: string;
@@ -21,6 +27,9 @@ export interface DecisionParticipant {
   weight: number;
 }
 
+/**
+ * DecisionOption — Defines the shape and contract for decision option in the BehaviorOS system.
+ */
 export interface DecisionOption {
   id: string;
   title: string;
@@ -31,6 +40,9 @@ export interface DecisionOption {
   estimatedEffort?: string;
 }
 
+/**
+ * DecisionVote — Defines the shape and contract for decision vote in the BehaviorOS system.
+ */
 export interface DecisionVote {
   participantId: string;
   optionId: string;
@@ -38,6 +50,9 @@ export interface DecisionVote {
   rationale?: string;
 }
 
+/**
+ * DecisionResult — Result data for decision operations.
+ */
 export interface DecisionResult {
   decisionId: string;
   winningOption: string | null;
@@ -49,6 +64,11 @@ export interface DecisionResult {
   timestamp: string;
 }
 
+/**
+ * DecisionEngine — decision engine.
+ *
+ * Methods: vote, evaluateRisk, summary.
+ */
 export class DecisionEngine {
   private strategy: VotingStrategy;
   private quorumThreshold: number;

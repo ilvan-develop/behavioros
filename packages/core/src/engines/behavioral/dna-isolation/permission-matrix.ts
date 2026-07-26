@@ -1,3 +1,6 @@
+/**
+ * Permission — Defines the shape and contract for permission in the BehaviorOS system.
+ */
 export interface Permission {
   allowed: boolean;
   scope: 'local' | 'global' | 'dna-bound' | 'mixed';
@@ -7,9 +10,18 @@ export interface Permission {
   governance?: boolean;
 }
 
+/**
+ * DNAMode — Union type: conversational, transactional, hybrid;.
+ */
 export type DNAMode = 'conversational' | 'transactional' | 'hybrid';
+/**
+ * PermissionAction — Union type: read, write, api, state;.
+ */
 export type PermissionAction = 'read' | 'write' | 'api' | 'state';
 
+/**
+ * PermissionMatrix — Defines the shape and contract for permission matrix in the BehaviorOS system.
+ */
 export interface PermissionMatrix {
   conversational: Record<PermissionAction, Permission>;
   transactional: Record<PermissionAction, Permission>;
@@ -37,6 +49,11 @@ const defaultMatrix: PermissionMatrix = {
   },
 };
 
+/**
+ * PermissionMatrixManager — permission matrix manager.
+ *
+ * Methods: getPermission, validateAction, requiresApproval, checkAccess, registerCrossDNAPermission, getMatrix.
+ */
 export class PermissionMatrixManager {
   private matrix: PermissionMatrix = structuredClone(defaultMatrix);
   private crossDNAPermissions: Map<string, boolean> = new Map();

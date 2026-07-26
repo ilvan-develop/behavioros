@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "protocol": {
+    "dnaSelected": false,
+    "truthResolved": false,
+    "missionCreated": false,
+    "auditDone": false,
+    "learningRecorded": false,
+    "lastStep": null,
+    "lastUpdated": null
+  },
+  "currentMission": null,
+  "pipeline": {
+    "status": "idle",
+    "activeStage": null,
+    "pendingTasks": []
+  },
+  "sessionHistory": []
+}

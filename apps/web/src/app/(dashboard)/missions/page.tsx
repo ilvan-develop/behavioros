@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronDown, ChevronUp, Inbox, Plus, Search, X } from 'lucide-react';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -288,7 +289,12 @@ export default function MissionsPage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium text-foreground">{mission.title}</p>
+                        <Link
+                          href={`/missions/${mission.id}`}
+                          className="font-medium text-foreground hover:text-primary transition-colors"
+                        >
+                          {mission.title}
+                        </Link>
                         <p className="text-xs text-muted-foreground">{mission.id}</p>
                       </div>
                     </TableCell>

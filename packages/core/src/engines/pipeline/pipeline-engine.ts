@@ -26,6 +26,11 @@ import type {
 // Pipeline Engine — EAARG Pipeline Executor
 // ============================================================
 
+/**
+ * PipelineEngine — Pipeline Engine — EAARG Pipeline Executor.
+ *
+ * Methods: start, advance, pause, resume, getState, getLayer, getEAARGStep, getEAARGSteps, +5 more.
+ */
 export class PipelineEngine extends EventEmitter<PipelineEngineEvents> {
   private dna: DNAPackage;
   private state: PipelineState;

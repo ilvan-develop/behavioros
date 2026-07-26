@@ -8,6 +8,9 @@ import type { AuditEvent, AuditResult, AuditSeverity } from '@behavioros/schemas
 // Audit Engine — Continuous Audit Pipeline (10 real stages)
 // ============================================================
 
+/**
+ * AuditStage — Type alias for audit stage.
+ */
 export type AuditStage =
   | 'static'
   | 'architecture'
@@ -20,6 +23,9 @@ export type AuditStage =
   | 'compliance'
   | 'benchmarks';
 
+/**
+ * AuditStageResult — Result data for audit stage operations.
+ */
 export interface AuditStageResult {
   stage: AuditStage;
   result: AuditResult;
@@ -28,6 +34,9 @@ export interface AuditStageResult {
   duration: number; // ms
 }
 
+/**
+ * AuditPipelineResult — Result data for audit pipeline operations.
+ */
 export interface AuditPipelineResult {
   id: string;
   overall: AuditResult;
@@ -37,18 +46,27 @@ export interface AuditPipelineResult {
   timestamp: string;
 }
 
+/**
+ * StageExecutor — Defines the shape and contract for stage executor in the BehaviorOS system.
+ */
 export interface StageExecutor {
   stage: AuditStage;
   name: string;
   execute: (context: AuditContext) => Promise<AuditStageResult>;
 }
 
+/**
+ * AuditContext — State and context data for audit operations.
+ */
 export interface AuditContext {
   projectPath: string;
   targetPath?: string;
   options?: Record<string, unknown>;
 }
 
+/**
+ * AuditEngineConfig — Configuration options for audit engine.
+ */
 export interface AuditEngineConfig {
   persistPath?: string;
 }
@@ -191,6 +209,11 @@ function scoreFromViolations(violations: number, penalty: number, floor = 0): nu
 // AuditEngine
 // ============================================================
 
+/**
+ * AuditEngine — AuditEngine.
+ *
+ * Methods: execute, makeEvent, registerStage, getHistory, getLastAudit, summary, writeFileSync, fileExists, +1 more.
+ */
 export class AuditEngine {
   private stages: Map<AuditStage, StageExecutor> = new Map();
   private history: AuditPipelineResult[] = [];

@@ -12,6 +12,11 @@ import type { AuditEntry, AuditEntryPayload } from './audit-entry.interface';
 // HashChain
 // ============================================================
 
+/**
+ * HashChain — HashChain.
+ *
+ * Methods: getEntries, getLastEntry, createGenesis, append, loadFrom.
+ */
 export class HashChain {
   private readonly entries: AuditEntry[] = [];
   private readonly signingKey: string | undefined;

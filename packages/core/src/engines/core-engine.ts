@@ -22,12 +22,24 @@ import { LearningEngine } from './learning/learning-engine';
 import { MissionEngine } from './mission/mission-engine';
 import { MissionManager } from './mission-manager';
 import { QualityEngine } from './quality/quality-engine';
+import { SkillEngine } from './skill-engine';
+import { EcosystemRegistry } from './ecosystem-registry';
+import { HandoffProtocol } from './orchestrator/handoff-protocol';
+import { AutonomousDecomposer } from './orchestrator/autonomous-decomposer';
+import { AutonomousOrchestrator } from './orchestrator/autonomous-orchestrator';
+import { AutoDocumentationTrigger } from './orchestrator/auto-documentation-trigger';
+import { SkillRouter } from './orchestrator/skill-router';
+import { LifecyclePipeline } from './orchestrator/lifecycle-pipeline';
+import { DNALoader } from './behavioral/dna-loader';
 
 // ============================================================
 // BehaviorOS Core Engine — Central Orchestrator (Facade)
 // Delegates to MissionManager, AgentManager, and sub-engines
 // ============================================================
 
+/**
+ * EngineEvents — Defines the shape and contract for engine events in the BehaviorOS system.
+ */
 export interface EngineEvents {
   'mission:created': (mission: Mission) => void;
   'mission:started': (mission: Mission) => void;
@@ -42,6 +54,9 @@ export interface EngineEvents {
   'governance:approved': (rule: GovernanceRule, context: unknown) => void;
 }
 
+/**
+ * BehaviorOSEngineConfig — Configuration options for behavior o s engine.
+ */
 export interface BehaviorOSEngineConfig {
   dna: DNAPackage;
   governance?: BehaviorOSConfig['governance'];
@@ -50,6 +65,13 @@ export interface BehaviorOSEngineConfig {
   audit?: BehaviorOSConfig['audit'];
 }
 
+/**
+ * BehaviorOSEngine — behavior o s engine.
+ *
+ * Provides methods for super, createMission, startMission, completeMission, failMission, and 40 more.
+ *
+ * @extends EventEmitter
+ */
 export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
   private dna: DNAPackage;
   private auditLog: AuditEvent[] = [];
@@ -66,6 +88,10 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
   public learningEngine: LearningEngine;
   public missionEngine: MissionEngine;
   public auditEngine: AuditEngine;
+  public skillEngine: SkillEngine;
+  public ecosystemRegistry: EcosystemRegistry;
+  public handoffProtocol: HandoffProtocol;
+  public autonomousOrchestrator: AutonomousOrchestrator;
 
   constructor(config: BehaviorOSEngineConfig) {
     super();
@@ -83,6 +109,20 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
     });
     this.missionEngine = new MissionEngine();
     this.auditEngine = new AuditEngine();
+
+    // Instantiate extended sub-engines
+    const dnaLoader = new DNALoader();
+    this.skillEngine = new SkillEngine({ dnaLoader });
+    this.ecosystemRegistry = new EcosystemRegistry({ skillEngine: this.skillEngine });
+    this.handoffProtocol = new HandoffProtocol();
+    this.autonomousOrchestrator = new AutonomousOrchestrator({
+      dnaLoader,
+      skillEngine: this.skillEngine,
+      ecosystemRegistry: this.ecosystemRegistry,
+      decomposer: new AutonomousDecomposer(),
+      handoffProtocol: this.handoffProtocol,
+      missionEngine: this.missionEngine,
+    });
 
     // Instantiate extracted managers
     this.agentManager = new AgentManager(this.dna);

@@ -255,7 +255,7 @@ export class EUAIActAssessor {
     checks.push(...this.assessAccuracyRobustness(riskLevel, params));
     checks.push(...this.assessCybersecurity(riskLevel, params));
 
-    const mandatoryChecks = checks.filter((c) => c.mandatory);
+    const _mandatoryChecks = checks.filter((c) => c.mandatory);
     const passedChecks = checks.filter((c) => c.result === 'pass').length;
     const failedChecks = checks.filter((c) => c.result === 'fail').length;
     const partialChecks = checks.filter((c) => c.result === 'partial').length;
@@ -410,7 +410,7 @@ export class EUAIActAssessor {
   // ── Technical Documentation (Article 11) ────────────────────
 
   private assessTechnicalDocumentation(
-    riskLevel: EURiskLevel,
+    _riskLevel: EURiskLevel,
     params: { hasDocumentation?: boolean; hasGovernance?: boolean },
   ): EUComplianceCheck[] {
     const checks: EUComplianceCheck[] = [];

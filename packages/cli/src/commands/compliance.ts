@@ -3,14 +3,14 @@ import { join, relative } from 'node:path';
 import chalk from 'chalk';
 import type { Command } from 'commander';
 
-interface ComplianceCheck {
+export interface ComplianceCheck {
   id: string;
   name: string;
   pass: boolean;
   detail: string;
 }
 
-interface ComplianceReport {
+export interface ComplianceReport {
   projectPath: string;
   projectName: string;
   checks: ComplianceCheck[];
@@ -18,7 +18,7 @@ interface ComplianceReport {
   total: number;
 }
 
-function findProjectRoot(start = process.cwd()): string {
+export function findProjectRoot(start = process.cwd()): string {
   let dir = start;
   while (dir.length > 1) {
     if (
@@ -35,7 +35,7 @@ function findProjectRoot(start = process.cwd()): string {
   return start;
 }
 
-function fileContains(filePath: string, pattern: RegExp | string): boolean {
+export function fileContains(filePath: string, pattern: RegExp | string): boolean {
   try {
     const content = readFileSync(filePath, 'utf-8');
     if (typeof pattern === 'string') {
@@ -51,7 +51,7 @@ function fileContains(filePath: string, pattern: RegExp | string): boolean {
 // Check implementations
 // ---------------------------------------------------------------------------
 
-async function checkCanonicalDoc(projectRoot: string): Promise<ComplianceCheck> {
+export async function checkCanonicalDoc(projectRoot: string): Promise<ComplianceCheck> {
   const docPath = join(projectRoot, 'docs', 'PROTOCOL.md');
   const exists = existsSync(docPath);
   return {
@@ -64,7 +64,7 @@ async function checkCanonicalDoc(projectRoot: string): Promise<ComplianceCheck> 
   };
 }
 
-async function checkRulesExist(projectRoot: string): Promise<ComplianceCheck> {
+export async function checkRulesExist(projectRoot: string): Promise<ComplianceCheck> {
   const target = join(projectRoot, '.opencode', 'rules', 'behavioros-protocol.md');
   const exists = existsSync(target);
   return {
@@ -77,7 +77,7 @@ async function checkRulesExist(projectRoot: string): Promise<ComplianceCheck> {
   };
 }
 
-async function checkPlatformConfigs(projectRoot: string): Promise<ComplianceCheck> {
+export async function checkPlatformConfigs(projectRoot: string): Promise<ComplianceCheck> {
   const expected: { path: string; label: string }[] = [
     {
       path: join(projectRoot, '.cursor', 'rules', 'behavioros-protocol.mdc'),
@@ -129,7 +129,7 @@ async function checkPlatformConfigs(projectRoot: string): Promise<ComplianceChec
   };
 }
 
-async function checkMcpEnabled(projectRoot: string): Promise<ComplianceCheck> {
+export async function checkMcpEnabled(projectRoot: string): Promise<ComplianceCheck> {
   const possibleConfigs = ['opencode.json', 'opencode.jsonc'];
   let mcpConfigured = false;
 
@@ -191,7 +191,7 @@ async function checkMcpEnabled(projectRoot: string): Promise<ComplianceCheck> {
 // Report printing
 // ---------------------------------------------------------------------------
 
-function printReport(report: ComplianceReport): void {
+export function printReport(report: ComplianceReport): void {
   const { projectName, checks, passed, total } = report;
   const statusStr = passed === total ? chalk.green('PASS') : chalk.red('FAIL');
   const allPassed = passed === total;
@@ -228,21 +228,24 @@ function printReport(report: ComplianceReport): void {
 
   lines.push(`╚${bar}╝`);
 
-  console.log('\n' + lines.join('\n') + '\n');
+  console.log(`\n${lines.join('\n')}\n`);
 }
 
 // ---------------------------------------------------------------------------
 // Doctor suggestions
 // ---------------------------------------------------------------------------
 
-interface DoctorSuggestion {
+export interface DoctorSuggestion {
   checkId: string;
   title: string;
   command: string;
   description: string;
 }
 
-function generateSuggestions(report: ComplianceReport, projectRoot: string): DoctorSuggestion[] {
+export function generateSuggestions(
+  report: ComplianceReport,
+  projectRoot: string,
+): DoctorSuggestion[] {
   const suggestions: DoctorSuggestion[] = [];
 
   for (const check of report.checks) {
@@ -321,7 +324,7 @@ function generateSuggestions(report: ComplianceReport, projectRoot: string): Doc
   return suggestions;
 }
 
-function printDoctorSuggestions(suggestions: DoctorSuggestion[]): void {
+export function printDoctorSuggestions(suggestions: DoctorSuggestion[]): void {
   if (suggestions.length === 0) {
     console.log(chalk.green('\n  ✓ No issues found — your project is fully compliant!\n'));
     return;
@@ -345,7 +348,7 @@ function printDoctorSuggestions(suggestions: DoctorSuggestion[]): void {
 // Main — compliance check
 // ---------------------------------------------------------------------------
 
-async function runCheck(projectRoot: string): Promise<ComplianceReport> {
+export async function runCheck(projectRoot: string): Promise<ComplianceReport> {
   const checks = await Promise.all([
     checkCanonicalDoc(projectRoot),
     checkRulesExist(projectRoot),

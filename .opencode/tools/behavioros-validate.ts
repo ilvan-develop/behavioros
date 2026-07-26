@@ -44,8 +44,8 @@ export default tool({
           'version',
           'description',
           'personas',
-          'governanceRules',
-          'qualityGates',
+          'governance',
+          'quality',
           'patterns',
           'workflows',
         ];

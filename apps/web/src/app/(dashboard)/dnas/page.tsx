@@ -1,10 +1,11 @@
 'use client';
 
 import { Activity, ChevronDown, ChevronUp, Dna, Plus, Search, Shield, Users } from 'lucide-react';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useFetch } from '@/lib/hooks/use-api';
 import type { DnaPackage } from '@/types';
@@ -78,11 +79,7 @@ export default function DnasPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {filteredDnas.map((dna) => (
-            <Card
-              key={dna.id}
-              className="hover:border-border/60 transition-colors cursor-pointer"
-              onClick={() => setExpandedId(expandedId === dna.id ? null : dna.id)}
-            >
+            <Card key={dna.id} className="hover:border-border/60 transition-colors">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -90,15 +87,27 @@ export default function DnasPage() {
                       <Dna className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-base">{dna.name}</CardTitle>
+                      <Link
+                        href={`/dnas/${dna.id}`}
+                        className="text-base font-semibold text-foreground hover:text-primary transition-colors"
+                      >
+                        {dna.name}
+                      </Link>
                       <p className="text-xs text-muted-foreground">v{dna.version}</p>
                     </div>
                   </div>
-                  {expandedId === dna.id ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setExpandedId(expandedId === dna.id ? null : dna.id)}
+                    className="h-8 w-8"
+                  >
+                    {expandedId === dna.id ? (
+                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -164,9 +173,14 @@ export default function DnasPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm">Activate DNA</Button>
+                      <Link
+                        href={`/dnas/${dna.id}`}
+                        className="inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/80 transition-colors"
+                      >
+                        View Details
+                      </Link>
                       <Button size="sm" variant="outline">
-                        Preview
+                        Activate
                       </Button>
                       <Button size="sm" variant="outline">
                         Duplicate

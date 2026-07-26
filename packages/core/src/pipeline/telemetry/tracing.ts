@@ -22,7 +22,7 @@ export enum SpanStatusCode {
 }
 
 class NoopSpan implements Span {
-  private ended = false;
+  protected ended = false;
 
   setAttribute(_key: string, _value: string | number | boolean): void {
     // no-op
@@ -59,8 +59,9 @@ class ConsoleSpan extends NoopSpan {
 
   end(): void {
     const duration = (performance.now() - this.startTime).toFixed(2);
+    const msg = this.statusMessage ? ` ${this.statusMessage}` : '';
     console.debug(
-      `[trace] ${this.name} | ${this.status} | ${duration}ms`,
+      `[trace] ${this.name} | ${this.status}${msg} | ${duration}ms`,
       Object.keys(this.attrs).length > 0 ? this.attrs : '',
     );
     super.end();

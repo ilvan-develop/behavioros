@@ -2,7 +2,7 @@
 // Stage 25 — Growing confidence: 25% traffic for 24h
 // ============================================================
 
-import type { CanaryStageConfig } from '../canary-deployer';
+import type { CanaryStageConfig } from '../types';
 
 /**
  * Stage 25% configuration.

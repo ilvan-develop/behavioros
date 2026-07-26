@@ -1,9 +1,10 @@
 'use client';
 
 import { Activity, Clock, Settings, Users } from 'lucide-react';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -82,7 +83,12 @@ export default function AgentsPage() {
                 <div className="flex items-center gap-3">
                   <div className="text-3xl">{agent.avatar}</div>
                   <div>
-                    <CardTitle className="text-base">{agent.name}</CardTitle>
+                    <Link
+                      href={`/agents/${agent.id}`}
+                      className="text-base font-semibold text-foreground hover:text-primary transition-colors"
+                    >
+                      {agent.name}
+                    </Link>
                     <p className="text-xs text-muted-foreground">{agent.role}</p>
                   </div>
                 </div>

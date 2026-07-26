@@ -2,7 +2,7 @@
 // Stage 50 — Half traffic: 50% traffic for 24h
 // ============================================================
 
-import type { CanaryStageConfig } from '../canary-deployer';
+import type { CanaryStageConfig } from '../types';
 
 /**
  * Stage 50% configuration.

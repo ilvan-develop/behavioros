@@ -20,13 +20,36 @@ import { saveLearning, saveMissions } from './store/json-store.js';
 import { bosAgentHandoff, bosAgentHandoffInput } from './tools/bos-agent-handoff.js';
 import { bosAutonomousTask, bosAutonomousTaskInput } from './tools/bos-autonomous-task.js';
 import { bosCheckEscalation, bosCheckEscalationInput } from './tools/bos-check-escalation.js';
+import {
+  handleComplianceGenerate,
+  handleComplianceGet,
+  handleComplianceList,
+  handleComplianceSummary,
+} from './tools/bos-compliance.js';
 import { bosEcosystemDoctor, bosEcosystemDoctorInput } from './tools/bos-ecosystem-doctor.js';
 import { bosEcosystemInstall, bosEcosystemInstallInput } from './tools/bos-ecosystem-install.js';
 import { bosEcosystemStatus, bosEcosystemStatusInput } from './tools/bos-ecosystem-status.js';
+import {
+  bosEventQuery,
+  bosEventQueryInput,
+  bosEventReplay,
+  bosEventReplayInput,
+  bosEventStats,
+  bosEventStatsInput,
+} from './tools/bos-event-query.js';
 import { bosGetInsights, bosGetInsightsInput } from './tools/bos-get-insights.js';
 import { bosListPatterns, bosListPatternsInput } from './tools/bos-list-patterns.js';
 import { bosLspDiagnostics, bosLspDiagnosticsInput } from './tools/bos-lsp-diagnostics.js';
 import { bosLspValidate, bosLspValidateInput } from './tools/bos-lsp-validate.js';
+import {
+  bosAgentMetrics,
+  bosAgentMetricsInput,
+  bosPipelineMetrics,
+  bosPipelineMetricsInput,
+  bosSystemHealth,
+  bosSystemHealthInput,
+  setObservabilityEngine,
+} from './tools/bos-observability.js';
 import { bosResetProtocol, bosResetProtocolInput } from './tools/bos-reset-protocol.js';
 import { bosResolveConflict, bosResolveConflictInput } from './tools/bos-resolve-conflict.js';
 import { bosResolveTruth, bosResolveTruthInput } from './tools/bos-resolve-truth.js';
@@ -145,7 +168,7 @@ export async function createServer(): Promise<McpServer> {
   const defaultPersistDir = resolve(process.cwd(), 'generated/mcp');
   try {
     await mkdir(defaultPersistDir, { recursive: true });
-  } catch (e) {
+  } catch (_e) {
     // ignore mkdir errors; engine will report if persist fails
   }
 
@@ -422,7 +445,7 @@ export async function createServer(): Promise<McpServer> {
     'bos_validate_protocol',
     'Validate current protocol compliance status. Returns steps completed, missing steps, and any order violations.',
     bosValidateProtocolInput.shape,
-    async (args) => {
+    async (_args) => {
       const enforcement = await _enforcementMiddleware!.enforce({
         requiredSteps: [],
         evaluateGovernance: false,
@@ -705,6 +728,143 @@ export async function createServer(): Promise<McpServer> {
     'Get learning recommendations from CI/CD events',
     (getLearningReportInput as any).shape,
     async (args: any) => getLearningReport(args),
+  );
+
+  // Register Event Query tools
+  _server.tool(
+    'bos-event-query',
+    'Query events from the Event Store',
+    bosEventQueryInput.shape,
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos-event-query',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosEventQuery(args);
+    },
+  );
+
+  _server.tool(
+    'bos-event-stats',
+    'Get Event Store statistics',
+    bosEventStatsInput.shape,
+    async () => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos-event-stats',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosEventStats();
+    },
+  );
+
+  _server.tool(
+    'bos-event-replay',
+    'Replay events for an aggregate to rebuild state',
+    bosEventReplayInput.shape,
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos-event-replay',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosEventReplay(args);
+    },
+  );
+
+  // Register Observability tools
+  setObservabilityEngine(_engine);
+
+  _server.tool(
+    'bos-system-health',
+    'Get overall system health status',
+    bosSystemHealthInput.shape,
+    async () => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos-system-health',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosSystemHealth();
+    },
+  );
+
+  _server.tool(
+    'bos-pipeline-metrics',
+    'Get pipeline execution metrics',
+    bosPipelineMetricsInput.shape,
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos-pipeline-metrics',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosPipelineMetrics(args);
+    },
+  );
+
+  _server.tool(
+    'bos-agent-metrics',
+    'Get agent performance metrics',
+    bosAgentMetricsInput.shape,
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos-agent-metrics',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosAgentMetrics(args);
+    },
+  );
+
+  // Register Compliance tools — single tool with sub-commands
+  // @ts-expect-error MCP SDK overload resolution incompatible with Zod return types
+  _server.tool(
+    'bos-compliance',
+    'Compliance reporting: generate, get, list, or summarize compliance reports for SOC2, PCI-DSS, and EU AI Act',
+    async (args: any) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos-compliance',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+
+      const command = args.command as string;
+      switch (command) {
+        case 'generate':
+          return handleComplianceGenerate(args);
+        case 'get':
+          return handleComplianceGet(args);
+        case 'list':
+          return handleComplianceList(args);
+        case 'summary':
+          return handleComplianceSummary(args);
+        default:
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify(
+                  {
+                    error: `Unknown command: ${command}`,
+                    availableCommands: ['generate', 'get', 'list', 'summary'],
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+      }
+    },
   );
 
   // Register resources

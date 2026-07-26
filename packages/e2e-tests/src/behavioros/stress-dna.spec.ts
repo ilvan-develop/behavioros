@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { describe, test, expect } from 'vitest';
 import { DNALoader, GovernanceEngine } from '@behavioros/core';
 import { resolve } from 'node:path';
 import type { GovernanceRule } from '@behavioros/schemas';
@@ -115,9 +115,9 @@ const PROBES: AdversarialProbe[] = [
   },
 ];
 
-test.describe('DNA Stress Tests — Adversarial Governance', () => {
+describe('DNA Stress Tests — Adversarial Governance', () => {
   for (const fixture of DNA_FIXTURES) {
-    test.describe(`${fixture.name} (${fixture.id})`, () => {
+    describe(`${fixture.name} (${fixture.id})`, () => {
       let engine: GovernanceEngine;
 
       test.beforeAll(async () => {

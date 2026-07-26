@@ -1,0 +1,38 @@
+# behavioros.yaml — NestJS Example DNA
+version: "1.0"
+name: nestjs-example
+
+personas:
+  - id: payment-service
+    name: Payment Service Agent
+    description: Handles payment transactions
+    capabilities:
+      - process-payment
+      - refund
+
+governanceRules:
+  - id: no-direct-prod
+    name: No Direct Production Access
+    description: Blocks direct production deployments without review
+    severity: block
+    action: block
+    conditions:
+      - attribute: target
+        operator: eq
+        value: production
+
+qualityGates:
+  - id: lint-pass
+    name: Lint Pass
+    metric: lint
+    threshold: 100
+    operator: '>='
+    action: block
+
+patterns:
+  - id: zero-defect
+    name: Zero Defect
+    description: All changes must pass quality gates before merge
+    principles:
+      - deterministic-pipelines
+      - sterilized-deployments

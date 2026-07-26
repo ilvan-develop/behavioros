@@ -1,6 +1,6 @@
 {
   "name": "@behavioros/dnas",
-  "version": "0.2.0",
+  "version": "1.0.1",
   "description": "BehaviorOS DNA Catalog — 13 behavioral patterns for AI agent teams",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

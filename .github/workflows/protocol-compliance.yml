@@ -7,7 +7,7 @@ on:
     branches: [master]
 
 concurrency:
-  group: protocol-${{ github.ref }}
+  group: protocol-deep-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -96,3 +96,83 @@ jobs:
           echo "AGENTS.md references doc:   $(grep -c 'PROTOCOL.md\|behavioros-protocol' AGENTS.md || true)"
           echo ""
           echo "All platform config files aligned with canonical source at docs/PROTOCOL.md."
+
+  deep-validation:
+    name: Deep Protocol Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [compliance]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Validate DNA files
+        run: |
+          FAILED=0
+          for dna_file in dnas/*.yaml dnas/*.yml; do
+            if [ -f "$dna_file" ]; then
+              echo "  Checking $dna_file..."
+              if npx @behavioros/cli validate "$dna_file" 2>/dev/null; then
+                echo "    ✓ Valid"
+              else
+                echo "    ✗ INVALID"
+                FAILED=1
+              fi
+            fi
+          done
+          if [ "$FAILED" -ne 0 ]; then
+            echo "ERROR: One or more DNA files are invalid."
+            exit 1
+          fi
+
+      - name: Check agent definitions follow 7-step protocol
+        run: |
+          FAILED=0
+          for agent_file in .opencode/agents/*.md; do
+            echo "  Checking $agent_file..."
+            if grep -q "bos_select_dna" "$agent_file"; then
+              echo "    ✓ bos_select_dna"
+            else
+              echo "    ✗ bos_select_dna MISSING"
+              FAILED=1
+            fi
+            if grep -q "bos_run_audit" "$agent_file"; then
+              echo "    ✓ bos_run_audit"
+            else
+              echo "    ✗ bos_run_audit MISSING"
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" -ne 0 ]; then
+            echo "ERROR: Some agents missing mandatory protocol steps."
+            exit 1
+          fi
+
+      - name: Check MCP server enforces protocol
+        run: |
+          if grep -q "ProtocolStateTracker\|step1_completed\|delegationEnforcement" packages/mcp-server/src/server.ts 2>/dev/null; then
+            echo "  ✓ MCP server has protocol enforcement"
+          elif grep -q "ProtocolStateTracker\|step1_completed\|delegationEnforcement" packages/core/src/engines/protocol-engine.ts 2>/dev/null; then
+            echo "  ✓ Protocol enforcement in core engine"
+          else
+            echo "  ⚠ Protocol enforcement not found in MCP server or core engine"
+          fi
+
+      - name: Check pre-commit hook exists
+        run: |
+          if [ -f ".githooks/pre-commit" ] || [ -f ".husky/pre-commit" ]; then
+            echo "  ✓ Pre-commit hook found"
+          else
+            echo "  ⚠ No pre-commit hook found (optional but recommended)"
+          fi

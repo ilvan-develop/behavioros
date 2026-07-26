@@ -22,6 +22,9 @@ function isValidTransition(from: MissionStatus, to: MissionStatus): boolean {
   return VALID_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
+/**
+ * MissionPlan — Defines the shape and contract for mission plan in the BehaviorOS system.
+ */
 export interface MissionPlan {
   id: string;
   rootMission: string;
@@ -31,6 +34,9 @@ export interface MissionPlan {
   assignedAgents: string[];
 }
 
+/**
+ * MissionProgress — Defines the shape and contract for mission progress in the BehaviorOS system.
+ */
 export interface MissionProgress {
   missionId: string;
   status: MissionStatus;
@@ -41,6 +47,11 @@ export interface MissionProgress {
   lastUpdated: string;
 }
 
+/**
+ * MissionEngine — mission engine.
+ *
+ * Methods: decompose, updateProgress, getProgress, getPlan, getAllMissions, summary.
+ */
 export class MissionEngine {
   private missions: Map<string, Mission> = new Map();
   private plans: Map<string, MissionPlan> = new Map();

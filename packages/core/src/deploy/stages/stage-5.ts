@@ -2,7 +2,7 @@
 // Stage 5 — Initial canary: 5% traffic for 24h
 // ============================================================
 
-import type { CanaryStageConfig } from '../canary-deployer';
+import type { CanaryStageConfig } from '../types';
 
 /**
  * Stage 5% configuration.

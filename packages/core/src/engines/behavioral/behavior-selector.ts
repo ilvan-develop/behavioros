@@ -21,6 +21,9 @@ export interface TaskContext {
   tags?: string[];
 }
 
+/**
+ * DnaSelection — Defines the shape and contract for dna selection in the BehaviorOS system.
+ */
 export interface DnaSelection {
   primary: string;
   secondary?: string;
@@ -36,6 +39,11 @@ interface DecisionRule {
   priority: number;
 }
 
+/**
+ * BehaviorSelector — behavior selector.
+ *
+ * Methods: select, getRuleById, listRules.
+ */
 export class BehaviorSelector {
   private rules: DecisionRule[] = [];
 

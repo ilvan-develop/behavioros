@@ -21,6 +21,11 @@ interface MissionEmitter {
   emit(event: string, ...args: unknown[]): boolean;
 }
 
+/**
+ * MissionManager — mission manager.
+ *
+ * Methods: create, start, complete, fail, get, getAll, getByStatus.
+ */
 export class MissionManager {
   private missions: Map<string, Mission> = new Map();
   private emitter: MissionEmitter;

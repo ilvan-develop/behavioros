@@ -1,0 +1,228 @@
+id: autonomous-orchestrator
+name: Autonomous Orchestrator DNA
+version: '1.0.0'
+description: |
+  DNA para orquestração totalmente autônoma de agentes.
+  O orquestrador DECOMPÕE, ROTEIA, DELEGA e MONITORA
+  sem intervenção humana. Humano só chamado em escalation.
+author: BehaviorOS Team
+license: MIT
+tags:
+  - autonomous
+  - orchestration
+  - ai-agents
+  - zero-human
+  - lifecycle
+
+personas:
+  - role: autonomous-orchestrator
+    authority: lead
+    name: Autonomous Orchestrator
+    description: >
+      Orquestrador autônomo que opera em loop contínuo.
+      Recebe task de alto nível → decompõe → roteia → delega → monitora.
+      Só chama humano se escalation for necessário.
+    boundaries:
+      - id: auto-no-human-loop
+        name: Não exigir humano para delegar
+        type: forbidden
+        value: true
+        scope: global
+    skills:
+      - task-decomposition
+      - skill-routing
+      - autonomous-delegation
+      - handoff-management
+      - failure-recovery
+      - escalation-handling
+
+  - role: sub-agent
+    authority: senior
+    name: Sub-Agent
+    description: >
+      Agente especializado que recebe tarefas do orquestrador.
+      Pode aceitar ou rejeitar baseado em suas skills.
+    boundaries:
+      - id: sub-reject-if-no-skill
+        name: Rejeitar se não tem skill necessária
+        type: forbidden
+        value: true
+        scope: global
+    skills: []
+
+governance:
+  - id: gov-auto-delegation
+    name: Autonomous Delegation
+    description: Orquestrador pode delegar sem aprovação humana
+    level: high
+    action: warn
+    conditions:
+      - type:delegation
+      - type:autonomous
+
+  - id: gov-escalation-required
+    name: Escalation Required
+    description: Se todos agentes rejeitarem, escalar para humano
+    level: critical
+    action: block
+    conditions:
+      - type:rejection
+      - type:no-agent-available
+
+  - id: gov-docs-required
+    name: Documentation Required
+    description: Toda missão deve gerar documentação automaticamente
+    level: medium
+    action: warn
+    conditions:
+      - type:completion
+      - type:documentation
+
+  - id: gov-quality-gates-required
+    name: Quality Gates Required
+    description: Toda execução deve passar pelos quality gates
+    level: high
+    action: block
+    conditions:
+      - type:deployment
+      - type:merge
+
+quality:
+  - id: qg-decomposition-coverage
+    name: Decomposition Coverage
+    description: Cobertura de decomposição de tarefas
+    type: test_coverage
+    threshold: 90
+    pass: true
+
+  - id: qg-handoff-success
+    name: Handoff Success Rate
+    description: Taxa de sucesso de handoffs
+    type: custom
+    threshold: 95
+    pass: true
+
+  - id: qg-autonomous-completion
+    name: Autonomous Completion Rate
+    description: Percentual de missões completadas sem escalação
+    type: custom
+    threshold: 80
+    pass: true
+
+patterns:
+  - id: pat-autonomous-loop
+    name: Autonomous Agent Loop
+    type: action
+    description: >
+      Loop contínuo: receive → decompose → route → delegate →
+      monitor → handle-rejection → report → loop
+    triggers:
+      - event:mission-created
+      - event:task-received
+    actions:
+      - decompose-mission
+      - route-subtasks
+      - delegate-to-agents
+      - monitor-progress
+      - handle-rejection
+      - run-quality-gates
+      - finalize-documentation
+      - run-audit
+      - record-learning
+      - generate-report
+    conditions:
+      - type:autonomous
+      - type:continuous
+
+  - id: pat-handoff-protocol
+    name: Handoff Protocol
+    type: communication
+    description: >
+      Protocolo de handoff contextual entre agentes.
+      Cada handoff carrega contexto completo da missão
+      para que o agente receptor continue sem pedir contexto.
+    triggers:
+      - event:subtask-routed
+      - event:agent-reassignment
+    actions:
+      - package-context
+      - transfer-subtask
+      - confirm-receipt
+      - monitor-execution
+      - handle-rejection
+      - complete-handoff
+    conditions:
+      - type:handoff
+      - type:context-transfer
+
+  - id: pat-escalation-threshold
+    name: Escalation Threshold
+    type: escalation
+    description: >
+      Gatilhos de escalação para humano.
+      Só escalar quando: segurança crítica, breaking changes,
+      nenhum agente disponível, ou múltiplas rejeições.
+    triggers:
+      - event:routing-failure
+      - event:all-agents-rejected
+      - event:critical-security
+    actions:
+      - create-escalation-record
+      - notify-human
+      - provide-context
+      - wait-for-decision
+    conditions:
+      - type:escalation
+      - type:human-intervention
+
+workflows:
+  - id: wf-autonomous-execution
+    name: Autonomous Execution
+    type: action
+    description: Pipeline completo de execução autônoma
+    agent: autonomous-orchestrator
+    next: []
+    timeout: 3600000
+    retries: 1
+    steps:
+      - name: Decompose
+        action: break mission into subtasks
+        agent: autonomous-orchestrator
+      - name: Route
+        action: match subtasks to agents by skill
+        agent: autonomous-orchestrator
+      - name: Execute
+        action: run subtasks in parallel
+        agent: autonomous-orchestrator
+      - name: Quality Gates
+        action: verify all quality checks pass
+        agent: autonomous-orchestrator
+      - name: Document
+        action: generate all documentation
+        agent: autonomous-orchestrator
+      - name: Audit
+        action: run audit pipeline
+        agent: autonomous-orchestrator
+      - name: Learn
+        action: record learning events
+        agent: autonomous-orchestrator
+      - name: Report
+        action: generate ecosystem report
+        agent: autonomous-orchestrator
+
+  - id: wf-rejection-handling
+    name: Rejection Handling
+    type: gate
+    description: Fluxo de tratamento de rejeição de agentes
+    agent: autonomous-orchestrator
+    next: []
+    steps:
+      - name: Receive Rejection
+        action: receive and parse rejection reason
+        agent: autonomous-orchestrator
+      - name: Find Alternative
+        action: search for alternative agent
+        agent: autonomous-orchestrator
+      - name: Reroute or Escalate
+        action: reroute subtask or escalate to human
+        agent: autonomous-orchestrator

@@ -2,9 +2,19 @@
 
 ## Overview
 
-BehaviorOS is a behavioral governance framework for autonomous AI agent teams. It provides a 9-layer architecture with 7 specialized engines, DNA patterns (YAML), and an MCP server.
+BehaviorOS is a behavioral governance framework for autonomous AI agent teams. It provides a modular architecture with 15+ engines, a 9-layer pipeline dispatcher, DNA patterns (YAML), and an MCP server. See `docs/ARCHITECTURE.md` for the full architecture reference.
+
+## BehaviorOS Protocol
+
+Read the canonical protocol document at `docs/PROTOCOL.md` — it defines the 7 mandatory delegation steps that ALL agents MUST follow.
+
+Before starting any agent session in this workspace, ensure the workspace-level state file exists: copy `templates/.agent_state.json.example` to `.agent_state.json`. Agents MUST read and update `.agent_state.json` at session start and after each pipeline stage to avoid context drift. See `docs/RUNBOOK.md` for the quick commands and operational notes.
+
+Note: the protocol tools (`bos_select_dna`, `bos_resolve_truth`, `create-mission`, `bos_run_audit`, `record-learning`) are exposed by the MCP server. For interactive protocol enforcement the `@behavioros/mcp-server` package must be built and running in your dev environment; otherwise tests and enforcement that depend on runtime tools will be blocked or need mocking.
 
 ## Architecture (9 Layers)
+
+The pipeline dispatcher orchestrates a 9-layer validation chain. Each layer has a dedicated engine.
 
 ```
 Mission Layer       → Mission lifecycle: create → start → execute → complete
@@ -13,6 +23,7 @@ Quality Layer       → Quality gates: coverage, lint, typecheck, security
 Audit Layer         → Multi-stage pipeline: lint → typecheck → security → coverage → performance
 Decision Layer      → Voting-based decisions with approval thresholds
 Governance Layer    → Rule evaluation: block, escalate, warn, log
+Domain-Invariants   → ACL boundaries, cross-DNA guards, permission matrix
 Behavioral Layer    → DNA loading, validation, composition
 Schema Layer        → Zod v4.4.3 schemas for all types
 DNA Layer (YAML)    → Personas, governance rules, quality gates, patterns, workflows
@@ -23,7 +34,7 @@ DNA Layer (YAML)    → Personas, governance rules, quality gates, patterns, wor
 | Package | Purpose |
 |---------|---------|
 | `@behavioros/schemas` | Zod + JSON Schema for all types |
-| `@behavioros/core` | 7 engines: Behavioral, Governance, Decision, Audit, Quality, Learning, Mission |
+| `@behavioros/core` | 15+ engines: Behavioral, Governance, Decision, Audit, Quality, Learning, Mission, Skill, Coverage, Memory, Recovery, Protocol, Orchestrator, Pipeline + compiler, compliance, security |
 | `@behavioros/sdk` | High-level TypeScript SDK (`BehaviorOS` class) |
 | `@behavioros/cli` | CLI: init, compile, validate, status, version |
 | `@behavioros/dnas` | Pre-built DNA YAML pattern catalog |
@@ -157,3 +168,24 @@ When agents produce conflicting outputs:
 - Core engine tests: `packages/core/src/__tests__/`
 - MCP server tests: `packages/mcp-server/src/__tests__/`
 - Individual package tests: `pnpm --filter @behavioros/core test`
+
+## Kernel Absoluto 10 Rules
+
+The Kernel Absoluto defines the absolute rules that govern all agent behavior:
+
+1. **Zero Assumption** — Never assume context; always verify
+2. **Full Context Discovery** — Discover ALL context before execution
+3. **Coverage Validation** — Coverage must be ≥ 90%
+4. **Truth Before Execution** — Resolve truth sources before delegating
+5. **Domain Isolation** — Respect domain boundaries
+6. **State Synchronization** — Keep state synchronized across sessions
+7. **Self Audit** — Audit every action
+8. **No Hallucination** — Never fabricate information
+9. **Context Recovery** — Auto-recover from context loss
+10. **Definition of Truth** — Define what constitutes truth
+
+### Enforcement
+- Coverage Gate blocks execution if coverage < 90%
+- Memory Engine persists state across sessions
+- Recovery Engine auto-rebuilds context on loss
+- Self-Healing Engine auto-remediates quality gate failures

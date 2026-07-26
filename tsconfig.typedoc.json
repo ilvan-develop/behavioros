@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist-typedoc"
+  },
+  "include": ["packages/core/src/engines/**/*.ts"]
+}

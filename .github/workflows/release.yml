@@ -1,0 +1,31 @@
+name: Release
+on:
+  push:
+    branches: [main, next, beta, 'v*.x']
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Release channel'
+        required: true
+        default: 'stable'
+        type: choice
+        options: [stable, beta, canary, nightly]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22.x', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test
+      - run: pnpm lint:check && pnpm typecheck
+      - uses: changesets/action@v1
+        with:
+          publish: pnpm publish -r --access public
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

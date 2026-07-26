@@ -4,6 +4,7 @@ import { Activity, Bot, FileText, Target, TrendingDown, TrendingUp } from 'lucid
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFetch } from '@/lib/hooks/use-api';
+import { useSSE } from '@/lib/hooks/use-sse';
 
 interface StatCard {
   title: string;
@@ -107,7 +108,9 @@ function computeStats(data: StatsResponse): StatCard[] {
 }
 
 export function StatsCards() {
-  const { data, loading } = useFetch<StatsResponse>('/api/stats');
+  const { data: initialData, loading } = useFetch<StatsResponse>('/api/stats');
+  const { data: liveData } = useSSE<StatsResponse>('/api/stats/stream');
+  const data = liveData ?? initialData;
   const stats = data ? computeStats(data) : fallbackStats;
 
   return (

@@ -12,7 +12,6 @@ import {
   GovernanceRuleSchema,
   LearningEventSchema,
   MissionSchema,
-  PipelineReportSchema,
   PipelineStateSchema,
   QualityGateSchema,
   WorkflowStepSchema,

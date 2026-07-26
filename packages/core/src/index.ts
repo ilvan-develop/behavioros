@@ -33,7 +33,6 @@ export type {
   CanaryDeployerEvents,
   CanaryDeployment,
   CanaryDeploymentStatus,
-  CanaryStageConfig,
   CanaryStageState,
 } from './deploy/canary-deployer';
 export { CanaryDeployer } from './deploy/canary-deployer';
@@ -64,6 +63,7 @@ export type {
   TrafficSplitterEvents,
 } from './deploy/traffic-splitter';
 export { TrafficSplitter } from './deploy/traffic-splitter';
+export type { CanaryStageConfig } from './deploy/types';
 // Domain — DDD Boundaries & Anti-Corruption Layer
 export type {
   ACLResult as DomainACLResult,
@@ -135,6 +135,12 @@ export { BosLearningEngine } from './engines/behavioral/learning-engine';
 export type { BehaviorOSEngineConfig, EngineEvents } from './engines/core-engine';
 export { BehaviorOSEngine } from './engines/core-engine';
 export type {
+  CoverageDimension,
+  CoverageEngineOptions,
+  CoverageReport,
+} from './engines/coverage-engine';
+export { CoverageEngine } from './engines/coverage-engine';
+export type {
   DecisionContext,
   DecisionOption,
   DecisionParticipant,
@@ -142,6 +148,13 @@ export type {
   DecisionVote,
 } from './engines/decision/decision-engine';
 export { DecisionEngine } from './engines/decision/decision-engine';
+// Ecosystem Registry
+export type {
+  DoctorResult,
+  EcosystemRegistryOptions,
+  SyncResults,
+} from './engines/ecosystem-registry';
+export { EcosystemRegistry } from './engines/ecosystem-registry';
 export type {
   AuthorityLevelValue,
   GovernanceContext,
@@ -150,8 +163,20 @@ export type {
 export { GovernanceEngine } from './engines/governance/governance-engine';
 export type { LearningReport, PatternInsight } from './engines/learning/learning-engine';
 export { LearningEngine } from './engines/learning/learning-engine';
+export type { MemoryEngineOptions, MemoryEntry, MemoryFile } from './engines/memory-engine';
+// Memory — Persistent memory engine
+export { MemoryEngine } from './engines/memory-engine';
 export type { MissionPlan, MissionProgress } from './engines/mission/mission-engine';
 export { MissionEngine } from './engines/mission/mission-engine';
+export { AutonomousOrchestrator } from './engines/orchestrator/autonomous-orchestrator';
+// Handoff Protocol
+export type {
+  HandoffContext,
+  HandoffRecord,
+  HandoffRejectReason,
+  HandoffStatus,
+} from './engines/orchestrator/handoff-protocol';
+export { HandoffProtocol } from './engines/orchestrator/handoff-protocol';
 export { PipelineEngine } from './engines/pipeline/pipeline-engine';
 export type {
   EvidenceValidationResult,
@@ -180,6 +205,78 @@ export type {
   QualityReport,
 } from './engines/quality/quality-engine';
 export { QualityEngine } from './engines/quality/quality-engine';
+// Quality — Self-Healing Engine
+export type {
+  HealingAction,
+  SelfHealingEngineOptions,
+} from './engines/quality/self-healing-engine';
+export { SelfHealingEngine } from './engines/quality/self-healing-engine';
+// Recovery — Context Recovery Engine
+export type {
+  ContextRecoveryEngineOptions,
+  RecoveryCheckpoint,
+  RecoveryResult,
+} from './engines/recovery/context-recovery-engine';
+export { ContextRecoveryEngine } from './engines/recovery/context-recovery-engine';
+// Skill Engine
+export type {
+  DelegationValidation,
+  InstallResult,
+  SkillEngineDoctorReport,
+  SkillEngineStatus,
+  SyncFromDNAResult,
+  SyncFromLocalResult,
+} from './engines/skill-engine';
+export { SkillEngine } from './engines/skill-engine';
+// Events — Event Sourcing foundation
+export type {
+  AgentAssignedPayload,
+  AgentEventType,
+  AgentRegisteredPayload,
+  AgentStatusChangedPayload,
+  AllEventTypes,
+  AllPayloads,
+  AuditEventType,
+  AuditPipelineFinishedPayload,
+  AuditStageCompletedPayload,
+  BehaviorOSEvent,
+  DNAComposedPayload,
+  DNAEventType,
+  DNALoadedPayload,
+  DNAValidatedPayload,
+  EventStoreConfig,
+  GovernanceBlockedPayload,
+  GovernanceEscalatedPayload,
+  GovernanceEvaluatedPayload,
+  GovernanceEventType,
+  LearningEventRecordedPayload,
+  LearningEventType,
+  LearningPatternDetectedPayload,
+  MissionCompletedPayload,
+  MissionCreatedPayload,
+  MissionEventType,
+  MissionFailedPayload,
+  MissionStartedPayload,
+  PipelineEventType,
+  PipelineExecutedPayload,
+  PipelineFailedPayload,
+  PipelineLayerCompletedPayload,
+  QualityEventType,
+  QualityGateCheckedPayload,
+  QualityMetricRecordedPayload,
+  SkillDeprecatedPayload,
+  SkillEventType,
+  SkillInstalledPayload,
+  SkillResolvedPayload,
+  Snapshot,
+} from './events';
+export { createEvent, EventReplay, EventStore } from './events';
+// Kernel — Engine & Capability Registries
+export type { CapabilityInfo, EngineInfo } from './kernel';
+export { CapabilityRegistry, EngineRegistry } from './kernel';
+// Mesh — 5-bus Event Mesh
+export type { Bus, BusMessage, BusSubscription } from './mesh';
+export { CommandBus, EventBus, MeshHub, NotificationBus, QueryBus, StreamBus } from './mesh';
 // Persistence — Audit trail
 export type { AuditEntry, ChainVerificationResult } from './persistence/sqlite-audit-store';
 export { SQLiteAuditStore } from './persistence/sqlite-audit-store';
@@ -189,6 +286,7 @@ export { SQLiteStore } from './persistence/sqlite-store';
 export type { LayerMetrics } from './pipeline/interceptors/metrics-interceptor';
 export { MetricsInterceptor } from './pipeline/interceptors/metrics-interceptor';
 export { TimeoutInterceptor } from './pipeline/interceptors/timeout-interceptor';
+export { CoverageGateLayer } from './pipeline/layers/coverage-gate.layer';
 export { DelegationEnforcementLayer } from './pipeline/layers/delegation-enforcement.layer';
 export { shouldSkipForConversational } from './pipeline/mode/conversational.adapter';
 export { shouldSkipForTransactional } from './pipeline/mode/transactional.adapter';

@@ -1,0 +1,431 @@
+# ============================================================
+# Healthcare Operations DNA
+# HIPAA-compliant clinical workflow governance for AI agents
+# ============================================================
+id: healthcare-operations
+name: Healthcare Operations DNA
+version: '1.0.0'
+description: |
+  Healthcare-grade DNA for AI agent teams operating in clinical environments.
+  Enforces HIPAA compliance, patient data protection, clinical decision support
+  protocols, and mandatory human-in-the-loop for critical care decisions.
+author: BehaviorOS Team
+license: MIT
+tags:
+  - healthcare
+  - hipaa
+  - clinical
+  - patient-safety
+  - compliance
+  - phii
+
+# ============================================================
+# PERSONAS
+# ============================================================
+personas:
+  - role: architect
+    authority: architect
+    name: Chief Medical Informatics Officer
+    description: >-
+      Oversees clinical systems architecture, data governance, and
+      regulatory compliance across all health IT systems.
+    boundaries:
+      - id: cmio-max-systems
+        name: Max Concurrent Systems
+        type: max_modules
+        value: 3
+        scope: per_session
+      - id: cmio-require-phi-audit
+        name: PHI Access Audit Required
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - clinical-informatics
+      - health-data-governance
+      - regulatory-compliance
+      - hipaa-rule-interpretation
+      - risk-assessment
+    tools:
+      - read
+      - write
+      - compliance-dashboard
+      - audit-log
+
+  - role: engineer
+    authority: senior
+    name: Clinical Systems Engineer
+    description: >-
+      Develops and maintains EHR systems, clinical decision support
+      tools, and patient-facing applications.
+    boundaries:
+      - id: cse-no-phi-local
+        name: No PHI on Local Storage
+        type: forbidden
+        value: true
+        scope: global
+      - id: cse-max-touches
+        name: Max Patient Record Touches
+        type: max_files
+        value: 5
+        scope: per_pr
+    skills:
+      - ehr-integration
+      - fhir-api-development
+      - clinical-workflow-automation
+      - phi-encryption
+      - audit-trail-implementation
+    tools:
+      - read
+      - write
+      - fhir-sandbox
+      - hl7-mock
+      - encryption-tools
+
+  - role: security
+    authority: architect
+    name: Healthcare Security Officer
+    description: >-
+      Manages HIPAA security rule compliance, breach prevention,
+      risk analysis, and workforce training.
+    boundaries:
+      - id: hso-forbid-phi-exfil
+        name: PHI Exfiltration Forbidden
+        type: forbidden
+        value: true
+        scope: global
+      - id: hso-require-breach-notification
+        name: Breach Notification Required
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - hipaa-security-rule
+      - risk-analysis
+      - breach-response
+      - phi-de-identification
+      - security-audit
+    tools:
+      - read
+      - write
+      - security-scanner
+      - phi-scanner
+      - compliance-checker
+
+  - role: qa
+    authority: senior
+    name: Clinical Quality Analyst
+    description: >-
+      Ensures clinical decision support accuracy, data integrity,
+      and adherence to evidence-based practice guidelines.
+    boundaries:
+      - id: cqa-require-validation
+        name: Clinical Validation Required
+        type: require_approval
+        value: true
+        scope: per_commit
+      - id: cqa-max-trials
+        name: Max Validation Trials
+        type: max_modules
+        value: 2
+        scope: per_session
+    skills:
+      - clinical-validation
+      - evidence-based-review
+      - data-integrity-checking
+      - outcome-measurement
+      - clinical-guideline-management
+    tools:
+      - read
+      - write
+      - test-runner
+      - coverage-report
+
+  - role: specialist
+    authority: senior
+    name: Clinical Decision Support Specialist
+    description: >-
+      Designs and validates clinical decision support algorithms,
+      ensuring they follow evidence-based protocols.
+    boundaries:
+      - id: cdss-no-auto-tx
+        name: No Autonomous Treatment Decisions
+        type: forbidden
+        value: true
+        scope: global
+      - id: cdss-require-human-override
+        name: Human Override Required for Critical Alerts
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - clinical-decision-support
+      - evidence-based-medicine
+      - alert-fatigue-management
+      - clinical-guideline-encoding
+      - outcome-prediction
+    tools:
+      - read
+      - write
+      - decision-support-engine
+      - clinical-knowledge-base
+
+# ============================================================
+# GOVERNANCE RULES
+# ============================================================
+governance:
+  - id: gov-hipaa-privacy
+    name: HIPAA Privacy Rule
+    description: >-
+      All PHI access and disclosure must comply with HIPAA Privacy Rule.
+      Unauthorized access is strictly forbidden.
+    level: critical
+    action: block
+    conditions:
+      - type: phi-access
+      - type: patient-data
+      - type: ehr-modification
+
+  - id: gov-clinical-validated
+    name: Clinical Validation Required
+    description: >-
+      Changes affecting clinical decision support algorithms must pass
+      clinical validation before deployment.
+    level: critical
+    action: block
+    conditions:
+      - type: clinical-algorithm
+      - type: treatment-protocol
+      - type: diagnosis-support
+
+  - id: gov-data-integrity
+    name: Data Integrity
+    description: >-
+      Patient data integrity must be maintained. All data migrations
+      and transformations require audit trail and rollback capability.
+    level: high
+    action: escalate
+    conditions:
+      - type: data-migration
+      - type: record-merge
+      - type: schema-change
+
+  - id: gov-breach-response
+    name: Breach Response Protocol
+    description: >-
+      Any suspected PHI breach must follow HIPAA breach notification
+      timeline: 60 days for notification to affected individuals.
+    level: critical
+    action: escalate
+    conditions:
+      - type: security-incident
+      - type: phi-exposure
+      - type: unauthorized-access
+
+  - id: gov-clinical-audit
+    name: Clinical Audit Trail
+    description: >-
+      All clinical system changes must maintain a complete audit trail
+      meeting HIPAA requirements for retention and review.
+    level: high
+    action: warn
+    conditions:
+      - type: system-change
+      - type: configuration-update
+      - type: access-log
+
+  - id: gov-interoperability
+    name: Interoperability Compliance
+    description: >-
+      All systems must support FHIR R4 standards for data exchange.
+      Custom APIs must provide FHIR-compatible endpoints.
+    level: medium
+    action: warn
+    conditions:
+      - type: api-development
+      - type: data-exchange
+      - type: integration
+
+  - id: gov-patient-consent
+    name: Patient Consent Management
+    description: >-
+      Patient data access requires valid consent on file.
+      Consent directives must be enforced across all systems.
+    level: critical
+    action: block
+    conditions:
+      - type: patient-data-access
+      - type: research-data-use
+      - type: data-sharing
+
+# ============================================================
+# QUALITY GATES
+# ============================================================
+quality:
+  - id: qg-phi-compliance
+    name: PHI Compliance Scan
+    description: Zero PHI leaks or unauthorized access patterns.
+    type: security
+    pass: true
+
+  - id: qg-clinical-accuracy
+    name: Clinical Decision Accuracy
+    description: Clinical decision support must meet sensitivity/specificity thresholds.
+    type: test_coverage
+    threshold: 95
+
+  - id: qg-hipaa-audit
+    name: HIPAA Audit Readiness
+    description: Complete audit trail for all PHI access transactions.
+    type: custom
+    threshold: 100
+
+  - id: qg-data-encryption
+    name: Data Encryption Standards
+    description: All PHI data encrypted at rest (AES-256) and in transit (TLS 1.3).
+    type: security
+    pass: true
+
+  - id: qg-uptime-sla
+    name: Clinical System Uptime
+    description: Critical clinical systems maintain 99.99% uptime SLA.
+    type: performance
+    threshold: 99.99
+
+# ============================================================
+# PATTERNS
+# ============================================================
+patterns:
+  - id: pat-hipaa-compliance
+    name: HIPAA Compliance Check
+    type: review
+    description: |
+      Systematic HIPAA compliance verification for all PHI-handling
+      operations. Covers Privacy Rule, Security Rule, and Breach
+      Notification Rule requirements.
+    triggers:
+      - agent:security
+      - event:phi-operation
+    actions:
+      - run-privacy-rule-check
+      - verify-security-safeguards
+      - validate-audit-trail
+      - confirm-breach-readiness
+
+  - id: pat-clinical-validation
+    name: Clinical Validation Protocol
+    type: testing
+    description: |
+      Multi-stage clinical validation pipeline ensuring that decision
+      support algorithms meet evidence-based accuracy standards before
+      affecting patient care.
+    triggers:
+      - agent:qa
+      - event:algorithm-change
+    actions:
+      - evidence-based-review
+      - sensitivity-specificity-test
+      - false-positive-analysis
+      - clinical-peer-review
+      - staged-rollout
+
+  - id: pat-patient-consent
+    name: Patient Consent Workflow
+    type: collaboration
+    description: |
+      End-to-end patient consent management covering opt-in, opt-out,
+      consent revocation, and granular data-sharing preferences per
+      HIPAA and GDPR requirements.
+    triggers:
+      - agent:specialist
+      - event:consent-change
+    actions:
+      - verify-consent-record
+      - update-consent-directives
+      - propagate-to-systems
+      - log-consent-change
+
+  - id: pat-incident-response
+    name: Healthcare Incident Response
+    type: escalation
+    description: |
+      Structured response protocol for healthcare security incidents
+      following NIST SP 800-61 framework with HIPAA breach notification
+      timelines.
+    triggers:
+      - agent:security
+      - event:security-incident
+    actions:
+      - detect-and-triage
+      - contain-and-eradicate
+      - notify-hitrust
+      - patient-notification
+      - post-incident-review
+
+  - id: pat-clinical-handoff
+    name: Clinical Handoff Protocol
+    type: communication
+    description: |
+      Structured patient handoff using I-PASS framework for safe
+      transitions between clinical teams and shifts.
+    triggers:
+      - agent:architect
+      - event:shift-change
+    actions:
+      - illness-severity-report
+      - patient-summary
+      - action-list
+      - situation-awareness
+      - synthesis-readback
+
+# ============================================================
+# WORKFLOWS
+# ============================================================
+workflows:
+  - id: wf-clinical-deployment
+    name: Clinical System Deployment
+    type: gate
+    description: Staged deployment of clinical system changes with safety checks.
+    agent: architect
+    next:
+      - wf-post-deployment-review
+    timeout: 14400000
+    retries: 1
+
+  - id: wf-post-deployment-review
+    name: Post-Deployment Clinical Review
+    type: gate
+    description: Clinical validation review after deployment.
+    agent: qa
+    next: []
+    timeout: 7200000
+    retries: 1
+
+  - id: wf-phi-access-request
+    name: PHI Access Request
+    type: action
+    description: Structured workflow for requesting and approving PHI access.
+    agent: engineer
+    next:
+      - wf-access-audit
+    timeout: 3600000
+    retries: 0
+    steps:
+      - name: Submit Access Request
+        action: request-phi-access
+        agent: engineer
+      - name: Security Review
+        action: review-access-justification
+        agent: security
+      - name: Approve or Deny
+        action: approve-or-deny-access
+        agent: architect
+
+  - id: wf-access-audit
+    name: PHI Access Audit Log
+    type: gate
+    description: Mandatory audit trail recording for all PHI access events.
+    agent: security
+    next: []
+    timeout: 1800000
+    retries: 0

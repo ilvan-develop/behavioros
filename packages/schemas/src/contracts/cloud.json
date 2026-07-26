@@ -1,0 +1,534 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://behavioros.io/schemas/contracts/cloud.json",
+  "title": "Cloud & Distributed Systems Contracts",
+  "description": "JSON Schema for all BehaviorOS cloud infrastructure and distributed systems contract types: Cluster, LeaderElection, DistributedLock, EventBus, Memory, K8sOperator, HelmChart, AutoScaler, ServiceDiscovery",
+  "type": "object",
+  "definitions": {
+    "NodeRole": {
+      "type": "string",
+      "title": "NodeRole",
+      "description": "Role of a node in the cluster consensus algorithm",
+      "enum": ["leader", "follower", "candidate"]
+    },
+    "NodeStatus": {
+      "type": "string",
+      "title": "NodeStatus",
+      "description": "Health status of a cluster node",
+      "enum": ["active", "inactive", "suspected"]
+    },
+    "ClusterNode": {
+      "type": "object",
+      "title": "ClusterNode",
+      "description": "A node participating in the KernelCluster",
+      "properties": {
+        "id": { "type": "string", "description": "Unique node identifier" },
+        "address": { "type": "string", "description": "Network address of the node" },
+        "role": { "$ref": "#/definitions/NodeRole" },
+        "status": { "$ref": "#/definitions/NodeStatus" },
+        "lastHeartbeat": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of last heartbeat"
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the node joined"
+        },
+        "version": { "type": "string", "description": "Software version running on the node" },
+        "capabilities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of node capabilities"
+        }
+      },
+      "required": [
+        "id",
+        "address",
+        "role",
+        "status",
+        "lastHeartbeat",
+        "joinedAt",
+        "version",
+        "capabilities"
+      ]
+    },
+    "ClusterState": {
+      "type": "object",
+      "title": "ClusterState",
+      "description": "The current state of the cluster (nodes, leader, Raft term)",
+      "properties": {
+        "nodes": {
+          "type": "object",
+          "description": "Map of node ID to ClusterNode (serialized as object)",
+          "additionalProperties": { "$ref": "#/definitions/ClusterNode" }
+        },
+        "leaderId": { "type": "string", "description": "Node ID of the current leader" },
+        "term": { "type": "integer", "minimum": 0, "description": "Current Raft term number" },
+        "lastApplied": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Index of last applied log entry"
+        },
+        "commitIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Index of last committed log entry"
+        }
+      },
+      "required": ["nodes", "leaderId", "term", "lastApplied", "commitIndex"]
+    },
+    "ElectionResult": {
+      "type": "object",
+      "title": "ElectionResult",
+      "description": "Result of a leader election in the cluster",
+      "properties": {
+        "leaderId": { "type": "string", "description": "Node ID elected as leader" },
+        "term": { "type": "integer", "description": "Raft term in which the election occurred" },
+        "votesReceived": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of votes received"
+        },
+        "votesNeeded": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of votes required to win"
+        },
+        "electedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of election"
+        }
+      },
+      "required": ["leaderId", "term", "votesReceived", "votesNeeded", "electedAt"]
+    },
+    "Lock": {
+      "type": "object",
+      "title": "Lock",
+      "description": "A distributed lock acquired by a node",
+      "properties": {
+        "id": { "type": "string", "description": "Unique lock instance identifier" },
+        "holder": { "type": "string", "description": "Identity of the lock holder" },
+        "acquiredAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the lock was acquired"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the lock expires"
+        },
+        "reentrantCount": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Reentrant lock nesting count"
+        }
+      },
+      "required": ["id", "holder", "acquiredAt", "expiresAt", "reentrantCount"]
+    },
+    "DistributedEvent": {
+      "type": "object",
+      "title": "DistributedEvent",
+      "description": "An event published through the DistributedEventBus",
+      "properties": {
+        "id": { "type": "string", "description": "Unique event identifier" },
+        "topic": { "type": "string", "description": "Event topic/channel name" },
+        "payload": { "description": "Event payload data" },
+        "source": {
+          "type": "string",
+          "description": "Node ID or service that published the event"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of publication"
+        },
+        "ttl": { "type": "number", "description": "Time-to-live in milliseconds" }
+      },
+      "required": ["id", "topic", "payload", "source", "timestamp"]
+    },
+    "Subscription": {
+      "type": "object",
+      "title": "Subscription",
+      "description": "A subscription to a topic on the DistributedEventBus",
+      "properties": {
+        "id": { "type": "string", "description": "Unique subscription identifier" },
+        "topic": { "type": "string", "description": "Topic being subscribed to" },
+        "nodeId": { "type": "string", "description": "Node ID that owns this subscription" },
+        "filter": {
+          "type": "object",
+          "description": "Optional filter criteria for events (serialized; runtime uses a function)",
+          "additionalProperties": true
+        }
+      },
+      "required": ["id", "topic", "nodeId"]
+    },
+    "SharedValue": {
+      "type": "object",
+      "title": "SharedValue",
+      "description": "A value shared across cluster nodes via DistributedMemory",
+      "properties": {
+        "key": { "type": "string", "description": "Shared value key" },
+        "value": { "description": "The stored value of any type" },
+        "version": {
+          "type": "integer",
+          "description": "Monotonic version counter for conflict detection"
+        },
+        "nodeId": { "type": "string", "description": "Node ID that last updated this value" },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of last update"
+        },
+        "ttl": {
+          "type": "number",
+          "description": "Optional time-to-live in milliseconds (absolute epoch time)"
+        }
+      },
+      "required": ["key", "value", "version", "nodeId", "updatedAt"]
+    },
+    "CustomResourceDefinition": {
+      "type": "object",
+      "title": "CustomResourceDefinition",
+      "description": "A Kubernetes-style CRD definition managed by the K8sOperator",
+      "properties": {
+        "apiVersion": { "type": "string", "description": "API version of the CRD" },
+        "kind": { "type": "string", "description": "Kind name for the custom resource" },
+        "plural": { "type": "string", "description": "Plural form of the resource name" },
+        "singular": { "type": "string", "description": "Singular form of the resource name" },
+        "scope": {
+          "type": "string",
+          "description": "Whether the resource is namespaced or cluster-scoped",
+          "enum": ["Namespaced", "Cluster"]
+        },
+        "versions": {
+          "type": "array",
+          "description": "Supported versions of this CRD",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "served": { "type": "boolean" },
+              "storage": { "type": "boolean" }
+            },
+            "required": ["name", "served", "storage"]
+          }
+        },
+        "schema": {
+          "type": "object",
+          "description": "OpenAPI schema for the CRD",
+          "additionalProperties": true
+        }
+      },
+      "required": ["apiVersion", "kind", "plural", "singular", "scope", "versions", "schema"]
+    },
+    "CustomResource": {
+      "type": "object",
+      "title": "CustomResource",
+      "description": "An instance of a custom resource managed by the K8sOperator",
+      "properties": {
+        "apiVersion": { "type": "string", "description": "API version of the resource" },
+        "kind": { "type": "string", "description": "Resource kind" },
+        "metadata": {
+          "type": "object",
+          "description": "Resource metadata",
+          "properties": {
+            "name": { "type": "string" },
+            "namespace": { "type": "string" },
+            "uid": { "type": "string" },
+            "labels": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          },
+          "required": ["name", "namespace", "uid"]
+        },
+        "spec": {
+          "type": "object",
+          "description": "Resource specification",
+          "additionalProperties": true
+        },
+        "status": {
+          "type": "object",
+          "description": "Resource status",
+          "additionalProperties": true
+        }
+      },
+      "required": ["apiVersion", "kind", "metadata", "spec"]
+    },
+    "ReconciliationResult": {
+      "type": "object",
+      "title": "ReconciliationResult",
+      "description": "The result of reconciling a custom resource",
+      "properties": {
+        "resource": { "type": "string", "description": "Resource identifier (kind/name)" },
+        "action": {
+          "type": "string",
+          "description": "Action taken during reconciliation",
+          "enum": ["created", "updated", "deleted", "noop"]
+        },
+        "success": { "type": "boolean", "description": "Whether reconciliation succeeded" },
+        "error": { "type": "string", "description": "Error message if reconciliation failed" },
+        "duration": { "type": "number", "description": "Reconciliation duration in milliseconds" }
+      },
+      "required": ["resource", "action", "success", "duration"]
+    },
+    "HelmValues": {
+      "type": "object",
+      "title": "HelmValues",
+      "description": "Helm chart values configuration managed by HelmChart engine",
+      "properties": {
+        "replicaCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of pod replicas"
+        },
+        "image": {
+          "type": "object",
+          "description": "Container image configuration",
+          "properties": {
+            "repository": { "type": "string" },
+            "tag": { "type": "string" },
+            "pullPolicy": { "type": "string" }
+          },
+          "required": ["repository", "tag", "pullPolicy"]
+        },
+        "service": {
+          "type": "object",
+          "description": "Kubernetes Service configuration",
+          "properties": {
+            "type": { "type": "string" },
+            "port": { "type": "integer" }
+          },
+          "required": ["type", "port"]
+        },
+        "resources": {
+          "type": "object",
+          "description": "Container resource requests and limits",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": { "type": "string", "examples": ["100m"] },
+                "memory": { "type": "string", "examples": ["128Mi"] }
+              },
+              "required": ["cpu", "memory"]
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": { "type": "string", "examples": ["500m"] },
+                "memory": { "type": "string", "examples": ["512Mi"] }
+              },
+              "required": ["cpu", "memory"]
+            }
+          },
+          "required": ["requests", "limits"]
+        },
+        "config": {
+          "type": "object",
+          "description": "Arbitrary application configuration values",
+          "additionalProperties": true
+        },
+        "persistence": {
+          "type": "object",
+          "description": "Persistent volume configuration",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "size": { "type": "string", "examples": ["1Gi"] }
+          },
+          "required": ["enabled", "size"]
+        },
+        "ingress": {
+          "type": "object",
+          "description": "Ingress configuration",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "host": { "type": "string" }
+          },
+          "required": ["enabled"]
+        }
+      },
+      "required": [
+        "replicaCount",
+        "image",
+        "service",
+        "resources",
+        "config",
+        "persistence",
+        "ingress"
+      ]
+    },
+    "ScalingMetric": {
+      "type": "string",
+      "title": "ScalingMetric",
+      "description": "Supported scaling metrics for the AutoScaler",
+      "enum": ["queue-depth", "cpu-usage", "memory-usage", "token-usage", "request-rate", "custom"]
+    },
+    "ScalingRule": {
+      "type": "object",
+      "title": "ScalingRule",
+      "description": "A rule that defines auto-scaling behavior based on a metric",
+      "properties": {
+        "id": { "type": "string", "description": "Unique rule identifier" },
+        "metric": { "$ref": "#/definitions/ScalingMetric", "description": "Metric to evaluate" },
+        "targetValue": { "type": "number", "description": "Desired target value for the metric" },
+        "scaleUpThreshold": {
+          "type": "number",
+          "description": "Metric value above which scaling up occurs"
+        },
+        "scaleDownThreshold": {
+          "type": "number",
+          "description": "Metric value below which scaling down occurs"
+        },
+        "minReplicas": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum number of replicas"
+        },
+        "maxReplicas": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum number of replicas"
+        },
+        "cooldownMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cooldown period in milliseconds between scaling actions"
+        },
+        "customMetric": {
+          "type": "string",
+          "description": "Custom metric name (used when metric is 'custom')"
+        }
+      },
+      "required": [
+        "id",
+        "metric",
+        "targetValue",
+        "scaleUpThreshold",
+        "scaleDownThreshold",
+        "minReplicas",
+        "maxReplicas",
+        "cooldownMs"
+      ]
+    },
+    "ScalingDecision": {
+      "type": "object",
+      "title": "ScalingDecision",
+      "description": "A decision record produced by the AutoScaler evaluation",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of the decision"
+        },
+        "ruleId": {
+          "type": "string",
+          "description": "ID of the rule that triggered this decision"
+        },
+        "currentReplicas": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Current number of replicas"
+        },
+        "desiredReplicas": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Desired number of replicas after scaling"
+        },
+        "reason": { "type": "string", "description": "Human-readable reason for the decision" },
+        "metrics": {
+          "type": "object",
+          "description": "Metric values at the time of decision",
+          "additionalProperties": { "type": "number" }
+        }
+      },
+      "required": ["timestamp", "ruleId", "currentReplicas", "desiredReplicas", "reason", "metrics"]
+    },
+    "ServiceDefinition": {
+      "type": "object",
+      "title": "ServiceDefinition",
+      "description": "A registered service in the ServiceDiscovery engine",
+      "properties": {
+        "id": { "type": "string", "description": "Unique service identifier" },
+        "name": { "type": "string", "description": "Service name" },
+        "version": { "type": "string", "description": "Service version (semver)" },
+        "address": { "type": "string", "description": "Network address of the service" },
+        "port": { "type": "integer", "description": "Service port number" },
+        "protocol": { "type": "string", "description": "Communication protocol (e.g. http, grpc)" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tags for service categorization"
+        },
+        "healthEndpoint": {
+          "type": "string",
+          "description": "Optional health check endpoint path"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Arbitrary key-value metadata",
+          "additionalProperties": { "type": "string" }
+        },
+        "status": {
+          "type": "string",
+          "description": "Service health status",
+          "enum": ["up", "down", "unknown"]
+        },
+        "registeredAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of registration"
+        },
+        "lastHeartbeat": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of last heartbeat"
+        },
+        "ttl": {
+          "type": "integer",
+          "description": "Time-to-live in seconds before the service expires"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "version",
+        "address",
+        "port",
+        "protocol",
+        "tags",
+        "status",
+        "registeredAt",
+        "lastHeartbeat",
+        "ttl"
+      ]
+    },
+    "ServiceQuery": {
+      "type": "object",
+      "title": "ServiceQuery",
+      "description": "Query parameters for discovering services",
+      "properties": {
+        "name": { "type": "string", "description": "Filter by service name" },
+        "version": { "type": "string", "description": "Filter by service version" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Filter by tags (OR match)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["up", "down", "unknown"],
+          "description": "Filter by status"
+        },
+        "healthy": {
+          "type": "boolean",
+          "description": "Filter to only healthy services (status === 'up')"
+        }
+      }
+    }
+  }
+}

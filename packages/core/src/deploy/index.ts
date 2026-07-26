@@ -5,11 +5,9 @@ export type {
   CanaryDeployerEvents,
   CanaryDeployment,
   CanaryDeploymentStatus,
-  CanaryStageConfig,
   CanaryStageState,
 } from './canary-deployer';
 export { CanaryDeployer } from './canary-deployer';
-
 export type {
   HealthCheckCategory,
   HealthCheckerConfig,
@@ -20,7 +18,6 @@ export type {
   HealthThreshold,
 } from './health-checker';
 export { HealthChecker } from './health-checker';
-
 export type {
   RollbackManagerConfig,
   RollbackManagerEvents,
@@ -42,3 +39,4 @@ export type {
   TrafficSplitterEvents,
 } from './traffic-splitter';
 export { TrafficSplitter } from './traffic-splitter';
+export type { CanaryStageConfig } from './types';

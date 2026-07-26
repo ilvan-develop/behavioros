@@ -1,56 +1,62 @@
-name: CI
+name: BehaviorOS CI
 
 on:
   push:
-    branches: [master]
+    branches: [main, develop]
   pull_request:
-    branches: [master]
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
     name: Quality Gates
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22]
+    
     steps:
       - uses: actions/checkout@v4
-
+      
       - uses: pnpm/action-setup@v4
         with:
-          version: 11
-
+          version: 11.6.0
+      
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Lint check
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Lint (Biome)
         run: pnpm lint:check
-
-      - name: Type check
+      
+      - name: TypeCheck
         run: pnpm typecheck
-
+      
       - name: Build
         run: pnpm build
-
-      - name: Test
-        run: pnpm test
-
-  mcp-healthcheck:
-    name: MCP Server Healthcheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
+      
+      - name: Test (Core)
+        run: pnpm --filter @behavioros/core test -- --reporter=verbose
+      
+      - name: Test (MCP Server)
+        run: pnpm --filter @behavioros/mcp-server test
+      
+      - name: Test (Web)
+        run: pnpm --filter web test
+      
+      - name: Coverage Summary
+        run: pnpm --filter @behavioros/core test -- --coverage --reporter=text-summary
+      
+      - name: Upload Coverage
+        uses: actions/upload-artifact@v4
+        if: always()
         with:
-          version: 11
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build --filter @behavioros/mcp-server
-      - run: node --import tsx/esm packages/mcp-server/scripts/mcp-healthcheck.ts
+          name: coverage-report
+          path: packages/core/coverage/

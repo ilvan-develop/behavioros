@@ -7,6 +7,9 @@ import type { QualityGate, QualityMetric } from '@behavioros/schemas';
 // Quality Engine — Quality Gates, Metrics, Enforcement + Real Tool Integration
 // ============================================================
 
+/**
+ * QualityCheckResult — Result data for quality check operations.
+ */
 export interface QualityCheckResult {
   gate: string;
   passed: boolean;
@@ -16,6 +19,9 @@ export interface QualityCheckResult {
   details?: Record<string, unknown>;
 }
 
+/**
+ * QualityReport — Result data for quality operations.
+ */
 export interface QualityReport {
   id: string;
   passed: boolean;
@@ -26,6 +32,9 @@ export interface QualityReport {
   timestamp: string;
 }
 
+/**
+ * QualityEngineConfig — Configuration options for quality engine.
+ */
 export interface QualityEngineConfig {
   minScore?: number;
   persistPath?: string;
@@ -61,6 +70,11 @@ function detectPackageManager(projectPath: string): string {
   return 'npm';
 }
 
+/**
+ * QualityEngine — quality engine.
+ *
+ * Methods: runAll, runGate, require, createReport, evaluate, addGate, removeGate, getGates, +3 more.
+ */
 export class QualityEngine {
   private gates: QualityGate[];
   private history: QualityReport[] = [];

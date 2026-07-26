@@ -1,0 +1,22 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "packages/core/src/engines/core-engine.ts",
+    "packages/core/src/engines/skill-engine.ts",
+    "packages/core/src/engines/ecosystem-registry.ts",
+    "packages/core/src/engines/protocol-engine.ts"
+  ],
+  "out": "docs/api",
+  "name": "BehaviorOS API Reference",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeExternals": true,
+  "theme": "default",
+  "readme": "none",
+  "sort": ["source-order"],
+  "categorizeByGroup": true,
+  "categoryOrder": ["Engines", "Types", "*"],
+  "tsconfig": "tsconfig.typedoc.json",
+  "skipErrorChecking": true
+}

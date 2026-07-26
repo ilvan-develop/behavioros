@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { describe, test, expect } from 'vitest';
 import { BehaviorOS } from '@behavioros/sdk';
 import type { DNAPackage } from '@behavioros/schemas';
 
@@ -14,7 +14,7 @@ const testDNA: DNAPackage = {
   quality: [],
 };
 
-test.describe('Mission Lifecycle', () => {
+describe('Mission Lifecycle', () => {
   let bos: BehaviorOS;
 
   test.beforeEach(() => {

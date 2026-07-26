@@ -14,6 +14,11 @@ import type { VerificationResult } from './verification-result.interface';
 // AuditChainVerifier
 // ============================================================
 
+/**
+ * AuditChainVerifier — AuditChainVerifier.
+ *
+ * Methods: verify, verifyLast, verifyEntryAt, report, getTamperedIndices, getBrokenLinkIndices.
+ */
 export class AuditChainVerifier {
   private readonly chain: HashChain;
 

@@ -552,7 +552,7 @@ export class ComplianceExporter {
       totalWarned += soc2.checks.filter((c) => c.result === 'warn').length;
       totalRecommendations += soc2.recommendations.length;
       criticalGaps += soc2.checks.filter((c) => c.result === 'fail' && c.mandatory).length;
-      frameworkScores['soc2'] = soc2.complianceScore;
+      frameworkScores.soc2 = soc2.complianceScore;
     }
 
     const scores = Object.values(frameworkScores);

@@ -123,6 +123,15 @@ Run `update-progress` to update mission status:
 ### 6. Audit After Completion
 Run `bos_run_audit` with trigger `commit` or `pr` to validate the agent's work.
 
+## Enforcement — Automatic Protocol Validation
+
+The BehaviorOS MCP server now has automatic enforcement via `EnforcementMiddleware`:
+- Action tools (`start-pipeline`, `run-audit`, `approve-layer`, etc.) require steps 1+3+4 complete before execution
+- Governance rules are auto-evaluated for every action tool — critical violations block execution
+- Use `bos_validate_protocol` before delegating to check current protocol state
+- Use `bos_reset_protocol` ONLY for recovery if enforcement blocks legitimate actions
+- Enforcement level is configurable: `strict`, `standard` (default), or `audit` (log only)
+
 ## Conflict Resolution
 
 When agents disagree or produce conflicting outputs:

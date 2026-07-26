@@ -16,6 +16,9 @@ export interface ConflictContext {
   severity: 'low' | 'medium' | 'high' | 'critical';
 }
 
+/**
+ * Resolution — Defines the shape and contract for resolution in the BehaviorOS system.
+ */
 export interface Resolution {
   resolution: string;
   steps: string[];
@@ -88,6 +91,11 @@ const RESOLUTION_TEMPLATES: Record<ConflictContext['type'], Omit<Resolution, 'ti
   },
 };
 
+/**
+ * ConflictResolver — conflict resolver.
+ *
+ * Methods: resolve, getResolutionHistory.
+ */
 export class ConflictResolver {
   private history: Array<ConflictContext & { resolution: Resolution }> = [];
 

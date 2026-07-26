@@ -1,0 +1,461 @@
+# ============================================================
+# Gaming Platform DNA
+# Multiplayer game governance for matchmaking, economy, anti-cheat
+# ============================================================
+id: gaming-platform
+name: Gaming Platform DNA
+version: '1.0.0'
+description: |
+  Gaming-grade DNA for AI agent teams operating multiplayer game
+  platforms. Covers matchmaking integrity, virtual economy balancing,
+  anti-cheat enforcement, content moderation, and player experience
+  governance.
+author: BehaviorOS Team
+license: MIT
+tags:
+  - gaming
+  - multiplayer
+  - matchmaking
+  - anti-cheat
+  - virtual-economy
+  - content-moderation
+
+# ============================================================
+# PERSONAS
+# ============================================================
+personas:
+  - role: architect
+    authority: architect
+    name: Game Systems Architect
+    description: >-
+      Designs game server architecture, matchmaking algorithms, 
+      economy models, and the anti-cheat detection pipeline.
+    boundaries:
+      - id: gsa-max-patches
+        name: Max Concurrent Patches
+        type: max_modules
+        value: 2
+        scope: per_session
+      - id: gsa-require-benchmark
+        name: Performance Benchmark Required
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - game-server-architecture
+      - matchmaking-algorithms
+      - economy-modelling
+      - anti-cheat-pipeline
+      - scalability-planning
+    tools:
+      - read
+      - write
+      - architecture-diagram
+      - benchmark-suite
+      - load-tester
+
+  - role: engineer
+    authority: senior
+    name: Gameplay Engineer
+    description: >-
+      Builds and maintains game features, real-time multiplayer logic,
+      player progression systems, and client-server synchronization.
+    boundaries:
+      - id: ge-max-latency
+        name: Max Acceptable Latency Impact
+        type: max_lines
+        value: 5
+        scope: per_pr
+      - id: ge-require-rollback
+        name: Rollback Plan Required
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - multiplayer-networking
+      - game-logic-development
+      - player-progression
+      - realtime-sync
+      - physics-simulation
+    tools:
+      - read
+      - write
+      - test-runner
+      - network-profiler
+      - game-simulator
+
+  - role: security
+    authority: architect
+    name: Anti-Cheat Lead
+    description: >-
+      Develops and maintains anti-cheat detection systems, fair play
+      enforcement, and account security measures.
+    boundaries:
+      - id: acl-no-ban-without-evidence
+        name: No Ban Without Evidence
+        type: require_approval
+        value: true
+        scope: global
+      - id: acl-max-detection-batch
+        name: Max Detection Batch Size
+        type: max_files
+        value: 100
+        scope: per_session
+    skills:
+      - anti-cheat-detection
+      - fair-play-enforcement
+      - account-security
+      - fraud-analysis
+      - behavioral-analytics
+    tools:
+      - read
+      - write
+      - cheat-detection-engine
+      - replay-analyzer
+      - ban-system
+
+  - role: specialist
+    authority: senior
+    name: Economy & Progression Designer
+    description: >-
+      Designs and balances virtual economies, progression systems,
+      monetization models, and player retention mechanics.
+    boundaries:
+      - id: epd-no-pay-to-win
+        name: No Pay-to-Win Mechanics
+        type: forbidden
+        value: true
+        scope: global
+      - id: epd-require-economy-sim
+        name: Economy Simulation Required
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - virtual-economy-design
+      - progression-balancing
+      - monetization-strategy
+      - player-retention
+      - economic-simulation
+    tools:
+      - read
+      - write
+      - economy-simulator
+      - analytics-dashboard
+      - ab-testing-framework
+
+  - role: qa
+    authority: senior
+    name: Player Experience Lead
+    description: >-
+      Ensures matchmaking fairness, content safety, community
+      guidelines enforcement, and player satisfaction metrics.
+    boundaries:
+      - id: px-no-toxic-matches
+        name: Toxic Match Prevention
+        type: require_approval
+        value: true
+        scope: per_commit
+      - id: px-require-content-review
+        name: Content Moderation Review
+        type: require_approval
+        value: true
+        scope: per_session
+    skills:
+      - matchmaking-testing
+      - content-moderation
+      - community-guidelines
+      - player-sentiment-analysis
+      - toxicity-detection
+    tools:
+      - read
+      - write
+      - test-runner
+      - moderation-dashboard
+      - sentiment-analyzer
+
+# ============================================================
+# GOVERNANCE RULES
+# ============================================================
+governance:
+  - id: gov-matchmaking-fairness
+    name: Matchmaking Fairness
+    description: >-
+      Matchmaking must pair players of comparable skill levels.
+      Skill rating manipulation or boosting is strictly forbidden.
+    level: critical
+    action: block
+    conditions:
+      - type: matchmaking-algorithm
+      - type: skill-rating
+      - type: rank-system
+
+  - id: gov-anti-cheat-evidence
+    name: Anti-Cheat Evidence Standard
+    description: >-
+      All anti-cheat enforcement actions must be supported by
+      reproducible evidence. False positive rate must stay below 0.1%.
+    level: critical
+    action: escalate
+    conditions:
+      - type: player-ban
+      - type: account-suspension
+      - type: item-confiscation
+
+  - id: gov-economy-balance
+    name: Economy Balance
+    description: >-
+      Virtual economy changes must preserve purchasing power parity
+      across all player segments. Inflation must not exceed 2% monthly.
+    level: high
+    action: escalate
+    conditions:
+      - type: economy-change
+      - type: currency-adjustment
+      - type: pricing-tweak
+
+  - id: gov-content-safety
+    name: Content Safety
+    description: >-
+      All user-generated content must be moderated within 15 minutes
+      of publication. Hate speech, harassment, and explicit content
+      are strictly forbidden.
+    level: critical
+    action: block
+    conditions:
+      - type: user-content
+      - type: chat-message
+      - type: custom-avatar
+
+  - id: gov-monetization-ethics
+    name: Monetization Ethics
+    description: >-
+      Monetization mechanics must comply with regional loot box
+      regulations, disclose drop rates, and avoid exploitative
+      designs targeting minors.
+    level: high
+    action: escalate
+    conditions:
+      - type: monetization
+      - type: loot-box
+      - type: battle-pass
+
+  - id: gov-server-integrity
+    name: Server Integrity
+    description: >-
+      Game server state must be authoritative. Client-side
+      authorization for game-state changes is forbidden.
+    level: critical
+    action: block
+    conditions:
+      - type: server-authoritative
+      - type: game-state
+      - type: physics-tick
+
+  - id: gov-data-privacy
+    name: Player Data Privacy
+    description: >-
+      Player personal data must be handled according to GDPR/COPPA
+      regulations. Minors require parental consent for data collection.
+    level: critical
+    action: block
+    conditions:
+      - type: player-data
+      - type: telemetry
+      - type: behavioral-tracking
+
+# ============================================================
+# QUALITY GATES
+# ============================================================
+quality:
+  - id: qg-matchmaking-latency
+    name: Matchmaking Latency
+    description: Players matched within acceptable time threshold.
+    type: performance
+    threshold: 30
+
+  - id: qg-false-positive
+    name: Anti-Cheat False Positive Rate
+    description: False positive rate below acceptable threshold.
+    type: custom
+    threshold: 0.1
+
+  - id: qg-server-tickrate
+    name: Server Tick Rate
+    description: Game server tick rate must meet minimum threshold.
+    type: performance
+    threshold: 60
+
+  - id: qg-economy-stability
+    name: Economy Stability Index
+    description: Virtual economy inflation and deflation within bounds.
+    type: test_coverage
+    threshold: 95
+
+  - id: qg-content-moderation
+    name: Content Moderation SLA
+    description: User content moderated within required time window.
+    type: custom
+    threshold: 99
+
+# ============================================================
+# PATTERNS
+# ============================================================
+patterns:
+  - id: pat-matchmaking
+    name: Matchmaking Pipeline
+    type: action
+    description: |
+      Multi-stage matchmaking pipeline: party formation, skill-based
+      matching, latency optimization, and lobby assignment.
+    triggers:
+      - agent:engineer
+      - event:match-request
+    actions:
+      - form-parties
+      - calculate-skill-bands
+      - optimize-latency
+      - assign-lobby
+      - validate-fairness
+
+  - id: pat-anti-cheat-investigation
+    name: Anti-Cheat Investigation
+    type: review
+    description: |
+      Structured anti-cheat investigation pipeline: automated detection,
+      evidence gathering, manual review for high-confidence cases,
+      and appeals processing.
+    triggers:
+      - agent:security
+      - event:cheat-detection
+    actions:
+      - run-detection-models
+      - gather-replay-evidence
+      - review-manually
+      - enforce-sanction
+      - process-appeal
+
+  - id: pat-economy-simulation
+    name: Economy Change Simulation
+    type: learning
+    description: |
+      Pre-deployment economic simulation to predict impact of
+      currency, pricing, or reward changes on player behavior
+      and virtual market stability.
+    triggers:
+      - agent:specialist
+      - event:economy-change
+    actions:
+      - build-simulation-model
+      - run-scenarios
+      - analyze-impact
+      - adjust-parameters
+      - approve-or-reject
+
+  - id: pat-live-ops
+    name: Live Operations Playbook
+    type: collaboration
+    description: |
+      Coordinated live operations playbook for events, seasons,
+      server maintenance, and emergency patches with cross-team
+      communication protocols.
+    triggers:
+      - agent:architect
+      - event:live-ops-event
+    actions:
+      - plan-event-calendar
+      - deploy-event-content
+      - monitor-player-metrics
+      - adjust-difficulty
+      - post-event-analysis
+
+  - id: pat-content-moderation
+    name: Content Moderation Pipeline
+    type: communication
+    description: |
+      Multi-tier content moderation pipeline: automated filtering,
+      AI-powered toxicity detection, human review queue, and
+      appeals system.
+    triggers:
+      - agent:qa
+      - event:user-content
+    actions:
+      - auto-filter-toxic-content
+      - ai-sentiment-analysis
+      - queue-for-human-review
+      - enforce-moderation-action
+      - log-and-audit
+
+# ============================================================
+# WORKFLOWS
+# ============================================================
+workflows:
+  - id: wf-game-patch-release
+    name: Game Patch Release
+    type: gate
+    description: Staged patch release with canary deployment and rollback capability.
+    agent: architect
+    next:
+      - wf-post-patch-monitoring
+    timeout: 28800000
+    retries: 1
+
+  - id: wf-post-patch-monitoring
+    name: Post-Patch Player Impact Monitoring
+    type: parallel
+    description: Monitor key metrics after patch deployment.
+    agent: qa
+    next: []
+    timeout: 86400000
+    retries: 0
+
+  - id: wf-cheat-enforcement
+    name: Cheat Enforcement Lifecycle
+    type: action
+    description: End-to-end cheat enforcement from detection to ban appeal.
+    agent: security
+    next: []
+    timeout: 3600000
+    retries: 0
+    steps:
+      - name: Detect Anomaly
+        action: run-cheat-detection
+        agent: security
+      - name: Gather Evidence
+        action: collect-replay-data
+        agent: security
+      - name: Review Case
+        action: manual-evidence-review
+        agent: security
+      - name: Enforce Sanction
+        action: apply-ban-or-warning
+        agent: security
+      - name: Log Appeal
+        action: open-appeal-channel
+        agent: qa
+
+  - id: wf-season-launch
+    name: Season Launch Coordination
+    type: action
+    description: Coordinated cross-team season launch with new content, battle pass, and events.
+    agent: architect
+    next:
+      - wf-post-patch-monitoring
+    timeout: 14400000
+    retries: 1
+    steps:
+      - name: Finalize Season Content
+        action: lock-season-assets
+        agent: engineer
+      - name: Balance Economy
+        action: run-economy-simulation
+        agent: specialist
+      - name: Stage Deployment
+        action: deploy-to-staging
+        agent: architect
+      - name: Quality Assurance
+        action: run-regression-suite
+        agent: qa
+      - name: Launch Season
+        action: deploy-to-production
+        agent: architect

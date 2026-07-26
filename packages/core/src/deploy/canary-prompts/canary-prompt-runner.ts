@@ -184,7 +184,7 @@ export class CanaryPromptRunner {
   }
 
   private classifySeverity(
-    avgDrift: number,
+    _avgDrift: number,
     maxDrift: number,
     failedCount: number,
     totalCount: number,

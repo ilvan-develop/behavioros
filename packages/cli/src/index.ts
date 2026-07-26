@@ -1,10 +1,15 @@
 export { run } from './bin.js';
+export { agentCommand } from './commands/agent.js';
+export { autonomousCommand } from './commands/autonomous.js';
 export { compileCommand } from './commands/compile.js';
 export { complianceCommand } from './commands/compliance.js';
 export { deployCommand } from './commands/deploy.js';
 export { diffCommand } from './commands/diff.js';
 export { driftCheckCommand } from './commands/drift-check.js';
+export { ecosystemCommand } from './commands/ecosystem.js';
+export { enforceCommand } from './commands/enforce.js';
 export { initCommand } from './commands/init.js';
+export { protocolCommand } from './commands/protocol.js';
 export { simulateCommand } from './commands/simulate.js';
 export { statusCommand } from './commands/status.js';
 export { validateCommand } from './commands/validate.js';

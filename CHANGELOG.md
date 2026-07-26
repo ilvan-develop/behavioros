@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-07-20
+
+### Added
+
+- **Ecosystem Platform** — 3 adapter integrations (AITMPL: 2800+ skills, Open Design: 151 design systems, UI-UX Pro Max)
+- **SkillEngine** — `resolve()`, `validateDelegation()`, `listAvailable()`, `search()`, `install()`, `syncFromDNA()`, `syncFromLocal()`, `status()`, `doctor()`
+- **AutonomousOrchestrator** — Autonomous task decomposition → skill routing → handoff protocol → doc generation → lifecycle pipeline → audit
+- **Handoff Protocol** — 6-state lifecycle (pending → accepted → in_progress → completed/rejected/cancelled)
+- **Protocol Enforcement** — 3 levels (strict/standard/audit), `DelegationEnforcementLayer` blocks action tools if protocol steps skipped
+- **CLI Commands** — `ecosystem` (status, install, sync, doctor, report, stack), `protocol` (check, enforce, status), `agent` (list, skills, validate), `autonomous` (run, status, handoffs)
+- **MCP Handoff Tools** — `bos-agent-handoff`, `bos-skills-validate`, `bos-skills-list`, `bos-ecosystem-status`, `bos-ecosystem-doctor`, `bos-ecosystem-install`
+- **Web Dashboard** — ecosystem, skills, MCPs, report, protocol pages with 7 API routes
+- **Documentation** — ECOSYSTEM.md (382 lines), STACK.md (167 lines), INTEGRATIONS.md (227 lines), AGENT-PROTOCOL.md (301 lines), CLI.md expanded 237→604 lines
+- **1088+ tests** across all packages (all phases)
+- **FinPay Integration Tests** — 6 scenarios: protocol enforcement, skill validation, autonomous decomposition, handoff, ecosystem status, doc generation
+- **Version alignment** — All 7 packages aligned to 1.0.0
+
 ## [0.1.0] - 2026-07-20
 
 ### Added

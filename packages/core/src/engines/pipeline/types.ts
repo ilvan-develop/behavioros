@@ -10,15 +10,27 @@ import type {
 // Pipeline Engine Types — EAARG Pipeline Execution
 // ============================================================
 
+/**
+ * PipelineStatus — Union type: created, running, paused, completed, failed;.
+ */
 export type PipelineStatus = 'created' | 'running' | 'paused' | 'completed' | 'failed';
+/**
+ * LayerStatus — Union type: pending, in_progress, pass, fail, skip;.
+ */
 export type LayerStatus = 'pending' | 'in_progress' | 'pass' | 'fail' | 'skip';
 
+/**
+ * PipelineContext — State and context data for pipeline operations.
+ */
 export interface PipelineContext {
   projectPath: string;
   dna: DNAPackage;
   options?: PipelineOptions;
 }
 
+/**
+ * PipelineOptions — Configuration options for pipeline.
+ */
 export interface PipelineOptions {
   startLayer?: number;
   endLayer?: number;
@@ -28,6 +40,9 @@ export interface PipelineOptions {
   skills?: SkillReference[];
 }
 
+/**
+ * LayerExecutionResult — Result data for layer execution operations.
+ */
 export interface LayerExecutionResult {
   layer: number;
   layerName: string;
@@ -46,12 +61,18 @@ export interface LayerExecutionResult {
   error?: string;
 }
 
+/**
+ * GateCheckResult — Result data for gate check operations.
+ */
 export interface GateCheckResult {
   passed: boolean;
   failedGates: string[];
   warnings: string[];
 }
 
+/**
+ * EvidenceValidationResult — Result data for evidence validation operations.
+ */
 export interface EvidenceValidationResult {
   valid: boolean;
   collected: string[];
@@ -59,6 +80,9 @@ export interface EvidenceValidationResult {
   extra: string[];
 }
 
+/**
+ * SkillValidationResult — Result data for skill validation operations.
+ */
 export interface SkillValidationResult {
   skillId: string;
   skillName: string;
@@ -68,6 +92,9 @@ export interface SkillValidationResult {
   recommendations: string[];
 }
 
+/**
+ * PipelineEngineEvents — Defines the shape and contract for pipeline engine events in the BehaviorOS system.
+ */
 export interface PipelineEngineEvents {
   'pipeline:started': (state: PipelineState) => void;
   'pipeline:paused': (state: PipelineState) => void;

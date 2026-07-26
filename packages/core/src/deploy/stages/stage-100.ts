@@ -2,7 +2,7 @@
 // Stage 100 — Full promotion: 100% traffic (completion)
 // ============================================================
 
-import type { CanaryStageConfig } from '../canary-deployer';
+import type { CanaryStageConfig } from '../types';
 
 /**
  * Stage 100% configuration.

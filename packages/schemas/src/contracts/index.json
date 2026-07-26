@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://behavioros.io/schemas/contracts/index.json",
+  "title": "BehaviorOS Contracts Index",
+  "description": "Index referencing all BehaviorOS contract JSON Schema files. Import this file to get access to all contract type definitions.",
+  "type": "object",
+  "properties": {
+    "observability": {
+      "$ref": "./observability.json",
+      "description": "Metrics, Tracing, Logging, Audit, and FinOps types"
+    },
+    "cloud": {
+      "$ref": "./cloud.json",
+      "description": "Cluster, LeaderElection, DistributedLock, EventBus, Memory, K8sOperator, HelmChart, AutoScaler, ServiceDiscovery types"
+    },
+    "ecosystem": {
+      "$ref": "./ecosystem.json",
+      "description": "PluginLifecycle, DigitalTwin, Tenant, Workspace, Billing, SDKGenerator, CLI, Registry, Marketplace types"
+    }
+  },
+  "required": ["observability", "cloud", "ecosystem"]
+}

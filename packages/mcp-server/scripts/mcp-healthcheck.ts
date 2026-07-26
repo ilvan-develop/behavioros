@@ -1,9 +1,16 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
+import { fileURLToPath } from 'node:url';
 
-const SERVER_PATH = path.resolve(__dirname, '../dist/server.js');
-const DNA_PATH = path.resolve(__dirname, '../../../dnas/enterprise-governance.yaml');
+const _filename =
+  typeof __dirname !== 'undefined'
+    ? path.join(__dirname, 'mcp-healthcheck.ts')
+    : fileURLToPath(import.meta.url);
+const _dirname = path.dirname(_filename);
+
+const SERVER_PATH = path.resolve(_dirname, '../dist/server.js');
+const DNA_PATH = path.resolve(_dirname, '../../../dnas/enterprise-governance.yaml');
 const HEALTHCHECK_TIMEOUT = 15_000;
 
 interface JsonRpcRequest {
@@ -63,7 +70,7 @@ function sendRequest(
       reject(err);
     });
 
-    proc.stdin!.write(JSON.stringify(request) + '\n');
+    proc.stdin!.write(`${JSON.stringify(request)}\n`);
   });
 }
 

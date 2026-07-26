@@ -1,4 +1,13 @@
-import type { Agent, AuditEvent, GovernanceRule, Mission, QualityGate } from '@/types';
+import type {
+  Agent,
+  AuditEvent,
+  GovernanceRule,
+  LearningEvent,
+  LearningPattern,
+  LearningReport,
+  Mission,
+  QualityGate,
+} from '@/types';
 
 // ============================================================
 // Seed Data — Realistic demo data for BehaviorOS dashboard
@@ -528,6 +537,205 @@ const roleSkillSets: Record<string, string[]> = {
   devops: ['CI/CD', 'Infrastructure', 'Monitoring'],
   lead: ['Mentoring', 'Planning', 'Technical Leadership'],
   support: ['Communication', 'Documentation', 'User Support'],
+};
+
+// ─── Learning Events ──────────────────────────────────────
+
+export const seedLearningEvents: LearningEvent[] = [
+  {
+    id: 'learn-001',
+    timestamp: hoursAgo(1),
+    type: 'insight',
+    source: 'post-mortem',
+    content: '3DS validation requires mandatory security review before implementation',
+    impact: 'high',
+    applied: true,
+    missionId: 'mission-004',
+  },
+  {
+    id: 'learn-002',
+    timestamp: hoursAgo(3),
+    type: 'correction',
+    source: 'bug-fix',
+    content: 'Race condition in payment reconciliation fixed — add webhook idempotency keys',
+    impact: 'critical',
+    applied: true,
+    missionId: 'mission-004',
+  },
+  {
+    id: 'learn-003',
+    timestamp: hoursAgo(6),
+    type: 'pattern',
+    source: 'auto-detect',
+    content:
+      'Teams consistently skip audit on hotfixes — add mandatory audit gate for hotfix branch',
+    impact: 'high',
+    applied: false,
+  },
+  {
+    id: 'learn-004',
+    timestamp: hoursAgo(12),
+    type: 'observation',
+    source: 'pipeline',
+    content: 'Staging deployment took 45s — within acceptable range (< 120s)',
+    impact: 'low',
+    applied: true,
+  },
+  {
+    id: 'learn-005',
+    timestamp: hoursAgo(24),
+    type: 'feedback',
+    source: 'human-review',
+    content: 'Review process needs streamlining — PRs spend 2h+ waiting for architect review',
+    impact: 'medium',
+    applied: false,
+  },
+  {
+    id: 'learn-006',
+    timestamp: daysAgo(2),
+    type: 'insight',
+    source: 'post-mortem',
+    content: 'Database migration rollback strategy must be validated before production deployment',
+    impact: 'high',
+    applied: true,
+    missionId: 'mission-002',
+  },
+  {
+    id: 'learn-007',
+    timestamp: daysAgo(3),
+    type: 'correction',
+    source: 'security-scan',
+    content: 'Update dependency: lodash@4.17.20 → 4.17.21 (CVE-2023-1234)',
+    impact: 'high',
+    applied: true,
+  },
+  {
+    id: 'learn-008',
+    timestamp: daysAgo(5),
+    type: 'pattern',
+    source: 'auto-detect',
+    content: 'Coverage drops consistently on Friday deployments — enforce coverage gate on Fridays',
+    impact: 'medium',
+    applied: false,
+  },
+  {
+    id: 'learn-009',
+    timestamp: daysAgo(7),
+    type: 'observation',
+    source: 'monitoring',
+    content: 'FCP increased from 1.2s to 1.8s after analytics bundle update',
+    impact: 'medium',
+    applied: true,
+  },
+  {
+    id: 'learn-010',
+    timestamp: daysAgo(10),
+    type: 'feedback',
+    source: 'standup',
+    content: 'Developer onboarding could be faster with interactive DNA pattern tutorials',
+    impact: 'low',
+    applied: false,
+  },
+  {
+    id: 'learn-011',
+    timestamp: daysAgo(14),
+    type: 'insight',
+    source: 'retrospective',
+    content: 'Staged rollouts reduce incident rate by 40% compared to full rollouts',
+    impact: 'high',
+    applied: true,
+  },
+  {
+    id: 'learn-012',
+    timestamp: daysAgo(21),
+    type: 'observation',
+    source: 'pipeline',
+    content: 'Full EAARG pipeline completed in 18.8s — all 9 layers passed',
+    impact: 'low',
+    applied: true,
+  },
+];
+
+export const seedLearningPatterns: LearningPattern[] = [
+  {
+    id: 'lp-001',
+    type: 'temporal',
+    description: 'Coverage drops consistently on Friday deployments',
+    confidence: 0.85,
+    events: 6,
+    firstDetected: daysAgo(30),
+    lastDetected: daysAgo(5),
+    suggestedAction: 'Enforce coverage gate on Friday branch merges',
+  },
+  {
+    id: 'lp-002',
+    type: 'correlation',
+    description: 'Hotfix branches bypass audit at 3x the rate of feature branches',
+    confidence: 0.78,
+    events: 12,
+    firstDetected: daysAgo(45),
+    lastDetected: hoursAgo(6),
+    suggestedAction: 'Add mandatory audit gate for all hotfix branches',
+  },
+  {
+    id: 'lp-003',
+    type: 'trend',
+    description: 'Governance evaluation latency decreasing after rule indexing optimization',
+    confidence: 0.92,
+    events: 24,
+    firstDetected: daysAgo(60),
+    lastDetected: hoursAgo(24),
+    suggestedAction: 'Continue monitoring — threshold at 50ms average',
+  },
+  {
+    id: 'lp-004',
+    type: 'anomaly',
+    description: 'Unusual spike in payment validation failures on weekends',
+    confidence: 0.72,
+    events: 4,
+    firstDetected: daysAgo(20),
+    lastDetected: daysAgo(3),
+    suggestedAction: 'Investigate batch processing cron job timing',
+  },
+  {
+    id: 'lp-005',
+    type: 'failure-chain',
+    description: 'Failed typechecks cascade to coverage failures in 80% of cases',
+    confidence: 0.88,
+    events: 10,
+    firstDetected: daysAgo(35),
+    lastDetected: daysAgo(7),
+    suggestedAction: 'Block typecheck failures before running coverage',
+  },
+];
+
+export const seedLearningReport: LearningReport = {
+  totalEvents: seedLearningEvents.length,
+  appliedCount: seedLearningEvents.filter((e) => e.applied).length,
+  pendingCount: seedLearningEvents.filter((e) => !e.applied).length,
+  trends: [
+    { type: 'observation', count: 3, trend: 'stable' },
+    { type: 'pattern', count: 2, trend: 'up' },
+    { type: 'insight', count: 3, trend: 'stable' },
+    { type: 'feedback', count: 2, trend: 'down' },
+    { type: 'correction', count: 2, trend: 'up' },
+  ],
+  patterns: seedLearningPatterns,
+  recentEvents: seedLearningEvents,
+  anomalies: [
+    {
+      id: 'anom-001',
+      description: 'Payment validation failures spike 300% on weekends',
+      severity: 'high',
+      timestamp: daysAgo(3),
+    },
+    {
+      id: 'anom-002',
+      description: 'Typecheck cascade failures detected in 5 consecutive builds',
+      severity: 'medium',
+      timestamp: daysAgo(7),
+    },
+  ],
 };
 
 export function enrichAgent(sdkAgent: {

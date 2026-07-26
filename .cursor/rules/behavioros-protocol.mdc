@@ -3,6 +3,10 @@ description: BehaviorOS Protocol — Delegation & Enforcement Specification
 globs: ["**/*"]
 ---
 
+# BehaviorOS Kernel v1.0
+
+You are under BehaviorOS governance. Read `.agent_state.json` at session start — it persists protocol state between sessions.
+
 Refer to the canonical protocol document at `docs/PROTOCOL.md`.
 
 ## 7 Mandatory Steps

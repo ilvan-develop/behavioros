@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "node scripts/read-agent-state.js"
+      }
+    ],
+    "beforeMCPExecution": [
+      {
+        "command": "node scripts/validate-protocol.js"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "node scripts/validate-dna.js"
+      }
+    ]
+  }
+}
