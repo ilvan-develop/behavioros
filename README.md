@@ -335,6 +335,59 @@ Add to Windsurf MCP configuration:
 }
 ```
 
+### OpenCode
+
+Add to `opencode.json`:
+
+```json
+{
+  "mcpServers": {
+    "behavioros": {
+      "command": "node",
+      "args": ["packages/mcp-server/dist/server.js"],
+      "env": {
+        "BEHAVIOROS_DNA_PATH": "./dnas/enterprise-governance.yaml",
+        "BEHAVIOROS_PROJECT": "my-project",
+        "BEHAVIOROS_LOG_LEVEL": "info"
+      }
+    }
+  },
+  "instructions": [
+    "docs/PROTOCOL.md",
+    "AGENTS.md"
+  ]
+}
+```
+
+**Legacy format** (OpenCode < 1.5):
+
+```json
+{
+  "mcp": {
+    "behavioros": {
+      "type": "local",
+      "command": ["node", "packages/mcp-server/dist/server.js"],
+      "cwd": ".",
+      "enabled": true,
+      "timeout": 30000,
+      "environment": {
+        "BEHAVIOROS_DNA_PATH": "./dnas/enterprise-governance.yaml"
+      }
+    }
+  }
+}
+```
+
+After setup, verify the connection:
+
+```bash
+# Test 9 resources respond
+echo '{"jsonrpc":"2.0","id":1,"method":"resources/list","params":{}}' | node packages/mcp-server/dist/server.js
+
+# Or use CLI
+npx @behavioros/cli status
+```
+
 ## Integration Best Practices
 
 | Platform | Config File | Setup |
@@ -343,7 +396,7 @@ Add to Windsurf MCP configuration:
 | **Cursor** | `.cursor/rules/` | Add `behavioros-protocol.mdc` rule |
 | **VS Code Copilot** | `.github/copilot-instructions.md` | Document 7-step protocol |
 | **Windsurf** | `.windsurfrules` | Enforce protocol rules |
-| **OpenCode** | `.opencode/rules/` | Full MCP integration |
+| **OpenCode** | `opencode.json` → `mcpServers.behavioros` | 36 tools + 9 resources + 7-step protocol |
 
 ## Contributing
 
