@@ -16,21 +16,21 @@ import EventEmitter from 'eventemitter3';
 import { AgentManager } from './agent-manager';
 import type { AuditPipelineResult, AuditStage } from './audit/audit-engine';
 import { AuditEngine } from './audit/audit-engine';
+import { DNALoader } from './behavioral/dna-loader';
+import { EcosystemRegistry } from './ecosystem-registry';
 import type { AuthorityLevelValue, GovernanceContext } from './governance/governance-engine';
 import { GovernanceEngine } from './governance/governance-engine';
 import { LearningEngine } from './learning/learning-engine';
 import { MissionEngine } from './mission/mission-engine';
 import { MissionManager } from './mission-manager';
-import { QualityEngine } from './quality/quality-engine';
-import { SkillEngine } from './skill-engine';
-import { EcosystemRegistry } from './ecosystem-registry';
-import { HandoffProtocol } from './orchestrator/handoff-protocol';
+import { AutoDocumentationTrigger } from './orchestrator/auto-documentation-trigger';
 import { AutonomousDecomposer } from './orchestrator/autonomous-decomposer';
 import { AutonomousOrchestrator } from './orchestrator/autonomous-orchestrator';
-import { AutoDocumentationTrigger } from './orchestrator/auto-documentation-trigger';
-import { SkillRouter } from './orchestrator/skill-router';
+import { HandoffProtocol } from './orchestrator/handoff-protocol';
 import { LifecyclePipeline } from './orchestrator/lifecycle-pipeline';
-import { DNALoader } from './behavioral/dna-loader';
+import { SkillRouter } from './orchestrator/skill-router';
+import { QualityEngine } from './quality/quality-engine';
+import { SkillEngine } from './skill-engine';
 
 // ============================================================
 // BehaviorOS Core Engine — Central Orchestrator (Facade)

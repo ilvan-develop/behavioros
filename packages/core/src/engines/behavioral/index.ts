@@ -1,3 +1,5 @@
+export { AITMPLAdapter } from '../adapters/aitmpl-adapter';
+export { OpenDesignAdapter } from '../adapters/open-design-adapter';
 export type { AuditChainReport, AuditResult, AuditStep } from './audit-chain';
 export { AuditChain } from './audit-chain';
 export { AuditChainVerifier } from './audit-chain/audit-chain-verifier';
@@ -39,5 +41,3 @@ export type {
 export { BosGovernanceEngine, matchesGlob } from './governance-engine';
 export type { BehavioralRecord, DnaMutation, PatternInsight } from './learning-engine';
 export { BosLearningEngine } from './learning-engine';
-export { AITMPLAdapter } from '../adapters/aitmpl-adapter';
-export { OpenDesignAdapter } from '../adapters/open-design-adapter';

@@ -21,15 +21,15 @@ import type {
   SubTask,
   TaskRoute,
 } from '@behavioros/schemas';
-import type { EcosystemRegistry } from '../ecosystem-registry';
-import type { SkillEngine } from '../skill-engine';
-import { HandoffProtocol } from './handoff-protocol';
-import { AutonomousDecomposer } from './autonomous-decomposer';
 import type { DNALoader } from '../behavioral/dna-loader';
+import type { EcosystemRegistry } from '../ecosystem-registry';
+import type { MissionEngine } from '../mission/mission-engine';
+import type { SkillEngine } from '../skill-engine';
+import { AutoDocumentationTrigger } from './auto-documentation-trigger';
+import { AutonomousDecomposer } from './autonomous-decomposer';
+import { HandoffProtocol } from './handoff-protocol';
 import { LifecyclePipeline } from './lifecycle-pipeline';
 import { SkillRouter } from './skill-router';
-import { AutoDocumentationTrigger } from './auto-documentation-trigger';
-import type { MissionEngine } from '../mission/mission-engine';
 
 // ============================================================
 // Types
