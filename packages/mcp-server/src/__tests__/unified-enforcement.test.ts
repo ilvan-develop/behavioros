@@ -22,12 +22,21 @@ function createMinimalDNA(): DNAPackage {
 }
 
 describe('T2: Unified Enforcement', () => {
+  const originalKeyPathEnv = process.env.BEHAVIOROS_STATE_KEY_PATH;
+
   beforeEach(() => {
     mkdirSync(TEST_DIR, { recursive: true });
+    // Isolate the signing secret to this test's own temp dir — otherwise persist()
+    // would create a real ~/.behavioros/state.key on whatever machine runs the tests,
+    // and cross-test enrollment of strict mode would make later tests in this file
+    // (which write plain/unsigned state to simulate an external plugin) flaky.
+    process.env.BEHAVIOROS_STATE_KEY_PATH = join(TEST_DIR, 'state.key');
   });
 
   afterEach(() => {
     rmSync(TEST_DIR, { recursive: true, force: true });
+    if (originalKeyPathEnv === undefined) delete process.env.BEHAVIOROS_STATE_KEY_PATH;
+    else process.env.BEHAVIOROS_STATE_KEY_PATH = originalKeyPathEnv;
   });
 
   function createEngine(): BehaviorOSEngine {

@@ -1,6 +1,6 @@
 {
   "name": "@behavioros/mcp-server",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "BehaviorOS MCP Server — Model Context Protocol server for BehaviorOS",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -56,7 +56,9 @@
   },
   "devDependencies": {
     "@behavioros/schemas": "workspace:*",
+    "@pact-foundation/pact": "^13.2.0",
     "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^3.1.0",
     "tsup": "^8.4.0",
     "typescript": "^5.8.0",
     "vitest": "^3.1.0"

@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 /**
  * ProtocolStateTracker — Tracks compliance with the BehaviorOS 7-Step Delegation Protocol.
@@ -589,11 +589,36 @@ export class ProtocolStateTracker {
     }
   }
 
-  /** Get the default state file path for a project root */
+  /**
+   * Get the default state file path for a project root.
+   *
+   * When no explicit `projectRoot` is given, walks up from `cwd()` looking for a
+   * `.git` directory to anchor the state file to the repo root. This avoids silently
+   * creating/reading `.agent_state.json` relative to whatever directory the MCP
+   * server happened to be launched from (e.g. a subpackage) instead of the intended
+   * project root. Falls back to `cwd()` with a stderr warning if no repo root is found.
+   */
   static getDefaultStateFilePath(projectRoot?: string): string {
     if (projectRoot) {
       return join(projectRoot, '.agent_state.json');
     }
-    return '.agent_state.json';
+
+    const start = resolve(process.cwd());
+    let dir = start;
+    for (let i = 0; i < 20; i++) {
+      if (existsSync(join(dir, '.git'))) {
+        return join(dir, '.agent_state.json');
+      }
+      const parent = dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+
+    console.error(
+      `[behavioros] Could not find a .git directory above ${start}; using .agent_state.json ` +
+        'relative to the current working directory. Pass an explicit projectRoot to avoid ' +
+        'this warning and prevent state files from landing in the wrong location.',
+    );
+    return join(start, '.agent_state.json');
   }
 }

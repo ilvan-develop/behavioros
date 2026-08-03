@@ -89,15 +89,27 @@ interface PersistedState {
  *
  * Methods: record, getEvents, getInsights, getInsightsByCategory, getTrends, getAnomalies, getSourceReputation, applyInsight, +4 more.
  */
+const DEFAULT_MAX_EVENTS = 5000;
+const DEFAULT_MAX_INSIGHTS = 1000;
+
 export class LearningEngine {
   private events: LearningEvent[] = [];
   private insights: PatternInsight[] = [];
   private persistPath?: string;
   private autoApply: boolean;
+  private readonly maxEvents: number;
+  private readonly maxInsights: number;
 
-  constructor(options?: { persistPath?: string; autoApply?: boolean }) {
+  constructor(options?: {
+    persistPath?: string;
+    autoApply?: boolean;
+    maxEvents?: number;
+    maxInsights?: number;
+  }) {
     this.persistPath = options?.persistPath;
     this.autoApply = options?.autoApply ?? false;
+    this.maxEvents = options?.maxEvents ?? DEFAULT_MAX_EVENTS;
+    this.maxInsights = options?.maxInsights ?? DEFAULT_MAX_INSIGHTS;
   }
 
   record(event: Omit<LearningEvent, 'id' | 'timestamp'>): LearningEvent {
@@ -107,8 +119,18 @@ export class LearningEngine {
       ...event,
     };
     this.events.push(enriched);
+    if (this.events.length > this.maxEvents) {
+      this.events.splice(0, this.events.length - this.maxEvents);
+    }
 
     this.runDetection(enriched);
+    if (this.insights.length > this.maxInsights) {
+      // Oldest-detected insights are pruned first; recency is tracked via lastDetected.
+      this.insights.sort(
+        (a, b) => new Date(a.lastDetected).getTime() - new Date(b.lastDetected).getTime(),
+      );
+      this.insights.splice(0, this.insights.length - this.maxInsights);
+    }
 
     if (this.autoApply) {
       this.autoApplyInsights();

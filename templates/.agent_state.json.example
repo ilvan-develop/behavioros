@@ -1,17 +1,13 @@
 {
-  "kernel_version": "1.0",
-  "current_workflow": {
-    "task_id": "idle",
-    "description": "Aguardando inicialização do pipeline pelo usuário.",
-    "active_stage": "ANALYSIS",
-    "started_at": null
-  },
-  "behavior_os_governance": {
-    "domain_compliance": true,
-    "pipeline_status": "READY",
-    "enforcement_level": "strict"
-  },
-  "pipeline_history": [],
-  "agents": {},
-  "last_audit": null
+  "version": "1.0",
+  "protocol": {
+    "dnaSelected": false,
+    "truthResolved": false,
+    "missionCreated": false,
+    "auditDone": false,
+    "learningRecorded": false,
+    "lastStep": null,
+    "lastUpdated": null,
+    "activeRole": null
+  }
 }

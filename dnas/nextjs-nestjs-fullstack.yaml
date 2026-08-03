@@ -1,0 +1,345 @@
+id: nextjs-nestjs-fullstack
+name: Next.js + NestJS Fullstack DNA
+version: '1.0.0'
+description: |
+  Governance DNA for a Next.js frontend + NestJS backend fullstack project.
+  Separates frontend and backend ownership boundaries, protects the API
+  contract between them, and adds a frontend-specific quality gate
+  (accessibility/Lighthouse) alongside the standard lint/typecheck/coverage set.
+author: BehaviorOS Team
+license: MIT
+tags:
+  - nextjs
+  - nestjs
+  - fullstack
+  - typescript
+
+personas:
+  - role: architect
+    authority: architect
+    name: Fullstack Architect
+    description: >-
+      Owns the API contract between apps/web (Next.js) and apps/api (NestJS),
+      and cross-cutting decisions (auth, shared types, deployment topology).
+    boundaries:
+      - id: arch-max-modules
+        name: Max modules per change
+        type: max_modules
+        value: 8
+        scope: per_pr
+      - id: arch-require-adr
+        name: Require ADR for cross-app contract changes
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - system-design
+      - api-contract-design
+      - architecture-review
+    tools:
+      - read
+      - write
+      - architecture-diagram
+
+  - role: engineer
+    authority: senior
+    name: Frontend Engineer (Next.js)
+    description: >-
+      Owns apps/web. May consume the API contract but must not modify
+      backend implementation directly.
+    boundaries:
+      - id: fe-no-backend-access
+        name: No direct backend implementation access
+        type: forbidden
+        value: 'apps/api/src/**'
+        scope: per_commit
+      - id: fe-max-files
+        name: Max files per change
+        type: max_files
+        value: 15
+        scope: per_pr
+      - id: fe-require-review
+        name: Require code review
+        type: require_approval
+        value: true
+        scope: per_pr
+    skills:
+      - react
+      - nextjs
+      - frontend-performance
+      - accessibility
+    tools:
+      - read
+      - write
+      - test-runner
+      - linter
+
+  - role: engineer
+    authority: senior
+    name: Backend Engineer (NestJS)
+    description: >-
+      Owns apps/api. May not change the public API contract (DTOs/OpenAPI
+      spec) without architect approval, since the frontend depends on it.
+    boundaries:
+      - id: be-no-frontend-access
+        name: No direct frontend implementation access
+        type: forbidden
+        value: 'apps/web/src/**'
+        scope: per_commit
+      - id: be-contract-change-approval
+        name: Require approval for public API contract changes
+        type: require_approval
+        value: true
+        scope: per_commit
+      - id: be-max-files
+        name: Max files per change
+        type: max_files
+        value: 15
+        scope: per_pr
+    skills:
+      - nestjs
+      - rest-api-design
+      - database-design
+      - dependency-injection
+    tools:
+      - read
+      - write
+      - test-runner
+      - linter
+
+  - role: qa
+    authority: senior
+    name: Quality Assurance Lead
+    description: Owns test strategy across both apps, including contract tests.
+    boundaries:
+      - id: qa-min-coverage
+        name: Minimum test coverage
+        type: max_lines
+        value: 80
+        scope: per_pr
+      - id: qa-require-contract-tests
+        name: Require contract tests for API changes
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - test-strategy
+      - contract-testing
+      - e2e-testing
+    tools:
+      - read
+      - write
+      - test-runner
+      - coverage-report
+
+  - role: devops
+    authority: senior
+    name: DevOps Engineer
+    description: Manages CI/CD and deployment for both apps/web and apps/api.
+    boundaries:
+      - id: ops-no-prod-direct
+        name: No direct prod access
+        type: forbidden
+        value: true
+        scope: global
+      - id: ops-require-change-request
+        name: Require change request for infra
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - ci-cd
+      - containerization
+      - deployment
+    tools:
+      - read
+      - write
+      - docker
+
+  - role: orchestrator
+    authority: lead
+    name: Orchestrator
+    description: >-
+      Central coordinator. MUST delegate all execution work to the frontend
+      or backend engineer personas. CANNOT edit files directly.
+    boundaries:
+      - id: orch-no-direct-edit
+        name: No direct file editing
+        type: forbidden
+        value: true
+        scope: global
+      - id: orch-must-delegate
+        name: Must delegate via Task tool
+        type: require_approval
+        value: true
+        scope: per_session
+    skills:
+      - delegation
+      - mission-management
+    tools:
+      - task-delegation
+      - behavioros-mcp
+
+governance:
+  - id: gov-api-contract-breaking-change
+    name: API Contract Breaking Change
+    description: >-
+      Changes to apps/api's public DTOs, routes, or OpenAPI spec require
+      architect approval since apps/web depends on them at build/runtime.
+    level: critical
+    action: escalate
+    conditions:
+      - type:api
+      - type:contract
+
+  - id: gov-frontend-backend-boundary
+    name: Frontend/Backend Boundary
+    description: Frontend and backend engineers must not edit each other's app directly.
+    level: high
+    action: block
+    conditions:
+      - type:cross-app-edit
+
+  - id: gov-quality-gate
+    name: Quality Gate
+    description: Features and bugfixes must pass quality gates before merge
+    level: medium
+    action: warn
+    conditions:
+      - type:feature
+      - type:bugfix
+
+  - id: gov-orchestrator-no-direct-execution
+    name: Orchestrator Must Not Execute Directly
+    description: Orchestrator must delegate all implementation work to frontend/backend engineers.
+    level: critical
+    action: block
+    conditions:
+      - type:orchestrator-direct-execution
+      - type:edit-code
+
+quality:
+  - id: qg-test-coverage
+    name: Test Coverage
+    description: Minimum test coverage threshold (both apps)
+    type: test_coverage
+    threshold: 80
+
+  - id: qg-lint
+    name: Lint Check
+    description: Code must pass linting (eslint/biome)
+    type: lint
+    pass: true
+
+  - id: qg-typecheck
+    name: Type Check
+    description: Code must pass typechecking (tsc, strict mode)
+    type: typecheck
+    pass: true
+
+  - id: qg-accessibility
+    name: Accessibility / Lighthouse
+    description: apps/web must meet minimum Lighthouse accessibility + performance score
+    type: custom
+    threshold: 90
+
+  - id: qg-security-scan
+    name: Security Scan
+    description: No critical security vulnerabilities in either app
+    type: security
+    pass: true
+
+patterns:
+  - id: pat-api-contract-review
+    name: API Contract Review
+    type: review
+    description: Any change to apps/api's public contract must be reviewed by the architect and frontend engineer
+    triggers:
+      - agent:backend-engineer
+    actions:
+      - propose-contract-change
+      - review-frontend-impact
+      - approve-or-reject
+      - update-shared-types
+    conditions:
+      - type:api
+      - type:contract
+
+  - id: pat-code-review
+    name: Code Review
+    type: review
+    description: Multi-reviewer code review process
+    triggers:
+      - agent:engineer
+      - agent:qa
+    actions:
+      - self-review
+      - peer-review
+      - approve-or-request-changes
+    conditions:
+      - type:feature
+      - type:bugfix
+
+  - id: pat-release-process
+    name: Release Process
+    type: deployment
+    description: Structured release process for both apps with quality gates
+    triggers:
+      - agent:devops
+      - agent:qa
+    actions:
+      - run-quality-gates
+      - deploy-staging
+      - validate-staging
+      - deploy-production
+    conditions:
+      - type:release
+
+workflows:
+  - id: wf-feature-development
+    name: Feature Development
+    type: action
+    description: Standard feature development workflow
+    agent: engineer
+    next:
+      - wf-contract-check
+    timeout: 86400000
+    retries: 2
+
+  - id: wf-contract-check
+    name: API Contract Check
+    type: gate
+    description: Verify no unapproved breaking changes to the API contract
+    agent: architect
+    next:
+      - wf-code-review
+    timeout: 3600000
+    retries: 1
+
+  - id: wf-code-review
+    name: Code Review
+    type: gate
+    description: Code review gate
+    agent: qa
+    next:
+      - wf-testing
+    timeout: 43200000
+    retries: 1
+
+  - id: wf-testing
+    name: Testing
+    type: parallel
+    description: Run unit, integration, and contract test suites
+    agent: qa
+    next:
+      - wf-deployment
+    timeout: 3600000
+    retries: 3
+
+  - id: wf-deployment
+    name: Deployment
+    type: conditional
+    description: Deploy to staging then production
+    agent: devops
+    timeout: 1800000
+    retries: 1

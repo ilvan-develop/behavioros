@@ -13,6 +13,8 @@ import {
 import type { DNAPackage } from '@behavioros/schemas';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import type { ToolHandler } from './http-bridge.js';
+import { HttpBridge } from './http-bridge.js';
 import { EnforcementMiddleware } from './middleware/enforcement-middleware.js';
 import { registerCICDResources } from './resources/cicd-resources.js';
 import { registerResources } from './resources.js';
@@ -51,6 +53,7 @@ import {
   setObservabilityEngine,
 } from './tools/bos-observability.js';
 import { bosResetProtocol, bosResetProtocolInput } from './tools/bos-reset-protocol.js';
+import { bosTelemetrySummary } from './tools/bos-telemetry-summary.js';
 import { bosResolveConflict, bosResolveConflictInput } from './tools/bos-resolve-conflict.js';
 import { bosResolveTruth, bosResolveTruthInput } from './tools/bos-resolve-truth.js';
 import { bosRunAudit, bosRunAuditInput } from './tools/bos-run-audit.js';
@@ -100,6 +103,11 @@ let _engine: BehaviorOSEngine | null = null;
 let _server: McpServer | null = null;
 let _protocolTracker: ProtocolStateTracker | null = null;
 let _enforcementMiddleware: EnforcementMiddleware | null = null;
+let _bosSelector: BehaviorSelector | null = null;
+let _bosConflictResolver: ConflictResolver | null = null;
+let _bosEscalationManager: EscalationManager | null = null;
+let _bosAuditChain: AuditChain | null = null;
+let _bosLearningEngine: BosLearningEngine | null = null;
 
 function _getAgentId(): string {
   return process.env.BEHAVIOROS_AGENT_ID ?? 'unknown';
@@ -197,7 +205,7 @@ export async function createServer(): Promise<McpServer> {
   // Create MCP server
   _server = new McpServer({
     name: 'behavioros',
-    version: '0.1.0',
+    version: '1.1.0',
   });
 
   // Register tools — each tool declares its own enforcement requirements
@@ -338,6 +346,12 @@ export async function createServer(): Promise<McpServer> {
   const bosAuditChain = new AuditChain(bosProjectRoot);
   const bosLearningEngine = new BosLearningEngine();
 
+  _bosSelector = bosSelector;
+  _bosConflictResolver = bosConflictResolver;
+  _bosEscalationManager = bosEscalationManager;
+  _bosAuditChain = bosAuditChain;
+  _bosLearningEngine = bosLearningEngine;
+
   // Register BOS Behavioral tools
   _server.tool(
     'bos_select_dna',
@@ -351,6 +365,7 @@ export async function createServer(): Promise<McpServer> {
       });
       if (enforcement.blocked) throw new Error(enforcement.reason);
       _protocolTracker?.markDnaSelected();
+      if (args.role) _enforcementMiddleware?.setActiveRole(args.role);
       _enforcementMiddleware?.persist();
       return bosSelectDna(bosSelector, args);
     },
@@ -468,6 +483,10 @@ export async function createServer(): Promise<McpServer> {
       });
       if (enforcement.blocked) throw new Error(enforcement.reason);
       const result = await bosResetProtocol(_protocolTracker!, args);
+      if (args.confirm) {
+        _enforcementMiddleware!.clearTamperFlag();
+        _enforcementMiddleware!.setActiveRole(undefined);
+      }
       _enforcementMiddleware!.persist();
       return result;
     },
@@ -795,6 +814,20 @@ export async function createServer(): Promise<McpServer> {
   );
 
   _server.tool(
+    'bos-telemetry-summary',
+    'Get aggregate-only governance telemetry (violations blocked/approved by rule, per-agent mission counts, agent efficiency). Read-only; never enables telemetry collection.',
+    async () => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos-telemetry-summary',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosTelemetrySummary(_engine!);
+    },
+  );
+
+  _server.tool(
     'bos-pipeline-metrics',
     'Get pipeline execution metrics',
     bosPipelineMetricsInput.shape,
@@ -874,7 +907,99 @@ export async function createServer(): Promise<McpServer> {
   return _server;
 }
 
+export function buildToolHandlers(): Map<string, ToolHandler> {
+  const engine = _engine;
+  if (!engine) {
+    throw new Error('Server not initialized. Call createServer() first.');
+  }
+  const handlers = new Map<string, ToolHandler>();
+
+  handlers.set('create-mission', (args) => createMission(engine, args as any));
+  handlers.set('get-status', () => getStatus(engine));
+  handlers.set('update-progress', (args) => updateProgress(engine, args as any));
+  handlers.set('list-agents', (args) => listAgents(engine, args as any));
+  handlers.set('list-missions', (args) => listMissions(engine, args as any));
+  handlers.set('evaluate-governance', (args) => evaluateGovernance(engine, args as any));
+  handlers.set('record-learning', (args) => recordLearning(engine, args as any));
+  handlers.set('run-audit', (args) => runAudit(args as any));
+
+  if (_bosSelector) {
+    handlers.set('bos_select_dna', (args) => bosSelectDna(_bosSelector!, args as any));
+    handlers.set('bos_list_patterns', () => bosListPatterns(_bosSelector!));
+    handlers.set('bos_resolve_truth', (args) => bosResolveTruth(_bosSelector!, args as any));
+  }
+
+  if (_bosConflictResolver) {
+    handlers.set('bos_resolve_conflict', (args) =>
+      bosResolveConflict(_bosConflictResolver!, args as any),
+    );
+  }
+
+  if (_bosEscalationManager) {
+    handlers.set('bos_check_escalation', (args) =>
+      bosCheckEscalation(_bosEscalationManager!, args as any),
+    );
+  }
+
+  if (_bosAuditChain) {
+    handlers.set('bos_run_audit', (args) => bosRunAudit(_bosAuditChain!, args as any));
+  }
+
+  if (_bosLearningEngine) {
+    handlers.set('bos_get_insights', () => bosGetInsights(_bosLearningEngine!));
+  }
+
+  if (_protocolTracker) {
+    handlers.set('bos_validate_protocol', () => bosValidateProtocol(_protocolTracker!));
+    handlers.set('bos_reset_protocol', (args) => bosResetProtocol(_protocolTracker!, args as any));
+  }
+
+  handlers.set('bos-autonomous-task', (args) =>
+    bosAutonomousTask(engine.autonomousOrchestrator, args as any),
+  );
+  handlers.set('bos_lsp_diagnostics', (args) => bosLspDiagnostics(args as any));
+  handlers.set('bos_lsp_validate', (args) => bosLspValidate(args as any));
+  handlers.set('bos-agent-handoff', (args) => bosAgentHandoff(engine.handoffProtocol, args as any));
+  handlers.set('bos-skills-validate', (args) => bosSkillsValidate(engine.skillEngine, args as any));
+  handlers.set('bos-skills-list', (args) => bosSkillsList(engine.skillEngine, args as any));
+  handlers.set('bos-ecosystem-status', (args) =>
+    bosEcosystemStatus(engine.ecosystemRegistry, args as any),
+  );
+  handlers.set('bos-ecosystem-doctor', (args) =>
+    bosEcosystemDoctor(engine.ecosystemRegistry, args as any),
+  );
+  handlers.set('bos-ecosystem-install', (args) =>
+    bosEcosystemInstall(engine.ecosystemRegistry, args as any),
+  );
+  handlers.set('bos-event-query', (args) => bosEventQuery(args as any));
+  handlers.set('bos-event-stats', () => bosEventStats());
+  handlers.set('bos-event-replay', (args) => bosEventReplay(args as any));
+  handlers.set('bos-system-health', () => bosSystemHealth());
+  handlers.set('bos-telemetry-summary', () => bosTelemetrySummary(engine));
+  handlers.set('bos-pipeline-metrics', (args) => bosPipelineMetrics(args as any));
+  handlers.set('bos-agent-metrics', (args) => bosAgentMetrics(args as any));
+  handlers.set('start-pipeline', (args) => startPipeline(args as any));
+  handlers.set('get-pipeline-status', (args) => getPipelineStatus(args as any));
+  handlers.set('validate-layer', (args) => validateLayer(args as any));
+  handlers.set('get-pipeline-report', (args) => getPipelineReport(args as any));
+  handlers.set('approve-layer', (args) => approveLayer(args as any));
+  handlers.set('get-gate-results', (args) => getGateResults(args as any));
+  handlers.set('cicd-run-audit', (args) => cicdRunAudit(args as any));
+  handlers.set('cicd-get-audit-history', () => getAuditHistory());
+  handlers.set('cicd-record-learning', (args) => cicdRecordLearning(args as any));
+
+  return handlers;
+}
+
+export function getMcpServer(): McpServer {
+  const srv = _server;
+  if (!srv) throw new Error('Server not initialized. Call createServer() first.');
+  return srv;
+}
+
 // --- CLI entry point ---
+const _httpPort = parseInt(process.env.BEHAVIOROS_HTTP_PORT ?? '3000', 10);
+
 // Detect if this file is being executed directly (not imported)
 const _argv1 = process.argv[1] ?? '';
 const _isDirectExec =
@@ -886,13 +1011,27 @@ const _isDirectExec =
 if (_isDirectExec || process.env.BEHAVIOROS_MCP_AUTO_START === 'true') {
   createServer()
     .then(async (server) => {
+      const handlers = buildToolHandlers();
+      const httpBridge = new HttpBridge({
+        toolHandlers: handlers,
+        port: _httpPort,
+        toolCount: handlers.size,
+        version: '1.1.0',
+        allowedOrigins: process.env.BEHAVIOROS_ALLOWED_ORIGINS
+          ? process.env.BEHAVIOROS_ALLOWED_ORIGINS.split(',')
+          : ['*'],
+      });
+      httpBridge.start();
+
       const transport = new StdioServerTransport();
       process.on('SIGINT', async () => {
+        httpBridge.stop().catch(() => {});
         await server.close();
         process.exit(0);
       });
 
       process.on('SIGTERM', async () => {
+        httpBridge.stop().catch(() => {});
         await server.close();
         process.exit(0);
       });

@@ -8,18 +8,21 @@ const DNA_IDS = [
   'military-operations',
   'surgical-team',
   'lean-factory',
+  'nextjs-nestjs-fullstack',
+  'python-go-microservices',
+  'complex-monorepo',
 ] as const;
 
 describe('DNA Catalog', () => {
   it('should return manifest with all DNAs', () => {
     const manifest = getDNAManifest();
-    expect(manifest).toHaveLength(4);
+    expect(manifest).toHaveLength(DNA_IDS.length);
     expect(manifest.map((m) => m.id)).toEqual([...DNA_IDS]);
   });
 
   it('should load all DNAs without error', () => {
     const dnas = loadAllDNAs();
-    expect(dnas).toHaveLength(4);
+    expect(dnas).toHaveLength(DNA_IDS.length);
   });
 });
 

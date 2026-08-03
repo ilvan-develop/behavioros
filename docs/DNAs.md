@@ -205,6 +205,112 @@ Each layer includes:
 
 ---
 
+## Next.js + NestJS Fullstack DNA
+
+Governance for a Next.js frontend + NestJS backend project. Splits frontend/backend ownership, protects the API contract between the two apps, and adds a frontend-specific accessibility/Lighthouse gate.
+
+### Personas
+
+| Role | Authority | Name | Key Boundaries |
+|---|---|---|---|
+| Architect | Architect | Fullstack Architect | Max 8 modules/PR, require ADR for contract changes |
+| Engineer | Senior | Frontend Engineer (Next.js) | No `apps/api/src/**` access, max 15 files/PR |
+| Engineer | Senior | Backend Engineer (NestJS) | No `apps/web/src/**` access, contract changes need approval |
+| QA | Senior | Quality Assurance Lead | Min 80% coverage, require contract tests |
+| DevOps | Senior | DevOps Engineer | No direct prod access, require change request |
+
+### Governance Rules
+
+- **API Contract Breaking Change** (critical/escalate) — Public DTO/route/OpenAPI changes require architect approval
+- **Frontend/Backend Boundary** (high/block) — Frontend and backend engineers must not edit each other's app directly
+- **Quality Gate** (medium/warn) — Features and bugfixes must pass quality gates before merge
+- **Orchestrator Must Not Execute Directly** (critical/block) — All implementation work must be delegated
+
+### Quality Gates
+
+| Gate | Threshold |
+|---|---|
+| Test Coverage | 80% minimum |
+| Lint | Pass |
+| Typecheck | Pass |
+| Accessibility / Lighthouse | 90 threshold |
+| Security Scan | No critical vulnerabilities |
+
+File: [`dnas/nextjs-nestjs-fullstack.yaml`](../dnas/nextjs-nestjs-fullstack.yaml)
+
+---
+
+## Python/Go Microservices DNA
+
+Governance for a polyglot microservices architecture (Python and/or Go services over gRPC/REST). Protects service boundaries, treats shared protobuf/OpenAPI schemas as high-risk changes, and adds canary-release and incident-response patterns.
+
+### Personas
+
+| Role | Authority | Name | Key Boundaries |
+|---|---|---|---|
+| Architect | Architect | Distributed Systems Architect | Max 2 services/PR, require ADR for new boundaries |
+| Engineer | Senior | Service Owner | No cross-service internals/DB access, max 12 files/PR |
+| QA | Senior | Contract & Reliability QA | Min 75% coverage, require contract tests for schema changes |
+| Security | Architect | Security Architect | No secrets, review service-to-service auth |
+| DevOps | Senior | SRE / Platform Engineer | No direct prod access, require change request for mesh changes |
+
+### Governance Rules
+
+- **Shared Contract Breaking Change** (critical/escalate) — Protobuf/OpenAPI schema changes require architect approval
+- **Service Boundary** (critical/block) — Services must not directly access another service's internals or database
+- **Service Mesh / Infra Change** (medium/escalate) — Mesh and infrastructure changes require SRE approval
+- **Quality Gate** (medium/warn) — Features and bugfixes must pass quality gates before merge
+- **Orchestrator Must Not Execute Directly** (critical/block) — All implementation work must be delegated
+
+### Quality Gates
+
+| Gate | Threshold |
+|---|---|
+| Test Coverage | 75% minimum |
+| Lint | Pass |
+| Static Type Check | Pass |
+| Security Scan | No critical vulnerabilities |
+| Latency SLO | 90 threshold |
+
+File: [`dnas/python-go-microservices.yaml`](../dnas/python-go-microservices.yaml)
+
+---
+
+## Complex Monorepo DNA
+
+Governance for a large pnpm/turborepo-style monorepo with many independently-owned packages. Caps blast radius per change, requires impact analysis before touching shared tooling or another package's internals, and coordinates releases via changesets instead of per-PR publishing.
+
+### Personas
+
+| Role | Authority | Name | Key Boundaries |
+|---|---|---|---|
+| Architect | Architect | Monorepo Maintainer | Max 3 packages/PR, require approval for shared tooling changes |
+| Engineer | Senior | Package Owner | No access to another package's internals or shared tooling, max 20 files/PR |
+| QA | Senior | Quality Assurance Lead | Min 80% coverage, require a changeset per publish |
+| DevOps | Senior | Release Engineer | No direct publish access, require change request for CI changes |
+
+### Governance Rules
+
+- **Shared Tooling Change** (critical/escalate) — Root build/CI config changes require architect approval
+- **Cross-Package Boundary** (high/block) — Package owners must not directly edit another package's internal source
+- **Changeset Required** (high/escalate) — Any published-package change needs a changeset for correct versioning
+- **Quality Gate** (medium/warn) — Features and bugfixes must pass quality gates before merge
+- **Orchestrator Must Not Execute Directly** (critical/block) — All implementation work must be delegated
+
+### Quality Gates
+
+| Gate | Threshold |
+|---|---|
+| Test Coverage | 80% minimum |
+| Lint | Pass |
+| Typecheck | Pass |
+| Security Scan | No critical vulnerabilities |
+| Dependency Graph Integrity | Pass (no circular deps) |
+
+File: [`dnas/complex-monorepo.yaml`](../dnas/complex-monorepo.yaml)
+
+---
+
 ## Custom DNAs
 
 You can create custom DNA packages by combining patterns from existing DNAs or defining your own. Place YAML files in the `dnas/` directory and reference them via the `dnaPath` configuration option.

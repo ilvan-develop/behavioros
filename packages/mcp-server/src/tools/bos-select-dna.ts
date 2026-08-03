@@ -9,6 +9,14 @@ export const bosSelectDnaInput = z.object({
   riskLevel: z.string().optional().describe('Risk level: low, medium, high, critical'),
   complexity: z.string().optional().describe('Complexity: simple, medium, complex'),
   agentId: z.string().optional().describe('Agent ID performing the task (optional)'),
+  role: z
+    .string()
+    .optional()
+    .describe(
+      'Active persona role for this session (e.g. orchestrator, engineer, architect). ' +
+        'When set to "orchestrator", the PreToolUse hook blocks direct Edit/Write/NotebookEdit ' +
+        'calls for the remainder of the session, per PROTOCOL.md.',
+    ),
 });
 
 export type BosSelectDnaInput = z.infer<typeof bosSelectDnaInput>;

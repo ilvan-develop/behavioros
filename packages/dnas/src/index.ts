@@ -14,6 +14,17 @@ const MANIFEST = [
   { id: 'military-operations', name: 'Military Operations DNA', file: 'military-operations.yaml' },
   { id: 'surgical-team', name: 'Surgical Team DNA', file: 'surgical-team.yaml' },
   { id: 'lean-factory', name: 'Lean Factory DNA', file: 'lean-factory.yaml' },
+  {
+    id: 'nextjs-nestjs-fullstack',
+    name: 'Next.js + NestJS Fullstack DNA',
+    file: 'nextjs-nestjs-fullstack.yaml',
+  },
+  {
+    id: 'python-go-microservices',
+    name: 'Python/Go Microservices DNA',
+    file: 'python-go-microservices.yaml',
+  },
+  { id: 'complex-monorepo', name: 'Complex Monorepo DNA', file: 'complex-monorepo.yaml' },
 ] as const;
 
 export interface DNAManifestEntry {

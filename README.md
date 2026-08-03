@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="#"><img src="https://img.shields.io/badge/tests-5%2C200%2B-brightgreen" alt="Tests" /></a>
-  <a href="#"><img src="https://img.shields.io/badge/version-1.0.1-blue" alt="Version" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/version-1.1.0-blue" alt="Version" /></a>
   <a href="#"><img src="https://img.shields.io/badge/license-MIT-green" alt="License" /></a>
   <a href="#"><img src="https://img.shields.io/badge/node-%3E%3D22-339933" alt="Node" /></a>
   <a href="#"><img src="https://img.shields.io/badge/typescript-strict-3178C6" alt="TypeScript" /></a>
@@ -186,6 +186,8 @@ quality:
 | **Bee Colony** | Swarm intelligence, task specialization | High-throughput task processing |
 | **Autonomous Orchestrator** | Self-managing pipelines, auto-scaling agents | Fully autonomous operations |
 
+Plus stack-specific presets — **Next.js + NestJS Fullstack**, **Python/Go Microservices**, **Complex Monorepo** — and the **EAARG** 18-layer architecture review framework. Full catalog in [`docs/DNAs.md`](docs/DNAs.md); 18-layer breakdown in [`docs/EAARG-18-LAYERS.md`](docs/EAARG-18-LAYERS.md).
+
 ### SkillEngine — Two-Stage Routing
 
 ```
@@ -252,6 +254,8 @@ Connect BehaviorOS to any AI agent platform via Model Context Protocol:
 | **Coverage** | Core engine | **✅ >80%** |
 
 ## Quick Start
+
+> New to BehaviorOS? [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md) is a 5-minute walkthrough covering Claude Code, Cursor, and standalone CLI usage — including how to turn on deterministic enforcement, not just the advisory MCP tools shown below.
 
 ```bash
 # Install
@@ -398,6 +402,8 @@ npx @behavioros/cli status
 | **Windsurf** | `.windsurfrules` | Enforce protocol rules |
 | **OpenCode** | `opencode.json` → `mcpServers.behavioros` | 36 tools + 9 resources + 7-step protocol |
 
+Want aggregate metrics on violations blocked and agent efficiency across your team? See [`docs/TELEMETRY.md`](docs/TELEMETRY.md) — opt-in, aggregate-only, bring-your-own-endpoint.
+
 ## Contributing
 
 Contributions welcome! Fork the repo, pick a DNA pattern, improve an engine, or add tests.
@@ -415,12 +421,12 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
 | Package | Description | Version |
 |---|---|---|
-| `@behavioros/schemas` | Zod v4.4.3 schemas for all types | 1.0.1 |
-| `@behavioros/core` | 22 engines + SkillEngine + EcosystemRegistry | 1.0.1 |
-| `@behavioros/sdk` | High-level TypeScript SDK | 1.0.0 |
-| `@behavioros/cli` | CLI: init, compile, validate, status, ecosystem | 1.0.0 |
-| `@behavioros/dnas` | DNA YAML pattern catalog | 1.0.1 |
-| `@behavioros/mcp-server` | MCP server with 36 tools + 9 resources | 1.0.1 |
+| `@behavioros/schemas` | Zod v4.4.3 schemas for all types | 1.1.0 |
+| `@behavioros/core` | 22 engines + SkillEngine + EcosystemRegistry | 1.1.0 |
+| `@behavioros/sdk` | High-level TypeScript SDK | 1.1.0 |
+| `@behavioros/cli` | CLI: init, compile, validate, status, ecosystem | 1.1.0 |
+| `@behavioros/dnas` | DNA YAML pattern catalog | 1.1.0 |
+| `@behavioros/mcp-server` | MCP server with 36 tools + 9 resources | 1.1.0 |
 | `@behavioros/web` | Next.js 15 dashboard (apps/web) | 0.1.2 |
 
 ## License

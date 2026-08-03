@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-08-03
+
+### Security
+
+- **Signed protocol state** (`@behavioros/core`) — `.agent_state.json` is now HMAC-SHA256 signed via a secret key the MCP server creates outside the repo (`~/.behavioros/state.key`, or `BEHAVIOROS_STATE_SECRET`). Hand-editing the protocol booleans without recomputing the signature is now detected as tampering and blocked, instead of being silently trusted. New module: `packages/core/src/state/agent-state-store.ts`.
+- **Deterministic `PreToolUse` enforcement** (`scripts/validate-protocol.js`) — rewritten to verify the signed state and to enforce the `PROTOCOL.md` rule "orchestrator may not edit files": if the active persona role is `orchestrator`, direct `Edit`/`Write`/`NotebookEdit`/`MultiEdit` calls are blocked with the exact documented error message.
+- **Boundary enforcement wired end-to-end** (`@behavioros/core`, `@behavioros/mcp-server`) — fixed a dead-code bug where `BehaviorOSEngine.evaluateGovernance()` never forwarded `boundaries`/`targetFiles`/`fileCount`/`lineCount` into the governance context, so DNA persona boundaries (`max_files`, `forbidden`, `require_approval`, etc.) were never actually evaluated. Also fixed a related false-negative where boundary rejections (which don't carry a `GovernanceRule`) weren't being treated as blocking.
+- **Atomic, locked state writes** — `.agent_state.json` writes now go through a temp-file-then-rename with a stale-lock-aware exclusive lock, replacing two independently duplicated `writeFileSync` implementations.
+
+### Added
+
+- **3 new DNA presets**: `nextjs-nestjs-fullstack`, `python-go-microservices`, `complex-monorepo` (`dnas/`), registered in `@behavioros/dnas`'s manifest.
+- **`docs/GETTING-STARTED.md`** — 5-minute integration guide (Claude Code / Cursor / standalone CLI), including how to turn on deterministic enforcement.
+- **`docs/EAARG-18-LAYERS.md`** — consolidated catalog of the 18-layer Enterprise Agent Architecture Review framework.
+- Optional `role` field on `bos_select_dna`, feeding the new orchestrator-file-edit enforcement rule.
+
+### Fixed
+
+- Memory growth: `auditLog`/`qualityMetrics` (`BehaviorOSEngine`) and `events`/`insights` (`LearningEngine`) are now capped with oldest-first pruning instead of growing unbounded for the life of the process.
+- `ProtocolStateTracker.getDefaultStateFilePath()` now anchors to the nearest `.git` directory instead of silently defaulting to `cwd()`.
+- `packages/core/vitest.config.ts` requested the `istanbul` coverage provider, which was never installed — `vitest run --coverage` failed outright. Switched to `v8` (already present) and added real coverage thresholds to both `core` and `mcp-server`.
+- Replaced the placebo `scripts/test-enforcement-e2e.sh` (only `echo` statements, no assertions) with a real test that shells out to the enforcement hook and asserts exit codes across 7 scenarios, including the exact tamper-bypass this release closes.
+
 ## [1.0.0] - 2026-07-20
 
 ### Added

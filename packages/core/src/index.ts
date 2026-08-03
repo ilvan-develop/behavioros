@@ -200,6 +200,22 @@ export {
   ProtocolStateTracker,
 } from './engines/protocol-engine';
 export type {
+  SecurityBlock,
+  SignedProtocolFields,
+  SignedStateFile,
+  StateReadReason,
+  StateReadResult,
+} from './state/agent-state-store';
+export {
+  atomicWriteFileSync,
+  getOrCreateStateSecret,
+  getStateSecretPath,
+  isStrictModeEnrolled,
+  readState,
+  signProtocolState,
+  writeSignedState,
+} from './state/agent-state-store';
+export type {
   QualityCheckResult,
   QualityEngineConfig,
   QualityReport,
@@ -228,6 +244,14 @@ export type {
   SyncFromLocalResult,
 } from './engines/skill-engine';
 export { SkillEngine } from './engines/skill-engine';
+// Telemetry — opt-in, aggregate-only governance metrics
+export type {
+  AgentCounter,
+  GovernanceTelemetrySummary,
+  RuleCounter,
+  TelemetryConfig,
+} from './engines/telemetry/governance-telemetry';
+export { GovernanceTelemetryEngine } from './engines/telemetry/governance-telemetry';
 // Events — Event Sourcing foundation
 export type {
   AgentAssignedPayload,

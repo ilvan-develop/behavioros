@@ -69,6 +69,7 @@ __export(index_exports, {
   EventStore: () => EventStore,
   ForensicCollector: () => ForensicCollector,
   GovernanceEngine: () => GovernanceEngine,
+  GovernanceTelemetryEngine: () => GovernanceTelemetryEngine,
   HandoffProtocol: () => HandoffProtocol,
   HealthChecker: () => HealthChecker,
   LearningEngine: () => LearningEngine,
@@ -116,12 +117,19 @@ __export(index_exports, {
   TrafficSplitter: () => TrafficSplitter,
   YAMLToOPACompiler: () => YAMLToOPACompiler,
   analyzeIntent: () => analyzeIntent,
+  atomicWriteFileSync: () => atomicWriteFileSync,
   bosMatchesGlob: () => matchesGlob,
   createDispatcherContext: () => createDispatcherContext,
   createEvent: () => createEvent,
+  getOrCreateStateSecret: () => getOrCreateStateSecret,
+  getStateSecretPath: () => getStateSecretPath,
+  isStrictModeEnrolled: () => isStrictModeEnrolled,
+  readState: () => readState,
   sanitizeDNA: () => sanitizeDNA,
   shouldSkipForConversational: () => shouldSkipForConversational,
-  shouldSkipForTransactional: () => shouldSkipForTransactional
+  shouldSkipForTransactional: () => shouldSkipForTransactional,
+  signProtocolState: () => signProtocolState,
+  writeSignedState: () => writeSignedState
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -4642,8 +4650,543 @@ var BosLearningEngine = class {
 };
 
 // src/engines/core-engine.ts
-var import_node_crypto15 = require("crypto");
+var import_node_crypto16 = require("crypto");
 var import_eventemitter35 = __toESM(require("eventemitter3"));
+
+// src/engines/adapters/aitmpl-adapter.ts
+var import_node_child_process3 = require("child_process");
+var AITMPLAdapter = class {
+  /**
+   * Install a skill from the AITMPL marketplace.
+   *
+   * Command: npx claude-code-templates@latest --skill {category}/{skillId}
+   */
+  async installSkill(category, skillId) {
+    try {
+      const installCommand = `npx claude-code-templates@latest --skill ${category}/${skillId}`;
+      (0, import_node_child_process3.execSync)(installCommand, {
+        stdio: "pipe",
+        timeout: 6e4
+      });
+      const skill = {
+        id: skillId,
+        name: skillId,
+        version: "1.0.0",
+        description: `Skill "${skillId}" in category "${category}"`,
+        category: this.mapCategory(category),
+        source: "aitmpl",
+        tags: [category],
+        installedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      return { success: true, skill };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        success: false,
+        error: `Failed to install AITMPL skill "${category}/${skillId}": ${message}`
+      };
+    }
+  }
+  /**
+   * Install an MCP from the AITMPL marketplace.
+   */
+  async installMCP(category, mcpId) {
+    try {
+      const installCommand = `npx claude-code-templates@latest --mcp ${category}/${mcpId}`;
+      (0, import_node_child_process3.execSync)(installCommand, {
+        stdio: "pipe",
+        timeout: 6e4
+      });
+      const config = {
+        id: mcpId,
+        category,
+        type: "mcp",
+        installed: true,
+        installedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      return { success: true, config };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        success: false,
+        error: `Failed to install AITMPL MCP "${category}/${mcpId}": ${message}`
+      };
+    }
+  }
+  /**
+   * Search for skills in the AITMPL marketplace.
+   */
+  async searchSkills(query) {
+    try {
+      const searchCommand = `npx claude-code-templates@latest --search "${query}"`;
+      const output = (0, import_node_child_process3.execSync)(searchCommand, {
+        stdio: "pipe",
+        timeout: 3e4,
+        encoding: "utf-8"
+      });
+      return this.parseSearchOutput(output);
+    } catch {
+      return [];
+    }
+  }
+  /**
+   * Parse search output from AITMPL CLI.
+   */
+  parseSearchOutput(output) {
+    const results = [];
+    for (const line of output.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const parsed = JSON.parse(trimmed);
+        results.push({
+          id: parsed.id ?? parsed.skillId ?? "",
+          name: parsed.name ?? parsed.id ?? "Unknown",
+          category: parsed.category ?? "custom",
+          stars: parsed.stars ?? parsed.score ?? 0
+        });
+      } catch {
+        const parts = trimmed.split(/\s+/);
+        if (parts.length >= 2) {
+          results.push({
+            id: parts[0],
+            name: parts[1],
+            category: parts[2] ?? "custom",
+            stars: Number.parseInt(parts[3] ?? "0", 10) || 0
+          });
+        }
+      }
+    }
+    return results;
+  }
+  /**
+   * Map AITMPL category string to SkillCategory.
+   */
+  mapCategory(category) {
+    const categoryMap = {
+      development: "development",
+      "ai-research": "ai-research",
+      "creative-design": "creative-design",
+      utilities: "utilities",
+      "web-data": "web-data",
+      "enterprise-communication": "enterprise-communication",
+      productivity: "productivity",
+      security: "security",
+      devops: "devops",
+      database: "database",
+      design: "design",
+      compliance: "compliance"
+    };
+    return categoryMap[category.toLowerCase()] ?? "custom";
+  }
+};
+
+// src/engines/adapters/open-design-adapter.ts
+var import_node_child_process4 = require("child_process");
+var import_promises2 = require("fs/promises");
+var OpenDesignAdapter = class {
+  cliPath = "od";
+  /**
+   * Detect whether the Open Design CLI is available.
+   * Uses `od mcp --help` instead of `od --version` to avoid
+   * false positives from GNU coreutils `od` (octal dump).
+   */
+  async detect() {
+    try {
+      const output = (0, import_node_child_process4.execSync)(`${this.cliPath} mcp --help`, {
+        stdio: "pipe",
+        timeout: 5e3,
+        encoding: "utf-8"
+      });
+      return output.includes("install") || output.includes("mcp");
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Install the Open Design MCP for a given agent type.
+   */
+  async installMCP(agentType) {
+    try {
+      const installCommand = `${this.cliPath} mcp install ${agentType}`;
+      (0, import_node_child_process4.execSync)(installCommand, {
+        stdio: "pipe",
+        timeout: 3e4
+      });
+      return { success: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        success: false,
+        error: `Failed to install Open Design MCP for agent "${agentType}": ${message}`
+      };
+    }
+  }
+  /**
+   * List available design systems from Open Design.
+   */
+  async listDesignSystems() {
+    try {
+      const output = (0, import_node_child_process4.execSync)(`${this.cliPath} list design-systems --json`, {
+        stdio: "pipe",
+        timeout: 15e3,
+        encoding: "utf-8"
+      });
+      return this.parseDesignSystemList(output);
+    } catch {
+      return [];
+    }
+  }
+  /**
+   * Import a DESIGN.md file as a design system component.
+   */
+  async importDesignSystem(path) {
+    try {
+      await (0, import_promises2.access)(path);
+      const content = await (0, import_promises2.readFile)(path, "utf-8");
+      const nameMatch = content.match(/^#\s+(.+)/m);
+      const descMatch = content.match(/## Description\s*\n([^#]+)/);
+      const tokenMatch = content.match(/## Design Tokens\s*\n([^#]+)/);
+      const tokenCount = tokenMatch ? tokenMatch[1].split("\n").filter((l) => l.includes(":")).length : 0;
+      const system = {
+        id: `design-system-${(nameMatch?.[1] ?? "imported").toLowerCase().replace(/\s+/g, "-")}`,
+        type: "design-system",
+        name: nameMatch?.[1] ?? "Imported Design System",
+        source: "open-design",
+        version: "1.0.0",
+        status: "active",
+        description: descMatch?.[1]?.trim(),
+        dependencies: [],
+        tags: ["design-system", "open-design"],
+        metadata: {
+          tokenCount,
+          sourcePath: path
+        },
+        installedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      return { success: true, system };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        success: false,
+        error: `Failed to import design system from "${path}": ${message}`
+      };
+    }
+  }
+  // ─── Private Helpers ───────────────────────────────────────
+  /**
+   * Parse the design system list from CLI output.
+   */
+  parseDesignSystemList(output) {
+    try {
+      const parsed = JSON.parse(output);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => ({
+          id: String(item.id ?? item.name ?? ""),
+          name: String(item.name ?? item.id ?? "Unknown"),
+          tokens: Number(item.tokens ?? item.tokenCount ?? 0)
+        }));
+      }
+    } catch {
+      const lines = output.trim().split("\n");
+      if (lines.length > 1) {
+        return lines.slice(1).map((line) => {
+          const parts = line.trim().split(/\s+/);
+          return {
+            id: parts[0] ?? "",
+            name: parts[1] ?? parts[0] ?? "Unknown",
+            tokens: Number.parseInt(parts[2] ?? "0", 10) || 0
+          };
+        });
+      }
+    }
+    return [];
+  }
+};
+
+// src/engines/adapters/ui-ux-adapter.ts
+var import_promises3 = require("fs/promises");
+var import_node_os = require("os");
+var import_node_path5 = require("path");
+function parseCSV(csv) {
+  const lines = csv.trim().split("\n");
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  return lines.slice(1).map((line) => {
+    const values = line.split(",").map((v) => v.trim());
+    const row = {};
+    headers.forEach((header, i) => {
+      row[header] = values[i] ?? "";
+    });
+    return row;
+  });
+}
+var UIUXProMaxAdapter = class {
+  skillPath = "";
+  /**
+   * Detect whether the UI-UX Pro Max skill is installed.
+   * Checks ~/.opencode/skills/ui-ux-pro-max/ or the project's
+   * .opencode/skills/ui-ux-pro-max/ directory.
+   */
+  async detect() {
+    const possiblePaths = [
+      (0, import_node_path5.join)((0, import_node_os.homedir)(), ".opencode", "skills", "ui-ux-pro-max"),
+      (0, import_node_path5.join)(process.cwd(), ".opencode", "skills", "ui-ux-pro-max")
+    ];
+    for (const path of possiblePaths) {
+      try {
+        await (0, import_promises3.access)(path);
+        this.skillPath = path;
+        return true;
+      } catch {
+      }
+    }
+    return false;
+  }
+  /**
+   * Get all available color palettes from the UI-UX Pro Max skill.
+   */
+  async getPalettes() {
+    if (!this.skillPath) {
+      const detected = await this.detect();
+      if (!detected) return [];
+    }
+    const palettes = [];
+    try {
+      const dataPath = (0, import_node_path5.join)(this.skillPath, "data");
+      await (0, import_promises3.access)(dataPath);
+      const entries = await (0, import_promises3.readdir)(dataPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile()) continue;
+        const isCSV = entry.name.endsWith(".csv");
+        const isJSON = entry.name.endsWith(".json");
+        if (!isCSV && !isJSON) continue;
+        if (!entry.name.includes("palette") && !entry.name.includes("color")) continue;
+        const content = await (0, import_promises3.readFile)((0, import_node_path5.join)(dataPath, entry.name), "utf-8");
+        if (isCSV) {
+          const rows = parseCSV(content);
+          for (const row of rows) {
+            palettes.push({
+              name: row.name ?? entry.name.replace(".csv", ""),
+              colors: (row.colors ?? row.palette ?? row.hex ?? "").split(";").filter(Boolean),
+              category: row.category ?? "general"
+            });
+          }
+        } else {
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed)) {
+            for (const item of parsed) {
+              palettes.push({
+                name: item.name ?? entry.name.replace(".json", ""),
+                colors: item.colors ?? item.palette ?? [],
+                category: item.category ?? "general"
+              });
+            }
+          } else if (parsed.palettes && Array.isArray(parsed.palettes)) {
+            for (const item of parsed.palettes) {
+              palettes.push({
+                name: item.name ?? entry.name.replace(".json", ""),
+                colors: item.colors ?? [],
+                category: item.category ?? "general"
+              });
+            }
+          }
+        }
+      }
+    } catch {
+    }
+    return palettes;
+  }
+  /**
+   * Get all available font pairings from the UI-UX Pro Max skill.
+   */
+  async getFonts() {
+    if (!this.skillPath) {
+      const detected = await this.detect();
+      if (!detected) return [];
+    }
+    const fonts = [];
+    try {
+      const dataPath = (0, import_node_path5.join)(this.skillPath, "data");
+      await (0, import_promises3.access)(dataPath);
+      const entries = await (0, import_promises3.readdir)(dataPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile()) continue;
+        const isCSV = entry.name.endsWith(".csv");
+        const isJSON = entry.name.endsWith(".json");
+        if (!isCSV && !isJSON) continue;
+        if (!entry.name.includes("font") && !entry.name.includes("typography")) continue;
+        const content = await (0, import_promises3.readFile)((0, import_node_path5.join)(dataPath, entry.name), "utf-8");
+        if (isCSV) {
+          const rows = parseCSV(content);
+          for (const row of rows) {
+            fonts.push({
+              name: row.name ?? entry.name.replace(".csv", ""),
+              headings: row.headings ?? row.heading ?? row["header font"] ?? "",
+              body: row.body ?? row["body font"] ?? "",
+              category: row.category ?? "general"
+            });
+          }
+        } else {
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed)) {
+            for (const item of parsed) {
+              fonts.push({
+                name: item.name ?? entry.name.replace(".json", ""),
+                headings: item.headings ?? item.heading ?? "",
+                body: item.body ?? "",
+                category: item.category ?? "general"
+              });
+            }
+          } else if (parsed.fonts && Array.isArray(parsed.fonts)) {
+            for (const item of parsed.fonts) {
+              fonts.push({
+                name: item.name ?? "",
+                headings: item.headings ?? item.heading ?? "",
+                body: item.body ?? "",
+                category: item.category ?? "general"
+              });
+            }
+          }
+        }
+      }
+    } catch {
+    }
+    return fonts;
+  }
+  /**
+   * Get all available styles from the UI-UX Pro Max skill.
+   */
+  async getStyles() {
+    if (!this.skillPath) {
+      const detected = await this.detect();
+      if (!detected) return [];
+    }
+    const styles = [];
+    try {
+      const dataPath = (0, import_node_path5.join)(this.skillPath, "data");
+      await (0, import_promises3.access)(dataPath);
+      const entries = await (0, import_promises3.readdir)(dataPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile()) continue;
+        const isCSV = entry.name.endsWith(".csv");
+        const isJSON = entry.name.endsWith(".json");
+        if (!isCSV && !isJSON) continue;
+        if (!entry.name.includes("style") && !entry.name.includes("design") && !entry.name.includes("ui")) {
+          continue;
+        }
+        const content = await (0, import_promises3.readFile)((0, import_node_path5.join)(dataPath, entry.name), "utf-8");
+        if (isCSV) {
+          const rows = parseCSV(content);
+          for (const row of rows) {
+            styles.push({
+              name: row.name ?? entry.name.replace(".csv", ""),
+              description: row.description ?? row.desc ?? "",
+              characteristics: (row.characteristics ?? row.traits ?? row.tags ?? "").split(";").filter(Boolean)
+            });
+          }
+        } else {
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed)) {
+            for (const item of parsed) {
+              styles.push({
+                name: item.name ?? entry.name.replace(".json", ""),
+                description: item.description ?? "",
+                characteristics: item.characteristics ?? item.traits ?? []
+              });
+            }
+          } else if (parsed.styles && Array.isArray(parsed.styles)) {
+            for (const item of parsed.styles) {
+              styles.push({
+                name: item.name ?? "",
+                description: item.description ?? "",
+                characteristics: item.characteristics ?? item.traits ?? []
+              });
+            }
+          }
+        }
+      }
+    } catch {
+    }
+    return styles;
+  }
+  /**
+   * Get UX guidelines for a specific product type.
+   */
+  async getGuidelines(productType) {
+    if (!this.skillPath) {
+      const detected = await this.detect();
+      if (!detected) return [];
+    }
+    try {
+      const dataPath = (0, import_node_path5.join)(this.skillPath, "data");
+      await (0, import_promises3.access)(dataPath);
+      const entries = await (0, import_promises3.readdir)(dataPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile()) continue;
+        const isCSV = entry.name.endsWith(".csv");
+        const isJSON = entry.name.endsWith(".json");
+        if (!isCSV && !isJSON) continue;
+        if (!entry.name.includes("guideline") && !entry.name.includes("ux")) continue;
+        const content = await (0, import_promises3.readFile)((0, import_node_path5.join)(dataPath, entry.name), "utf-8");
+        if (isCSV) {
+          const rows = parseCSV(content);
+          const guidelines = [];
+          for (const row of rows) {
+            const rowType = (row.productType ?? row.type ?? row.category ?? "").toLowerCase();
+            if (rowType.includes(productType.toLowerCase())) {
+              const guideline = row.guideline ?? row.principle ?? row.rule ?? row.description ?? "";
+              if (guideline) guidelines.push(guideline);
+            }
+          }
+          if (guidelines.length > 0) return guidelines;
+        } else {
+          const parsed = JSON.parse(content);
+          const guidelines = this.findGuidelinesForProduct(parsed, productType);
+          if (guidelines.length > 0) return guidelines;
+        }
+      }
+    } catch {
+    }
+    return [];
+  }
+  // ─── Private Helpers ───────────────────────────────────────
+  /**
+   * Find UX guidelines relevant to a product type.
+   */
+  findGuidelinesForProduct(data, productType) {
+    const normalizedType = productType.toLowerCase();
+    const results = [];
+    if (Array.isArray(data)) {
+      for (const item of data) {
+        const itemType = String(item.productType ?? item.type ?? item.category ?? "").toLowerCase();
+        if (itemType.includes(normalizedType) || normalizedType.includes(itemType)) {
+          const guidelines = item.guidelines ?? item.principles ?? item.rules ?? [];
+          if (Array.isArray(guidelines)) {
+            results.push(...guidelines.map((g) => String(g)));
+          }
+        }
+      }
+    } else if (typeof data === "object" && data !== null) {
+      const obj = data;
+      for (const key of Object.keys(obj)) {
+        if (key.toLowerCase().includes(normalizedType)) {
+          const guidelines = obj[key];
+          if (Array.isArray(guidelines)) {
+            results.push(...guidelines.map((g) => String(g)));
+          }
+        }
+      }
+      const topGuidelines = obj.guidelines ?? obj.principles;
+      if (Array.isArray(topGuidelines)) {
+        results.push(...topGuidelines.map((g) => String(g)));
+      }
+    }
+    return results;
+  }
+};
 
 // src/engines/agent-manager.ts
 var import_node_crypto6 = require("crypto");
@@ -4695,6 +5238,377 @@ var AgentManager = class {
   }
   getRawMap() {
     return this.agents;
+  }
+};
+
+// src/engines/cache/redis-cache.ts
+var import_redis = require("redis");
+var RedisCache = class {
+  client;
+  prefix;
+  defaultTTL;
+  connected = false;
+  constructor(config) {
+    this.prefix = config?.prefix ?? "bos:";
+    this.defaultTTL = config?.defaultTTL ?? 300;
+    const url = config?.url ?? "redis://localhost:6379";
+    const socketOptions = config?.maxRetries ? {
+      reconnectStrategy: (retries) => {
+        if (retries >= config.maxRetries) {
+          return new Error("Max retries reached");
+        }
+        return Math.min(retries * 50, 1e3);
+      }
+    } : void 0;
+    this.client = (0, import_redis.createClient)({
+      url,
+      ...socketOptions ? { socket: socketOptions } : {}
+    });
+  }
+  async connect() {
+    if (!this.connected) {
+      await this.client.connect();
+      this.connected = true;
+    }
+  }
+  async disconnect() {
+    if (this.connected) {
+      await this.client.disconnect();
+      this.connected = false;
+    }
+  }
+  prefixed(key) {
+    return `${this.prefix}${key}`;
+  }
+  async get(key) {
+    const value = await this.client.get(this.prefixed(key));
+    if (value === null) return null;
+    return JSON.parse(value);
+  }
+  async set(key, value, ttl) {
+    const serialized = JSON.stringify(value);
+    const resolvedTTL = ttl ?? this.defaultTTL;
+    await this.client.setEx(this.prefixed(key), resolvedTTL, serialized);
+  }
+  async del(key) {
+    const result = await this.client.del(this.prefixed(key));
+    return result > 0;
+  }
+  async exists(key) {
+    const result = await this.client.exists(this.prefixed(key));
+    return result === 1;
+  }
+  async flush() {
+    const keys = await this.client.keys(`${this.prefix}*`);
+    if (keys.length > 0) {
+      await this.client.del(keys);
+    }
+  }
+  async health() {
+    try {
+      await this.client.ping();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  async cacheDNA(dnaId, dna) {
+    await this.set(`dna:${dnaId}`, dna);
+  }
+  async getCachedDNA(dnaId) {
+    return this.get(`dna:${dnaId}`);
+  }
+  async cacheGovernanceResult(key, result) {
+    await this.set(`governance:${key}`, result);
+  }
+  async getCachedGovernanceResult(key) {
+    return this.get(`governance:${key}`);
+  }
+  async invalidatePattern(pattern) {
+    const keys = await this.client.keys(`${this.prefix}${pattern}:*`);
+    if (keys.length > 0) {
+      await this.client.del(keys);
+    }
+  }
+};
+
+// src/engines/ecosystem-registry.ts
+var import_promises4 = require("fs/promises");
+var import_node_path6 = require("path");
+var EcosystemRegistry = class {
+  db;
+  skillEngine;
+  aitmpl;
+  openDesign;
+  uiUx;
+  dnaLoader;
+  dnaPackagesLoaded = 0;
+  initialized = false;
+  constructor(options = {}) {
+    this.db = options.db;
+    this.skillEngine = options.skillEngine;
+    this.aitmpl = options.aitmpl;
+    this.openDesign = options.openDesign;
+    this.uiUx = options.uiUx;
+  }
+  /**
+   * Set a DNALoader for loading DNA packages during initialization.
+   */
+  setDNALoader(loader) {
+    this.dnaLoader = loader;
+  }
+  /**
+   * Initialize by loading from all available sources.
+   */
+  async initialize() {
+    const results = [];
+    if (this.dnaLoader && this.skillEngine) {
+      try {
+        const dnaDir = (0, import_node_path6.join)(process.cwd(), "dnas");
+        await (0, import_promises4.access)(dnaDir);
+        const packages = await this.dnaLoader.loadAll("dnas");
+        for (const dna of packages) {
+          await this.skillEngine.syncFromDNA(dna);
+          this.dnaPackagesLoaded++;
+        }
+        if (packages.length > 0) {
+          results.push(`Loaded ${packages.length} DNA packages`);
+        }
+      } catch {
+      }
+    }
+    if (this.skillEngine) {
+      const localResult = await this.skillEngine.loadFromOpenCodeSkills();
+      if (localResult.added > 0) {
+        results.push(`Loaded ${localResult.added} local skills`);
+      }
+    }
+    if (this.aitmpl) {
+      results.push("AITMPL adapter ready");
+    }
+    if (this.openDesign) {
+      const hasOD = await this.openDesign.detect();
+      if (hasOD) {
+        results.push("Open Design adapter ready");
+      }
+    }
+    if (this.uiUx) {
+      const hasUI = await this.uiUx.detect();
+      if (hasUI) {
+        results.push("UI-UX Pro Max adapter ready");
+      }
+    }
+    this.initialized = true;
+  }
+  /**
+   * Generate a comprehensive ecosystem report.
+   */
+  async generateReport() {
+    const project = process.env.npm_package_name ?? process.cwd().split(/[/\\]/).pop() ?? "unknown";
+    const report = {
+      project,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      agents: [],
+      skills: [],
+      mcps: [],
+      designSystems: [],
+      dnas: []
+    };
+    if (this.skillEngine) {
+      const status = await this.skillEngine.status();
+      report.agents = status.agents;
+      report.skills = status.skills;
+      report.mcps = status.mcps;
+      report.designSystems = status.designSystems;
+      report.dnas = status.dnas;
+    }
+    return report;
+  }
+  /**
+   * Install a component from a specified source.
+   */
+  async install(type, id, source) {
+    switch (source) {
+      case "aitmpl": {
+        if (!this.aitmpl) {
+          return { success: false, error: "AITMPL adapter not configured" };
+        }
+        if (type === "mcp") {
+          const result = await this.aitmpl.installMCP("general", id);
+          if (!result.success) return { success: false, error: result.error };
+          if (this.skillEngine && result.success) {
+            await this.skillEngine.install({ type: "mcp", id, source: "aitmpl" });
+          }
+          return {
+            success: true,
+            component: {
+              id,
+              type: "mcp",
+              name: id,
+              source: "aitmpl",
+              version: "1.0.0",
+              status: "active",
+              dependencies: [],
+              installedAt: (/* @__PURE__ */ new Date()).toISOString(),
+              updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+            }
+          };
+        }
+        const skillResult = await this.aitmpl.installSkill("general", id);
+        if (!skillResult.success) return { success: false, error: skillResult.error };
+        if (this.skillEngine && skillResult.skill) {
+          await this.skillEngine.install({
+            type: "skill",
+            id: skillResult.skill.id,
+            source: "aitmpl",
+            metadata: skillResult.skill
+          });
+        }
+        return { success: true, component: skillResult.skill };
+      }
+      case "open-design": {
+        if (!this.openDesign) {
+          return { success: false, error: "Open Design adapter not configured" };
+        }
+        if (type === "mcp") {
+          const result = await this.openDesign.installMCP(id);
+          if (!result.success) return { success: false, error: result.error };
+          if (this.skillEngine) {
+            await this.skillEngine.install({ type: "mcp", id, source: "open-design" });
+          }
+          return { success: true };
+        }
+        return { success: false, error: `Open Design does not support installing type "${type}"` };
+      }
+      case "local": {
+        if (!this.skillEngine) {
+          return { success: false, error: "SkillEngine not configured" };
+        }
+        const result = await this.skillEngine.install({
+          type,
+          id,
+          source: "local"
+        });
+        return {
+          success: result.success,
+          component: result.component,
+          error: result.error
+        };
+      }
+      default:
+        return { success: false, error: `Unknown source: "${source}"` };
+    }
+  }
+  /**
+   * Sync all components from specified sources.
+   */
+  async sync(sources) {
+    const results = [];
+    const sourcesToSync = sources ?? ["dna", "local", "aitmpl"];
+    if (sourcesToSync.includes("dna") && this.dnaLoader && this.skillEngine) {
+      try {
+        const dnaDir = (0, import_node_path6.join)(process.cwd(), "dnas");
+        await (0, import_promises4.access)(dnaDir);
+        const packages = await this.dnaLoader.loadAll("dnas");
+        for (const dna of packages) {
+          const syncResult = await this.skillEngine.syncFromDNA(dna);
+          results.push({ source: "dna", package: dna.id, ...syncResult });
+        }
+      } catch {
+        results.push({ source: "dna", error: "No DNA directory found" });
+      }
+    }
+    if (sourcesToSync.includes("local") && this.skillEngine) {
+      const localResult = await this.skillEngine.loadFromOpenCodeSkills();
+      results.push({ source: "local", ...localResult });
+    }
+    return { results };
+  }
+  /**
+   * Run diagnostics across all engines and adapters.
+   */
+  async doctor() {
+    const engines = {};
+    let totalComponents = 0;
+    let activeComponents = 0;
+    let totalIssues = 0;
+    if (this.skillEngine) {
+      try {
+        const report = await this.skillEngine.doctor();
+        engines["skill-engine"] = {
+          status: report.healthy ? "healthy" : "issues",
+          issues: report.stats.issues
+        };
+        totalComponents += report.stats.totalComponents;
+        activeComponents += report.stats.active;
+        totalIssues += report.stats.issues;
+      } catch (error) {
+        engines["skill-engine"] = {
+          status: "error",
+          issues: 0,
+          error: error instanceof Error ? error.message : String(error)
+        };
+        totalIssues++;
+      }
+    }
+    if (this.aitmpl) {
+      engines.aitmpl = { status: "ready", issues: 0 };
+    }
+    if (this.openDesign) {
+      try {
+        const hasOD = await this.openDesign.detect();
+        engines["open-design"] = {
+          status: hasOD ? "ready" : "not-detected",
+          issues: 0
+        };
+        if (!hasOD) totalIssues++;
+      } catch (error) {
+        engines["open-design"] = {
+          status: "error",
+          issues: 0,
+          error: error instanceof Error ? error.message : String(error)
+        };
+        totalIssues++;
+      }
+    }
+    if (this.uiUx) {
+      try {
+        const hasUI = await this.uiUx.detect();
+        engines["ui-ux-pro-max"] = {
+          status: hasUI ? "ready" : "not-detected",
+          issues: 0
+        };
+        if (!hasUI) totalIssues++;
+      } catch (error) {
+        engines["ui-ux-pro-max"] = {
+          status: "error",
+          issues: 0,
+          error: error instanceof Error ? error.message : String(error)
+        };
+        totalIssues++;
+      }
+    }
+    const healthy = Object.values(engines).every(
+      (e) => e.status === "healthy" || e.status === "ready"
+    );
+    const agentCount = this.skillEngine ? (await this.skillEngine.status()).agents.length : 0;
+    return {
+      healthy,
+      engines,
+      stats: {
+        totalComponents,
+        activeComponents,
+        agents: agentCount,
+        dnas: this.dnaPackagesLoaded,
+        issues: totalIssues
+      }
+    };
+  }
+  /**
+   * Check if the registry has been initialized.
+   */
+  isInitialized() {
+    return this.initialized;
   }
 };
 
@@ -5248,15 +6162,21 @@ var GovernanceEngine = class _GovernanceEngine {
 
 // src/engines/learning/learning-engine.ts
 var import_node_crypto7 = require("crypto");
-var import_promises2 = require("fs/promises");
+var import_promises5 = require("fs/promises");
+var DEFAULT_MAX_EVENTS = 5e3;
+var DEFAULT_MAX_INSIGHTS = 1e3;
 var LearningEngine = class {
   events = [];
   insights = [];
   persistPath;
   autoApply;
+  maxEvents;
+  maxInsights;
   constructor(options) {
     this.persistPath = options?.persistPath;
     this.autoApply = options?.autoApply ?? false;
+    this.maxEvents = options?.maxEvents ?? DEFAULT_MAX_EVENTS;
+    this.maxInsights = options?.maxInsights ?? DEFAULT_MAX_INSIGHTS;
   }
   record(event) {
     const enriched = {
@@ -5265,7 +6185,16 @@ var LearningEngine = class {
       ...event
     };
     this.events.push(enriched);
+    if (this.events.length > this.maxEvents) {
+      this.events.splice(0, this.events.length - this.maxEvents);
+    }
     this.runDetection(enriched);
+    if (this.insights.length > this.maxInsights) {
+      this.insights.sort(
+        (a, b) => new Date(a.lastDetected).getTime() - new Date(b.lastDetected).getTime()
+      );
+      this.insights.splice(0, this.insights.length - this.maxInsights);
+    }
     if (this.autoApply) {
       this.autoApplyInsights();
     }
@@ -5396,12 +6325,12 @@ var LearningEngine = class {
       events: this.events,
       insights: this.insights
     };
-    await (0, import_promises2.writeFile)(target, JSON.stringify(state, null, 2), "utf-8");
+    await (0, import_promises5.writeFile)(target, JSON.stringify(state, null, 2), "utf-8");
   }
   async load(path) {
     const target = path ?? this.persistPath;
     if (!target) throw new Error("No load path configured");
-    const raw = await (0, import_promises2.readFile)(target, "utf-8");
+    const raw = await (0, import_promises5.readFile)(target, "utf-8");
     const state = JSON.parse(raw);
     this.events = state.events ?? [];
     this.insights = state.insights ?? [];
@@ -6001,1382 +6930,8 @@ var MissionManager = class {
   }
 };
 
-// src/engines/quality/quality-engine.ts
-var import_node_child_process3 = require("child_process");
-var import_node_crypto10 = require("crypto");
-var import_node_fs5 = require("fs");
-function runCommand2(cmd, cwd, timeout = 12e4) {
-  try {
-    const stdout = (0, import_node_child_process3.execSync)(cmd, {
-      encoding: "utf-8",
-      cwd,
-      timeout,
-      stdio: ["pipe", "pipe", "pipe"]
-    });
-    return { stdout, stderr: "", exitCode: 0 };
-  } catch (err) {
-    const e = err;
-    return {
-      stdout: e.stdout ?? "",
-      stderr: e.stderr ?? String(e),
-      exitCode: e.status ?? 1
-    };
-  }
-}
-function detectPackageManager2(projectPath) {
-  if ((0, import_node_fs5.existsSync)(`${projectPath}/pnpm-lock.yaml`)) return "pnpm";
-  if ((0, import_node_fs5.existsSync)(`${projectPath}/yarn.lock`)) return "yarn";
-  return "npm";
-}
-var QualityEngine = class {
-  gates;
-  history = [];
-  minScore;
-  persistPath;
-  timeout;
-  constructor(gates = [], options) {
-    this.gates = gates;
-    this.minScore = options?.minScore ?? 80;
-    this.persistPath = options?.persistPath;
-    this.timeout = options?.timeout ?? 12e4;
-  }
-  /**
-   * Run all quality gates against a real project
-   */
-  async runAll(projectPath) {
-    const reportId = (0, import_node_crypto10.randomUUID)();
-    const start = Date.now();
-    const checks = [];
-    const metrics = [];
-    for (const gate of this.gates) {
-      try {
-        const result = await this.runGate(gate.name, projectPath);
-        checks.push(result.check);
-        if (result.metric) metrics.push(result.metric);
-      } catch (error) {
-        checks.push({
-          gate: gate.name,
-          passed: false,
-          actual: false,
-          expected: true,
-          message: `Gate ${gate.name} failed: ${error instanceof Error ? error.message : String(error)}`
-        });
-      }
-    }
-    const passedChecks = checks.filter((c) => c.passed).length;
-    const score = checks.length > 0 ? Math.round(passedChecks / checks.length * 100) : 100;
-    const passed = score >= this.minScore && checks.every((c) => c.passed);
-    const report = {
-      id: reportId,
-      passed,
-      score,
-      checks,
-      metrics,
-      duration: Date.now() - start,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    this.history.push(report);
-    return report;
-  }
-  /**
-   * Run a single quality gate
-   */
-  async runGate(gateName, projectPath) {
-    switch (gateName) {
-      case "lint":
-        return this.runLint(projectPath);
-      case "typecheck":
-        return this.runTypecheck(projectPath);
-      case "test_coverage":
-        return this.runCoverage(projectPath);
-      case "security":
-        return this.runSecurity(projectPath);
-      case "performance":
-        return this.runPerformance(projectPath);
-      default:
-        return this.runCustomGate(gateName, projectPath);
-    }
-  }
-  async runLint(projectPath) {
-    let result = runCommand2(
-      "npx biome check . --no-errors-on-unmatched --max-diagnostics=100",
-      projectPath,
-      this.timeout
-    );
-    if (result.exitCode !== 0 && result.stdout.includes("biome")) {
-      result = runCommand2(
-        "npx eslint . --format json --max-warnings=1000",
-        projectPath,
-        this.timeout
-      );
-    }
-    const errorCount = this.parseLintErrors(result.stdout, result.stderr);
-    const passed = errorCount === 0;
-    return {
-      check: {
-        gate: "lint",
-        passed,
-        actual: errorCount,
-        expected: 0,
-        message: passed ? "Lint: no errors found" : `Lint: ${errorCount} error(s) found`,
-        details: { output: result.stdout.slice(0, 2e3) }
-      },
-      metric: { name: "lint", value: errorCount, unit: "errors", passed }
-    };
-  }
-  parseLintErrors(stdout, stderr) {
-    const biomeMatch = stdout.match(/(\d+)\s+error/);
-    if (biomeMatch) return Number.parseInt(biomeMatch[1], 10);
-    try {
-      const data = JSON.parse(stdout);
-      if (Array.isArray(data)) {
-        return data.reduce(
-          (sum, file) => sum + (file.errorCount ?? 0),
-          0
-        );
-      }
-    } catch {
-    }
-    const lines = (stdout + stderr).split("\n");
-    return lines.filter((l) => l.includes("error") && !l.includes("0 errors")).length;
-  }
-  async runTypecheck(projectPath) {
-    const result = runCommand2("npx tsc --noEmit --pretty false", projectPath, this.timeout);
-    const errorCount = this.parseTypecheckErrors(result.stdout, result.stderr);
-    const passed = errorCount === 0;
-    return {
-      check: {
-        gate: "typecheck",
-        passed,
-        actual: errorCount,
-        expected: 0,
-        message: passed ? "TypeScript: no type errors" : `TypeScript: ${errorCount} type error(s)`,
-        details: { output: result.stdout.slice(0, 2e3) }
-      },
-      metric: { name: "typecheck", value: errorCount, unit: "errors", passed }
-    };
-  }
-  parseTypecheckErrors(stdout, stderr) {
-    const output = stdout + stderr;
-    const match = output.match(/Found (\d+) error/);
-    if (match) return Number.parseInt(match[1], 10);
-    return output.split("\n").filter((l) => l.includes("error TS")).length;
-  }
-  async runCoverage(projectPath) {
-    const pkgMgr = detectPackageManager2(projectPath);
-    let testCmd = `${pkgMgr} run test -- --coverage`;
-    try {
-      const pkgJson = JSON.parse(
-        require("fs").readFileSync(`${projectPath}/package.json`, "utf-8")
-      );
-      if (pkgJson.devDependencies?.vitest || pkgJson.dependencies?.vitest) {
-        testCmd = `${pkgMgr} run test:coverage`;
-      } else if (pkgJson.devDependencies?.jest || pkgJson.dependencies?.jest) {
-        testCmd = `${pkgMgr} run test -- --coverage`;
-      }
-    } catch {
-    }
-    const result = runCommand2(testCmd, projectPath, this.timeout * 2);
-    const coverage = this.parseCoverageOutput(result.stdout, result.stderr);
-    const gate = this.gates.find((g) => g.name === "test_coverage");
-    const threshold = gate?.threshold ?? 80;
-    const passed = coverage >= threshold;
-    return {
-      check: {
-        gate: "test_coverage",
-        passed,
-        actual: coverage,
-        expected: threshold,
-        message: passed ? `Coverage: ${coverage}% >= ${threshold}%` : `Coverage: ${coverage}% < ${threshold}% (threshold not met)`,
-        details: { output: result.stdout.slice(0, 2e3) }
-      },
-      metric: { name: "test_coverage", value: coverage, unit: "%", threshold, passed }
-    };
-  }
-  parseCoverageOutput(stdout, stderr) {
-    const output = stdout + stderr;
-    const allFilesMatch = output.match(/All files\s+\|\s+([\d.]+)/);
-    if (allFilesMatch) return Number.parseFloat(allFilesMatch[1]);
-    try {
-      const match2 = output.match(/"total":\s*\{[^}]*"lines":\s*\{[^}]*"pct":\s*([\d.]+)/);
-      if (match2) return Number.parseFloat(match2[1]);
-    } catch {
-    }
-    const pctMatch = output.match(/([\d.]+)%\s+Lines/);
-    if (pctMatch) return Number.parseFloat(pctMatch[1]);
-    return 0;
-  }
-  async runSecurity(projectPath) {
-    const pkgMgr = detectPackageManager2(projectPath);
-    const auditCmd = pkgMgr === "pnpm" ? "pnpm audit --json" : `${pkgMgr} audit --json`;
-    const result = runCommand2(auditCmd, projectPath, this.timeout);
-    const vulns = this.parseAuditOutput(result.stdout, result.stderr);
-    const critical = vulns.critical + vulns.high;
-    const passed = critical === 0;
-    return {
-      check: {
-        gate: "security",
-        passed,
-        actual: critical,
-        expected: 0,
-        message: passed ? `Security: ${vulns.total} vulnerabilities (0 critical/high)` : `Security: ${critical} critical/high vulnerabilities found`,
-        details: vulns
-      },
-      metric: { name: "security", value: vulns.total, unit: "vulnerabilities", passed }
-    };
-  }
-  parseAuditOutput(stdout, _stderr) {
-    const vulns = { total: 0, critical: 0, high: 0, moderate: 0, low: 0, info: 0 };
-    try {
-      const data = JSON.parse(stdout);
-      if (data.vulnerabilities) {
-        for (const [, vuln] of Object.entries(data.vulnerabilities)) {
-          const sev = vuln.severity;
-          if (sev in vulns) vulns[sev]++;
-          vulns.total++;
-        }
-      }
-      if (data.advisories) {
-        for (const advisory of Object.values(data.advisories)) {
-          const sev = advisory.severity;
-          if (sev in vulns) vulns[sev]++;
-          vulns.total++;
-        }
-      }
-    } catch {
-      const lines = stdout.split("\n");
-      for (const line of lines) {
-        if (line.includes("critical")) vulns.critical++;
-        else if (line.includes("high")) vulns.high++;
-        else if (line.includes("moderate")) vulns.moderate++;
-        else if (line.includes("low")) vulns.low++;
-      }
-      vulns.total = vulns.critical + vulns.high + vulns.moderate + vulns.low;
-    }
-    return vulns;
-  }
-  async runPerformance(projectPath) {
-    const largeFiles = this.findLargeFiles(projectPath, 500);
-    const score = Math.max(0, 100 - largeFiles.length * 5);
-    const passed = score >= 80;
-    return {
-      check: {
-        gate: "performance",
-        passed,
-        actual: score,
-        expected: 80,
-        message: passed ? `Performance: score ${score}/100 (${largeFiles.length} large files)` : `Performance: score ${score}/100 (${largeFiles.length} files exceed 500 lines)`,
-        details: { largeFiles: largeFiles.slice(0, 20) }
-      },
-      metric: { name: "performance", value: score, unit: "score", threshold: 80, passed }
-    };
-  }
-  findLargeFiles(projectPath, maxLines) {
-    const largeFiles = [];
-    try {
-      const result = runCommand2(
-        `find . -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" | head -500`,
-        projectPath,
-        1e4
-      );
-      const files = result.stdout.trim().split("\n").filter(Boolean);
-      for (const file of files) {
-        try {
-          const content = require("fs").readFileSync(`${projectPath}/${file}`, "utf-8");
-          const lines = content.split("\n").length;
-          if (lines > maxLines) {
-            largeFiles.push(`${file} (${lines} lines)`);
-          }
-        } catch {
-        }
-      }
-    } catch {
-    }
-    return largeFiles;
-  }
-  async runCustomGate(gateName, projectPath) {
-    const gate = this.gates.find((g) => g.name === gateName);
-    if (!gate) {
-      return {
-        check: {
-          gate: gateName,
-          passed: true,
-          actual: true,
-          expected: true,
-          message: `Unknown gate: ${gateName}, auto-pass`
-        }
-      };
-    }
-    const config = gate.config;
-    if (config?.command) {
-      const result = runCommand2(String(config.command), projectPath, this.timeout);
-      const passed = result.exitCode === 0;
-      return {
-        check: {
-          gate: gateName,
-          passed,
-          actual: passed,
-          expected: true,
-          message: passed ? `${gateName}: passed` : `${gateName}: failed (exit code ${result.exitCode})`,
-          details: { output: result.stdout.slice(0, 2e3) }
-        },
-        metric: { name: gateName, value: passed ? 1 : 0, passed }
-      };
-    }
-    return {
-      check: {
-        gate: gateName,
-        passed: true,
-        actual: true,
-        expected: true,
-        message: `${gateName}: no execution config, auto-pass`
-      }
-    };
-  }
-  /**
-   * Create a report from raw results
-   */
-  createReport(results) {
-    const passedChecks = results.filter((c) => c.passed).length;
-    const score = results.length > 0 ? Math.round(passedChecks / results.length * 100) : 100;
-    const metrics = results.map((r) => ({
-      name: r.gate,
-      value: typeof r.actual === "number" ? r.actual : r.actual === true ? 1 : 0,
-      passed: r.passed,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    }));
-    return {
-      id: (0, import_node_crypto10.randomUUID)(),
-      passed: score >= this.minScore && results.every((c) => c.passed),
-      score,
-      checks: results,
-      metrics,
-      duration: 0,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    };
-  }
-  // --- Existing API ---
-  evaluate(metrics) {
-    const reportId = (0, import_node_crypto10.randomUUID)();
-    const start = Date.now();
-    const checks = [];
-    for (const gate of this.gates) {
-      const metric = metrics.find((m) => m.name === gate.name);
-      if (!metric) {
-        checks.push({
-          gate: gate.name,
-          passed: false,
-          actual: false,
-          expected: gate.threshold ?? gate.pass ?? true,
-          message: `Metric not found for gate: ${gate.name}`
-        });
-        continue;
-      }
-      const check = this.evaluateGate(gate, metric);
-      checks.push(check);
-    }
-    const passedChecks = checks.filter((c) => c.passed).length;
-    const score = checks.length > 0 ? Math.round(passedChecks / checks.length * 100) : 100;
-    const passed = score >= this.minScore && checks.every((c) => c.passed);
-    const report = {
-      id: reportId,
-      passed,
-      score,
-      checks,
-      metrics,
-      duration: Date.now() - start,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    this.history.push(report);
-    return report;
-  }
-  evaluateGate(gate, metric) {
-    if (gate.threshold !== void 0) {
-      const actual = metric.value;
-      const passed = actual >= gate.threshold;
-      return {
-        gate: gate.name,
-        passed,
-        actual,
-        expected: gate.threshold,
-        message: passed ? `${gate.name}: ${actual} >= ${gate.threshold}` : `${gate.name}: ${actual} < ${gate.threshold} (threshold not met)`
-      };
-    }
-    if (gate.pass !== void 0) {
-      const actual = metric.passed ?? metric.value > 0;
-      const passed = actual === gate.pass;
-      return {
-        gate: gate.name,
-        passed,
-        actual,
-        expected: gate.pass,
-        message: passed ? `${gate.name}: passed` : `${gate.name}: failed (expected ${gate.pass})`
-      };
-    }
-    return {
-      gate: gate.name,
-      passed: true,
-      actual: metric.value,
-      expected: metric.value,
-      message: `${gate.name}: no threshold configured, auto-pass`
-    };
-  }
-  addGate(gate) {
-    const existing = this.gates.findIndex((g) => g.name === gate.name);
-    if (existing >= 0) {
-      this.gates[existing] = gate;
-    } else {
-      this.gates.push(gate);
-    }
-  }
-  removeGate(name) {
-    const index = this.gates.findIndex((g) => g.name === name);
-    if (index >= 0) {
-      this.gates.splice(index, 1);
-      return true;
-    }
-    return false;
-  }
-  getGates() {
-    return [...this.gates];
-  }
-  getHistory() {
-    return [...this.history];
-  }
-  getLastReport() {
-    return this.history[this.history.length - 1];
-  }
-  summary(report) {
-    const lines = [];
-    lines.push(`Quality Report: ${report.id}`);
-    lines.push(`Overall: ${report.passed ? "\u2705 PASSED" : "\u274C FAILED"} (${report.score}/100)`);
-    lines.push(
-      `Checks: ${report.checks.filter((c) => c.passed).length}/${report.checks.length} passed`
-    );
-    lines.push(`Duration: ${report.duration}ms`);
-    for (const check of report.checks) {
-      const icon = check.passed ? "\u2705" : "\u274C";
-      lines.push(`  ${icon} ${check.message}`);
-    }
-    return lines.join("\n");
-  }
-};
-
-// src/engines/skill-engine.ts
-var import_promises3 = require("fs/promises");
-var import_node_os = require("os");
-var import_node_path5 = require("path");
-var SkillEngine = class {
-  registry;
-  dnaLoader;
-  agentSkills = /* @__PURE__ */ new Map();
-  dnaPackages = [];
-  /**
-   * Creates a SkillEngine with an optional registry and DNA loader.
-   *
-   * @param options - Configuration options (registry map and DNA loader)
-   */
-  constructor(options = {}) {
-    this.registry = options.registry ?? /* @__PURE__ */ new Map();
-    this.dnaLoader = options.dnaLoader;
-  }
-  // ─── Core Resolution ──────────────────────────────────────
-  /**
-   * Resolve a skill for a given agent.
-   * Uses two-stage routing: DNA match first, then capability match (semantic fallback).
-   *
-   * @param agentId - The agent's unique identifier
-   * @param skillId - The skill identifier to resolve
-   * @returns Object with hasSkill flag, optional proficiency level, and skill data
-   */
-  async resolve(agentId, skillId) {
-    const agentSkillRefs = this.agentSkills.get(agentId);
-    if (agentSkillRefs) {
-      const ref = agentSkillRefs.find((s) => s.id === skillId);
-      if (ref) {
-        const component2 = this.registry.get(skillId);
-        if (component2 && component2.status === "active") {
-          return {
-            hasSkill: true,
-            proficiency: ref.proficiency,
-            skill: this.toSkill(component2)
-          };
-        }
-      }
-    }
-    const component = this.registry.get(skillId);
-    if (component && component.status === "active") {
-      const agentSkills = this.agentSkills.get(agentId);
-      if (agentSkills && agentSkills.length > 0) {
-        return {
-          hasSkill: true,
-          proficiency: 2,
-          // Default low proficiency for semantic match
-          skill: this.toSkill(component)
-        };
-      }
-    }
-    return { hasSkill: false };
-  }
-  // ─── Delegation Validation ─────────────────────────────────
-  /**
-   * Validate whether an orchestrator can delegate a task to a target agent
-   * given the required skills.
-   *
-   * @param _orchestrator - The orchestrator agent ID (unused, reserved)
-   * @param targetAgent - The target agent ID to validate
-   * @param requiredSkills - Array of skill IDs required for the task
-   * @returns DelegationValidation with allowed flag and any missing/insufficient skills
-   */
-  async validateDelegation(_orchestrator, targetAgent, requiredSkills) {
-    const missingSkills = [];
-    const insufficientProficiency = [];
-    const agentSkillRefs = this.agentSkills.get(targetAgent) ?? [];
-    for (const skillId of requiredSkills) {
-      const ref = agentSkillRefs.find((s) => s.id === skillId);
-      if (!ref) {
-        missingSkills.push(skillId);
-      } else if (ref.proficiency && ref.proficiency < 2) {
-        insufficientProficiency.push(skillId);
-      }
-    }
-    const allowed = missingSkills.length === 0 && insufficientProficiency.length === 0;
-    const reason = allowed ? void 0 : this.buildRejectionReason(missingSkills, insufficientProficiency);
-    return { allowed, missingSkills, insufficientProficiency, reason };
-  }
-  // ─── Listing / Search ──────────────────────────────────────
-  /**
-   * List all available skills from the loaded DNA packages and registry.
-   *
-   * @param _dna - Optional DNA package filter (unused, reserved)
-   * @returns Array of available Skill objects
-   */
-  async listAvailable(_dna) {
-    const skills = [];
-    for (const component of this.registry.values()) {
-      if (component.type === "skill" && component.status === "active") {
-        skills.push(this.toSkill(component));
-      }
-    }
-    return skills;
-  }
-  /**
-   * Search skills by name, category, or tags.
-   *
-   * @param query - Search query string
-   * @param filters - Optional filters (category, authorityLevel, source)
-   * @returns Array of matching Skill objects
-   */
-  async search(query, filters) {
-    const results = [];
-    const lowerQuery = query.toLowerCase();
-    for (const component of this.registry.values()) {
-      if (component.type !== "skill") continue;
-      const nameMatch = component.name.toLowerCase().includes(lowerQuery);
-      const descMatch = component.description?.toLowerCase().includes(lowerQuery) ?? false;
-      const tagMatch = component.tags?.some((t) => t.toLowerCase().includes(lowerQuery)) ?? false;
-      if (!nameMatch && !descMatch && !tagMatch) continue;
-      const skill = this.toSkill(component);
-      if (filters?.category && skill.category !== filters.category) continue;
-      if (filters?.authorityLevel && skill.authorityRequired !== filters.authorityLevel) continue;
-      if (filters?.source && skill.source !== filters.source) continue;
-      results.push(skill);
-    }
-    return results;
-  }
-  /**
-   * Get a specific skill by ID from the registry.
-   *
-   * @param skillId - The skill identifier
-   * @returns The Skill object or null if not found
-   */
-  async get(skillId) {
-    const component = this.registry.get(skillId);
-    if (component?.type !== "skill") return null;
-    return this.toSkill(component);
-  }
-  // ─── Registry Management ───────────────────────────────────
-  /**
-   * Install a component into the registry.
-   *
-   * @param component - Component descriptor (type, id, source, optional metadata)
-   * @returns InstallResult with success flag and component data
-   */
-  async install(component) {
-    if (this.registry.has(component.id)) {
-      return {
-        success: false,
-        error: `Component "${component.id}" already exists in registry`
-      };
-    }
-    const entry = {
-      id: component.id,
-      type: component.type,
-      name: component.id,
-      source: component.source,
-      version: "1.0.0",
-      status: "active",
-      dependencies: [],
-      tags: [],
-      metadata: component.metadata,
-      installedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    this.registry.set(component.id, entry);
-    return { success: true, component: entry };
-  }
-  /**
-   * Uninstall a component from the registry.
-   *
-   * @param componentId - The component ID to remove
-   */
-  async uninstall(componentId) {
-    this.registry.delete(componentId);
-  }
-  /**
-   * Sync components from a DNA package, extracting persona skills.
-   *
-   * @param dna - The DNA package to sync from
-   * @returns SyncFromDNAResult with added, updated, and removed counts
-   */
-  async syncFromDNA(dna) {
-    let added = 0;
-    let updated = 0;
-    let removed = 0;
-    const existingIds = new Set(this.registry.keys());
-    for (const persona of dna.personas) {
-      const skills = persona.skills ?? [];
-      const skillRefs = [];
-      for (const skill of skills) {
-        if (typeof skill === "string") {
-          skillRefs.push({ id: skill });
-        } else {
-          skillRefs.push(skill);
-        }
-      }
-      this.agentSkills.set(persona.role, skillRefs);
-      for (const ref of skillRefs) {
-        if (this.registry.has(ref.id)) {
-          updated++;
-          existingIds.delete(ref.id);
-        } else {
-          const component = {
-            id: ref.id,
-            type: "skill",
-            name: ref.id,
-            source: "behavioros",
-            version: "1.0.0",
-            status: "active",
-            dependencies: [],
-            tags: [],
-            installedAt: (/* @__PURE__ */ new Date()).toISOString(),
-            updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-          };
-          this.registry.set(ref.id, component);
-          added++;
-        }
-      }
-    }
-    for (const id of existingIds) {
-      const comp = this.registry.get(id);
-      if (comp && comp.source === "behavioros") {
-        this.registry.delete(id);
-        removed++;
-      }
-    }
-    this.dnaPackages.push(dna);
-    return { added, updated, removed };
-  }
-  /**
-   * Sync components from a local skills directory.
-   * Scans for .skillfish.json or SKILL.md files in subdirectories.
-   *
-   * @param path - Path to the local skills directory
-   * @returns SyncFromLocalResult with added count and any errors
-   */
-  async syncFromLocal(path) {
-    let added = 0;
-    const errors = [];
-    try {
-      await (0, import_promises3.access)(path);
-    } catch {
-      return { added, errors };
-    }
-    const entries = await (0, import_promises3.readdir)(path, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const skillfishPath = (0, import_node_path5.join)(path, entry.name, ".skillfish.json");
-      const skillMdPath = (0, import_node_path5.join)(path, entry.name, "SKILL.md");
-      try {
-        await (0, import_promises3.access)(skillfishPath);
-        const content = await (0, import_promises3.readFile)(skillfishPath, "utf-8");
-        const skillfish = JSON.parse(content);
-        const component = {
-          id: skillfish.id ?? entry.name,
-          type: skillfish.type ?? "skill",
-          name: skillfish.name ?? entry.name,
-          source: "local",
-          version: skillfish.version ?? "1.0.0",
-          status: "active",
-          description: skillfish.description,
-          dependencies: skillfish.dependencies ?? [],
-          tags: skillfish.tags ?? [],
-          metadata: { path: (0, import_node_path5.join)(path, entry.name) },
-          installedAt: (/* @__PURE__ */ new Date()).toISOString(),
-          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-        };
-        if (!this.registry.has(component.id)) {
-          this.registry.set(component.id, component);
-          added++;
-        }
-      } catch {
-        try {
-          await (0, import_promises3.access)(skillMdPath);
-          const content = await (0, import_promises3.readFile)(skillMdPath, "utf-8");
-          const nameMatch = content.match(/^#\s+(.+)/m);
-          const descMatch = content.match(/## Description\s*\n([^#]+)/);
-          const component = {
-            id: entry.name,
-            type: "skill",
-            name: nameMatch?.[1] ?? entry.name,
-            source: "local",
-            version: "1.0.0",
-            status: "active",
-            description: descMatch?.[1]?.trim(),
-            dependencies: [],
-            tags: [],
-            metadata: { path: (0, import_node_path5.join)(path, entry.name) },
-            installedAt: (/* @__PURE__ */ new Date()).toISOString(),
-            updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-          };
-          if (!this.registry.has(component.id)) {
-            this.registry.set(component.id, component);
-            added++;
-          }
-        } catch {
-          errors.push(`Failed to parse skill at: ${entry.name}`);
-        }
-      }
-    }
-    return { added, errors };
-  }
-  // ─── Ecosystem Status ──────────────────────────────────────
-  /**
-   * Get the full status of the ecosystem.
-   *
-   * @returns SkillEngineStatus with agents, skills, MCPs, design systems, and DNAs
-   */
-  async status() {
-    const agents = Array.from(this.agentSkills.entries()).map(([id, skills2]) => ({
-      id,
-      status: "active",
-      skillsCount: skills2.length,
-      skills: skills2.map((s) => s.id)
-    }));
-    const skills = [];
-    const mcps = [];
-    const designSystems = [];
-    for (const component of this.registry.values()) {
-      switch (component.type) {
-        case "skill":
-          skills.push(component);
-          break;
-        case "mcp":
-          mcps.push(component);
-          break;
-        case "design-system":
-          designSystems.push(component);
-          break;
-      }
-    }
-    const dnas = this.dnaPackages.map((dna) => ({
-      id: dna.id,
-      version: dna.version,
-      active: true
-    }));
-    return { agents, skills, mcps, designSystems, dnas };
-  }
-  // ─── Diagnostics ──────────────────────────────────────────
-  /**
-   * Run diagnostics on the skill ecosystem.
-   * Checks for error states, outdated components, conflicts,
-   * dangling skill references, and agents with no skills.
-   *
-   * @returns SkillEngineDoctorReport with health status and issues
-   */
-  async doctor() {
-    const issues = [];
-    let totalComponents = 0;
-    let active = 0;
-    for (const component of this.registry.values()) {
-      totalComponents++;
-      if (component.status === "active") active++;
-      if (component.status === "error") {
-        issues.push({
-          severity: "error",
-          component: component.id,
-          message: `Component "${component.id}" is in error state`,
-          fix: "Try reinstalling the component"
-        });
-      }
-      if (component.status === "outdated") {
-        issues.push({
-          severity: "warning",
-          component: component.id,
-          message: `Component "${component.id}" is outdated (v${component.version})`,
-          fix: "Sync from source to get latest version"
-        });
-      }
-      if (component.status === "conflict") {
-        issues.push({
-          severity: "error",
-          component: component.id,
-          message: `Component "${component.id}" has a version conflict`,
-          fix: "Remove duplicate entries and reinstall"
-        });
-      }
-    }
-    for (const [agentId, refs] of this.agentSkills) {
-      for (const ref of refs) {
-        if (!this.registry.has(ref.id)) {
-          issues.push({
-            severity: "warning",
-            component: `${agentId} \u2192 ${ref.id}`,
-            message: `Agent "${agentId}" references skill "${ref.id}" which is not in the registry`,
-            fix: "Add the missing skill component or remove the reference"
-          });
-        }
-      }
-    }
-    for (const [agentId, refs] of this.agentSkills) {
-      if (refs.length === 0) {
-        issues.push({
-          severity: "warning",
-          component: agentId,
-          message: `Agent "${agentId}" has no skills assigned`,
-          fix: "Assign skills to this agent in the DNA package"
-        });
-      }
-    }
-    const healthy = issues.filter((i) => i.severity === "error").length === 0;
-    return {
-      healthy,
-      issues,
-      stats: {
-        totalComponents,
-        active,
-        issues: issues.length
-      }
-    };
-  }
-  // ─── Internal Helpers ──────────────────────────────────────
-  toSkill(component) {
-    return {
-      id: component.id,
-      name: component.name,
-      version: component.version,
-      description: component.description ?? "",
-      category: "custom",
-      source: component.source,
-      tags: component.tags,
-      installedAt: component.installedAt,
-      updatedAt: component.updatedAt
-    };
-  }
-  buildRejectionReason(missing, insufficient) {
-    const parts = [];
-    if (missing.length > 0) {
-      parts.push(`missing skills: ${missing.join(", ")}`);
-    }
-    if (insufficient.length > 0) {
-      parts.push(`insufficient proficiency: ${insufficient.join(", ")}`);
-    }
-    return `Delegation not allowed: ${parts.join("; ")}`;
-  }
-  /**
-   * Get the raw registry (for testing/inspection).
-   *
-   * @returns The internal Map of component ID to ComponentRegistry
-   */
-  getRegistry() {
-    return this.registry;
-  }
-  /**
-   * Get agent skill refs (for testing/inspection).
-   *
-   * @returns The internal Map of agent ID to SkillRef array
-   */
-  getAgentSkills() {
-    return this.agentSkills;
-  }
-  /**
-   * Load from the default .opencode/skills/ directory.
-   * Checks both the project-level and home directory paths.
-   *
-   * @returns SyncFromLocalResult with added count and errors
-   */
-  async loadFromOpenCodeSkills() {
-    const possiblePaths = [
-      (0, import_node_path5.join)(process.cwd(), ".opencode", "skills"),
-      (0, import_node_path5.join)((0, import_node_os.homedir)(), ".opencode", "skills")
-    ];
-    let totalAdded = 0;
-    const allErrors = [];
-    for (const path of possiblePaths) {
-      const result = await this.syncFromLocal(path);
-      totalAdded += result.added;
-      allErrors.push(...result.errors);
-    }
-    return { added: totalAdded, errors: allErrors };
-  }
-};
-
-// src/engines/ecosystem-registry.ts
-var import_promises4 = require("fs/promises");
-var import_node_path6 = require("path");
-var EcosystemRegistry = class {
-  db;
-  skillEngine;
-  aitmpl;
-  openDesign;
-  uiUx;
-  dnaLoader;
-  dnaPackagesLoaded = 0;
-  initialized = false;
-  constructor(options = {}) {
-    this.db = options.db;
-    this.skillEngine = options.skillEngine;
-    this.aitmpl = options.aitmpl;
-    this.openDesign = options.openDesign;
-    this.uiUx = options.uiUx;
-  }
-  /**
-   * Set a DNALoader for loading DNA packages during initialization.
-   */
-  setDNALoader(loader) {
-    this.dnaLoader = loader;
-  }
-  /**
-   * Initialize by loading from all available sources.
-   */
-  async initialize() {
-    const results = [];
-    if (this.dnaLoader && this.skillEngine) {
-      try {
-        const dnaDir = (0, import_node_path6.join)(process.cwd(), "dnas");
-        await (0, import_promises4.access)(dnaDir);
-        const packages = await this.dnaLoader.loadAll("dnas");
-        for (const dna of packages) {
-          await this.skillEngine.syncFromDNA(dna);
-          this.dnaPackagesLoaded++;
-        }
-        if (packages.length > 0) {
-          results.push(`Loaded ${packages.length} DNA packages`);
-        }
-      } catch {
-      }
-    }
-    if (this.skillEngine) {
-      const localResult = await this.skillEngine.loadFromOpenCodeSkills();
-      if (localResult.added > 0) {
-        results.push(`Loaded ${localResult.added} local skills`);
-      }
-    }
-    if (this.aitmpl) {
-      results.push("AITMPL adapter ready");
-    }
-    if (this.openDesign) {
-      const hasOD = await this.openDesign.detect();
-      if (hasOD) {
-        results.push("Open Design adapter ready");
-      }
-    }
-    if (this.uiUx) {
-      const hasUI = await this.uiUx.detect();
-      if (hasUI) {
-        results.push("UI-UX Pro Max adapter ready");
-      }
-    }
-    this.initialized = true;
-  }
-  /**
-   * Generate a comprehensive ecosystem report.
-   */
-  async generateReport() {
-    const project = process.env.npm_package_name ?? process.cwd().split(/[/\\]/).pop() ?? "unknown";
-    const report = {
-      project,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-      agents: [],
-      skills: [],
-      mcps: [],
-      designSystems: [],
-      dnas: []
-    };
-    if (this.skillEngine) {
-      const status = await this.skillEngine.status();
-      report.agents = status.agents;
-      report.skills = status.skills;
-      report.mcps = status.mcps;
-      report.designSystems = status.designSystems;
-      report.dnas = status.dnas;
-    }
-    return report;
-  }
-  /**
-   * Install a component from a specified source.
-   */
-  async install(type, id, source) {
-    switch (source) {
-      case "aitmpl": {
-        if (!this.aitmpl) {
-          return { success: false, error: "AITMPL adapter not configured" };
-        }
-        if (type === "mcp") {
-          const result = await this.aitmpl.installMCP("general", id);
-          if (!result.success) return { success: false, error: result.error };
-          if (this.skillEngine && result.success) {
-            await this.skillEngine.install({ type: "mcp", id, source: "aitmpl" });
-          }
-          return {
-            success: true,
-            component: {
-              id,
-              type: "mcp",
-              name: id,
-              source: "aitmpl",
-              version: "1.0.0",
-              status: "active",
-              dependencies: [],
-              installedAt: (/* @__PURE__ */ new Date()).toISOString(),
-              updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-            }
-          };
-        }
-        const skillResult = await this.aitmpl.installSkill("general", id);
-        if (!skillResult.success) return { success: false, error: skillResult.error };
-        if (this.skillEngine && skillResult.skill) {
-          await this.skillEngine.install({
-            type: "skill",
-            id: skillResult.skill.id,
-            source: "aitmpl",
-            metadata: skillResult.skill
-          });
-        }
-        return { success: true, component: skillResult.skill };
-      }
-      case "open-design": {
-        if (!this.openDesign) {
-          return { success: false, error: "Open Design adapter not configured" };
-        }
-        if (type === "mcp") {
-          const result = await this.openDesign.installMCP(id);
-          if (!result.success) return { success: false, error: result.error };
-          if (this.skillEngine) {
-            await this.skillEngine.install({ type: "mcp", id, source: "open-design" });
-          }
-          return { success: true };
-        }
-        return { success: false, error: `Open Design does not support installing type "${type}"` };
-      }
-      case "local": {
-        if (!this.skillEngine) {
-          return { success: false, error: "SkillEngine not configured" };
-        }
-        const result = await this.skillEngine.install({
-          type,
-          id,
-          source: "local"
-        });
-        return {
-          success: result.success,
-          component: result.component,
-          error: result.error
-        };
-      }
-      default:
-        return { success: false, error: `Unknown source: "${source}"` };
-    }
-  }
-  /**
-   * Sync all components from specified sources.
-   */
-  async sync(sources) {
-    const results = [];
-    const sourcesToSync = sources ?? ["dna", "local", "aitmpl"];
-    if (sourcesToSync.includes("dna") && this.dnaLoader && this.skillEngine) {
-      try {
-        const dnaDir = (0, import_node_path6.join)(process.cwd(), "dnas");
-        await (0, import_promises4.access)(dnaDir);
-        const packages = await this.dnaLoader.loadAll("dnas");
-        for (const dna of packages) {
-          const syncResult = await this.skillEngine.syncFromDNA(dna);
-          results.push({ source: "dna", package: dna.id, ...syncResult });
-        }
-      } catch {
-        results.push({ source: "dna", error: "No DNA directory found" });
-      }
-    }
-    if (sourcesToSync.includes("local") && this.skillEngine) {
-      const localResult = await this.skillEngine.loadFromOpenCodeSkills();
-      results.push({ source: "local", ...localResult });
-    }
-    return { results };
-  }
-  /**
-   * Run diagnostics across all engines and adapters.
-   */
-  async doctor() {
-    const engines = {};
-    let totalComponents = 0;
-    let activeComponents = 0;
-    let totalIssues = 0;
-    if (this.skillEngine) {
-      try {
-        const report = await this.skillEngine.doctor();
-        engines["skill-engine"] = {
-          status: report.healthy ? "healthy" : "issues",
-          issues: report.stats.issues
-        };
-        totalComponents += report.stats.totalComponents;
-        activeComponents += report.stats.active;
-        totalIssues += report.stats.issues;
-      } catch (error) {
-        engines["skill-engine"] = {
-          status: "error",
-          issues: 0,
-          error: error instanceof Error ? error.message : String(error)
-        };
-        totalIssues++;
-      }
-    }
-    if (this.aitmpl) {
-      engines.aitmpl = { status: "ready", issues: 0 };
-    }
-    if (this.openDesign) {
-      try {
-        const hasOD = await this.openDesign.detect();
-        engines["open-design"] = {
-          status: hasOD ? "ready" : "not-detected",
-          issues: 0
-        };
-        if (!hasOD) totalIssues++;
-      } catch (error) {
-        engines["open-design"] = {
-          status: "error",
-          issues: 0,
-          error: error instanceof Error ? error.message : String(error)
-        };
-        totalIssues++;
-      }
-    }
-    if (this.uiUx) {
-      try {
-        const hasUI = await this.uiUx.detect();
-        engines["ui-ux-pro-max"] = {
-          status: hasUI ? "ready" : "not-detected",
-          issues: 0
-        };
-        if (!hasUI) totalIssues++;
-      } catch (error) {
-        engines["ui-ux-pro-max"] = {
-          status: "error",
-          issues: 0,
-          error: error instanceof Error ? error.message : String(error)
-        };
-        totalIssues++;
-      }
-    }
-    const healthy = Object.values(engines).every(
-      (e) => e.status === "healthy" || e.status === "ready"
-    );
-    const agentCount = this.skillEngine ? (await this.skillEngine.status()).agents.length : 0;
-    return {
-      healthy,
-      engines,
-      stats: {
-        totalComponents,
-        activeComponents,
-        agents: agentCount,
-        dnas: this.dnaPackagesLoaded,
-        issues: totalIssues
-      }
-    };
-  }
-  /**
-   * Check if the registry has been initialized.
-   */
-  isInitialized() {
-    return this.initialized;
-  }
-};
-
-// src/engines/orchestrator/handoff-protocol.ts
-var import_node_crypto11 = require("crypto");
-var HandoffProtocol = class {
-  handoffs = /* @__PURE__ */ new Map();
-  maxActiveHandoffs;
-  constructor(maxActiveHandoffs = 50) {
-    this.maxActiveHandoffs = maxActiveHandoffs;
-  }
-  /**
-   * Request a handoff from one agent to another with full context.
-   * The receiving agent can accept or reject.
-   */
-  async request(from, to, context) {
-    const activeCount = this.getActiveCount();
-    if (activeCount >= this.maxActiveHandoffs) {
-      throw new Error(
-        `Maximum active handoffs reached (${this.maxActiveHandoffs}). Complete or cancel some handoffs before requesting new ones.`
-      );
-    }
-    const handoffId = (0, import_node_crypto11.randomUUID)();
-    const now = (/* @__PURE__ */ new Date()).toISOString();
-    const record = {
-      handoffId,
-      from,
-      to,
-      status: "pending",
-      context,
-      createdAt: now
-    };
-    this.handoffs.set(handoffId, record);
-    return { handoffId, status: "pending" };
-  }
-  /**
-   * Accept a pending handoff — transitions to in_progress.
-   */
-  async accept(handoffId) {
-    const record = this.handoffs.get(handoffId);
-    if (!record) {
-      throw new Error(`Handoff not found: ${handoffId}`);
-    }
-    if (record.status !== "pending") {
-      throw new Error(`Cannot accept handoff in status: ${record.status}. Expected: pending`);
-    }
-    record.status = "accepted";
-    record.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-    record.status = "in_progress";
-  }
-  /**
-   * Reject a pending handoff with a structured reason.
-   */
-  async reject(handoffId, reason) {
-    const record = this.handoffs.get(handoffId);
-    if (!record) {
-      throw new Error(`Handoff not found: ${handoffId}`);
-    }
-    if (record.status !== "pending") {
-      throw new Error(`Cannot reject handoff in status: ${record.status}. Expected: pending`);
-    }
-    record.status = "rejected";
-    record.rejectionReason = reason;
-    record.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-  }
-  /**
-   * Mark a handoff as completed with the output from the receiving agent.
-   */
-  async complete(handoffId, output) {
-    const record = this.handoffs.get(handoffId);
-    if (!record) {
-      throw new Error(`Handoff not found: ${handoffId}`);
-    }
-    if (record.status !== "in_progress" && record.status !== "accepted") {
-      throw new Error(
-        `Cannot complete handoff in status: ${record.status}. Expected: in_progress or accepted`
-      );
-    }
-    record.status = "completed";
-    record.output = output;
-    record.completedAt = (/* @__PURE__ */ new Date()).toISOString();
-    record.updatedAt = record.completedAt;
-  }
-  /**
-   * Get the current status of a handoff.
-   */
-  async status(handoffId) {
-    const record = this.handoffs.get(handoffId);
-    if (!record) {
-      throw new Error(`Handoff not found: ${handoffId}`);
-    }
-    return { ...record };
-  }
-  /**
-   * List all active (pending, accepted, in_progress) handoffs.
-   */
-  async listActive() {
-    const active = [];
-    for (const record of this.handoffs.values()) {
-      if (record.status === "pending" || record.status === "accepted" || record.status === "in_progress") {
-        active.push({ ...record });
-      }
-    }
-    return active;
-  }
-  /**
-   * List all handoffs for a specific agent (sent or received).
-   */
-  async listForAgent(agentId) {
-    const records = [];
-    for (const record of this.handoffs.values()) {
-      if (record.from === agentId || record.to === agentId) {
-        records.push({ ...record });
-      }
-    }
-    return records;
-  }
-  /**
-   * Get a handoff by ID (full record).
-   */
-  async get(handoffId) {
-    const record = this.handoffs.get(handoffId);
-    return record ? { ...record } : null;
-  }
-  /**
-   * Get all handoffs (for reporting).
-   */
-  async getAll() {
-    return Array.from(this.handoffs.values()).map((r) => ({ ...r }));
-  }
-  /**
-   * Count handoffs by status.
-   */
-  async countByStatus() {
-    const counts = {
-      pending: 0,
-      accepted: 0,
-      in_progress: 0,
-      completed: 0,
-      rejected: 0
-    };
-    for (const record of this.handoffs.values()) {
-      counts[record.status]++;
-    }
-    return counts;
-  }
-  /**
-   * Check if a handoff exists.
-   */
-  async exists(handoffId) {
-    return this.handoffs.has(handoffId);
-  }
-  // ─── Private Helpers ───────────────────────────────────────
-  /**
-   * Count the number of active (non-terminal) handoffs.
-   */
-  getActiveCount() {
-    let count = 0;
-    for (const record of this.handoffs.values()) {
-      if (record.status !== "completed" && record.status !== "rejected") {
-        count++;
-      }
-    }
-    return count;
-  }
-};
-
 // src/engines/orchestrator/autonomous-decomposer.ts
-var import_node_crypto12 = require("crypto");
+var import_node_crypto10 = require("crypto");
 var AutonomousDecomposer = class {
   constructor(options = {}) {
     this.options = options;
@@ -7595,7 +7150,7 @@ var AutonomousDecomposer = class {
   // ─── Helpers ───────────────────────────────────────────────
   createSubtask(type, requiredSkill, overrides = {}) {
     return {
-      id: (0, import_node_crypto12.randomUUID)(),
+      id: (0, import_node_crypto10.randomUUID)(),
       title: overrides.title ?? "Untitled subtask",
       type,
       requiredSkill,
@@ -7606,10 +7161,426 @@ var AutonomousDecomposer = class {
 };
 
 // src/engines/orchestrator/autonomous-orchestrator.ts
-var import_node_crypto14 = require("crypto");
+var import_node_crypto13 = require("crypto");
+
+// src/engines/orchestrator/auto-documentation-trigger.ts
+var import_promises6 = require("fs/promises");
+var import_node_path7 = require("path");
+var AutoDocumentationTrigger = class {
+  projectRoot;
+  writeFilesEnabled;
+  generatedDocs = [];
+  constructor(options = {}) {
+    this.projectRoot = options.projectRoot ?? process.cwd();
+    this.writeFilesEnabled = options.writeFiles ?? true;
+  }
+  /**
+   * Called when a subtask completes successfully.
+   * Generates documentation based on the subtask type.
+   */
+  async onSubtaskComplete(subtask, output, projectPath) {
+    const activePath = projectPath ?? this.projectRoot;
+    const docsGenerated = [];
+    switch (subtask.type) {
+      case "design":
+        docsGenerated.push(await this.generateDesignDoc(subtask, output, activePath));
+        break;
+      case "implementation":
+        docsGenerated.push(await this.generateFeatureDoc(subtask, output, activePath));
+        docsGenerated.push(this.generateChangelogEntry(subtask));
+        break;
+      case "testing":
+        docsGenerated.push(await this.generateTestingDoc(subtask, output, activePath));
+        break;
+      case "review":
+        docsGenerated.push(await this.generateReviewDoc(subtask, output, activePath));
+        break;
+      case "security":
+        docsGenerated.push(await this.generateSecurityAdvisory(subtask, output, activePath));
+        break;
+      case "deployment":
+        docsGenerated.push(await this.generateDeploymentDoc(subtask, output, activePath));
+        break;
+      case "documentation":
+        docsGenerated.push(`tracked:documentation-${subtask.id}`);
+        break;
+      case "compliance":
+        docsGenerated.push(await this.generateComplianceDoc(subtask, output, activePath));
+        break;
+      default:
+        docsGenerated.push(await this.generateGenericDoc(subtask, output, activePath));
+    }
+    this.generatedDocs.push(...docsGenerated);
+    return { docsGenerated };
+  }
+  /**
+   * Get the list of all generated documentation paths.
+   */
+  getGeneratedDocs() {
+    return [...this.generatedDocs];
+  }
+  /**
+   * Clear the generated docs list (for testing).
+   */
+  clear() {
+    this.generatedDocs = [];
+  }
+  // ─── Design Documentation ──────────────────────────────────
+  async generateDesignDoc(subtask, _output, projectPath) {
+    const dir = (0, import_node_path7.join)(projectPath, "docs", "architecture");
+    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
+    const filePath = (0, import_node_path7.join)(dir, filename);
+    const content = `# Architecture: ${subtask.title}
+
+## Overview
+${subtask.description ?? "Design document for architectural decision."}
+
+## Status
+- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
+- **Subtask ID:** ${subtask.id}
+- **Type:** Architecture Design
+
+## Details
+This document was auto-generated by the BehaviorOS AutonomousOrchestrator
+when the design subtask was completed.
+`;
+    await this.ensureAndWrite(dir, filePath, content);
+    return filePath;
+  }
+  // ─── Feature Documentation ─────────────────────────────────
+  async generateFeatureDoc(subtask, _output, projectPath) {
+    const dir = (0, import_node_path7.join)(projectPath, "docs", "features");
+    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
+    const filePath = (0, import_node_path7.join)(dir, filename);
+    const content = `# Feature: ${subtask.title}
+
+## Description
+${subtask.description ?? "Feature implementation documentation."}
+
+## Metadata
+- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
+- **Subtask ID:** ${subtask.id}
+- **Type:** Feature Implementation
+
+## Changelog
+- Implemented: ${(/* @__PURE__ */ new Date()).toISOString()}
+`;
+    await this.ensureAndWrite(dir, filePath, content);
+    return filePath;
+  }
+  // ─── Testing Documentation ─────────────────────────────────
+  async generateTestingDoc(subtask, _output, projectPath) {
+    const dir = (0, import_node_path7.join)(projectPath, "docs", "testing");
+    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
+    const filePath = (0, import_node_path7.join)(dir, filename);
+    const content = `# Test: ${subtask.title}
+
+## Scope
+${subtask.description ?? "Testing documentation."}
+
+## Execution
+- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
+- **Subtask ID:** ${subtask.id}
+
+## Results
+Testing completed as part of the autonomous execution pipeline.
+`;
+    await this.ensureAndWrite(dir, filePath, content);
+    return filePath;
+  }
+  // ─── Review Documentation ──────────────────────────────────
+  async generateReviewDoc(subtask, _output, projectPath) {
+    const dir = (0, import_node_path7.join)(projectPath, "docs", "reviews");
+    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
+    const filePath = (0, import_node_path7.join)(dir, filename);
+    const content = `# Review: ${subtask.title}
+
+## Context
+${subtask.description ?? "Code review documentation."}
+
+## Metadata
+- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
+- **Subtask ID:** ${subtask.id}
+- **Reviewer:** AutonomousOrchestrator
+
+## Findings
+Review completed autonomously.
+`;
+    await this.ensureAndWrite(dir, filePath, content);
+    return filePath;
+  }
+  // ─── Security Advisory ─────────────────────────────────────
+  async generateSecurityAdvisory(subtask, _output, projectPath) {
+    const date = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    const dir = (0, import_node_path7.join)(projectPath, "docs", "security");
+    const filename = `advisory-${date}.md`;
+    const filePath = (0, import_node_path7.join)(dir, filename);
+    const content = `# Security Advisory: ${date}
+
+## Title
+${subtask.title}
+
+## Description
+${subtask.description ?? "Security advisory."}
+
+## Status
+- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
+- **Subtask ID:** ${subtask.id}
+- **Severity:** Determined by security scan
+
+## Actions Taken
+Security review completed autonomously.
+`;
+    await this.ensureAndWrite(dir, filePath, content);
+    return filePath;
+  }
+  // ─── Deployment Documentation ──────────────────────────────
+  async generateDeploymentDoc(subtask, _output, projectPath) {
+    const dir = (0, import_node_path7.join)(projectPath, "docs", "deployments");
+    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
+    const filePath = (0, import_node_path7.join)(dir, filename);
+    const content = `# Deployment: ${subtask.title}
+
+## Overview
+${subtask.description ?? "Deployment documentation."}
+
+## Timestamp
+- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
+- **Subtask ID:** ${subtask.id}
+
+## Deployment Details
+Deployment executed autonomously.
+`;
+    await this.ensureAndWrite(dir, filePath, content);
+    return filePath;
+  }
+  // ─── Compliance Documentation ──────────────────────────────
+  async generateComplianceDoc(subtask, _output, projectPath) {
+    const dir = (0, import_node_path7.join)(projectPath, "docs", "compliance");
+    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
+    const filePath = (0, import_node_path7.join)(dir, filename);
+    const content = `# Compliance: ${subtask.title}
+
+## Scope
+${subtask.description ?? "Compliance documentation."}
+
+## Verification
+- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
+- **Subtask ID:** ${subtask.id}
+
+## Status
+Compliance checks completed autonomously.
+`;
+    await this.ensureAndWrite(dir, filePath, content);
+    return filePath;
+  }
+  // ─── Generic Documentation (fallback) ──────────────────────
+  async generateGenericDoc(subtask, _output, projectPath) {
+    const dir = (0, import_node_path7.join)(projectPath, "docs", "generated");
+    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
+    const filePath = (0, import_node_path7.join)(dir, filename);
+    const content = `# ${subtask.title}
+
+## Description
+${subtask.description ?? "Auto-generated documentation."}
+
+## Metadata
+- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
+- **Subtask ID:** ${subtask.id}
+- **Type:** ${subtask.type}
+- **Required Skill:** ${subtask.requiredSkill}
+`;
+    await this.ensureAndWrite(dir, filePath, content);
+    return filePath;
+  }
+  // ─── Changelog Entry ───────────────────────────────────────
+  generateChangelogEntry(subtask) {
+    return `changelog:${subtask.id}:${subtask.title}`;
+  }
+  // ─── Helpers ───────────────────────────────────────────────
+  async ensureAndWrite(dir, filePath, content) {
+    if (!this.writeFilesEnabled) return;
+    try {
+      await (0, import_promises6.mkdir)(dir, { recursive: true });
+      await (0, import_promises6.writeFile)(filePath, content, "utf-8");
+    } catch (error) {
+      console.warn(
+        `AutoDocumentationTrigger: Failed to write ${filePath}:`,
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  }
+  sanitizeFilename(name) {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").substring(0, 100);
+  }
+};
+
+// src/engines/orchestrator/handoff-protocol.ts
+var import_node_crypto11 = require("crypto");
+var HandoffProtocol = class {
+  handoffs = /* @__PURE__ */ new Map();
+  maxActiveHandoffs;
+  constructor(maxActiveHandoffs = 50) {
+    this.maxActiveHandoffs = maxActiveHandoffs;
+  }
+  /**
+   * Request a handoff from one agent to another with full context.
+   * The receiving agent can accept or reject.
+   */
+  async request(from, to, context) {
+    const activeCount = this.getActiveCount();
+    if (activeCount >= this.maxActiveHandoffs) {
+      throw new Error(
+        `Maximum active handoffs reached (${this.maxActiveHandoffs}). Complete or cancel some handoffs before requesting new ones.`
+      );
+    }
+    const handoffId = (0, import_node_crypto11.randomUUID)();
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const record = {
+      handoffId,
+      from,
+      to,
+      status: "pending",
+      context,
+      createdAt: now
+    };
+    this.handoffs.set(handoffId, record);
+    return { handoffId, status: "pending" };
+  }
+  /**
+   * Accept a pending handoff — transitions to in_progress.
+   */
+  async accept(handoffId) {
+    const record = this.handoffs.get(handoffId);
+    if (!record) {
+      throw new Error(`Handoff not found: ${handoffId}`);
+    }
+    if (record.status !== "pending") {
+      throw new Error(`Cannot accept handoff in status: ${record.status}. Expected: pending`);
+    }
+    record.status = "accepted";
+    record.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    record.status = "in_progress";
+  }
+  /**
+   * Reject a pending handoff with a structured reason.
+   */
+  async reject(handoffId, reason) {
+    const record = this.handoffs.get(handoffId);
+    if (!record) {
+      throw new Error(`Handoff not found: ${handoffId}`);
+    }
+    if (record.status !== "pending") {
+      throw new Error(`Cannot reject handoff in status: ${record.status}. Expected: pending`);
+    }
+    record.status = "rejected";
+    record.rejectionReason = reason;
+    record.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+  }
+  /**
+   * Mark a handoff as completed with the output from the receiving agent.
+   */
+  async complete(handoffId, output) {
+    const record = this.handoffs.get(handoffId);
+    if (!record) {
+      throw new Error(`Handoff not found: ${handoffId}`);
+    }
+    if (record.status !== "in_progress" && record.status !== "accepted") {
+      throw new Error(
+        `Cannot complete handoff in status: ${record.status}. Expected: in_progress or accepted`
+      );
+    }
+    record.status = "completed";
+    record.output = output;
+    record.completedAt = (/* @__PURE__ */ new Date()).toISOString();
+    record.updatedAt = record.completedAt;
+  }
+  /**
+   * Get the current status of a handoff.
+   */
+  async status(handoffId) {
+    const record = this.handoffs.get(handoffId);
+    if (!record) {
+      throw new Error(`Handoff not found: ${handoffId}`);
+    }
+    return { ...record };
+  }
+  /**
+   * List all active (pending, accepted, in_progress) handoffs.
+   */
+  async listActive() {
+    const active = [];
+    for (const record of this.handoffs.values()) {
+      if (record.status === "pending" || record.status === "accepted" || record.status === "in_progress") {
+        active.push({ ...record });
+      }
+    }
+    return active;
+  }
+  /**
+   * List all handoffs for a specific agent (sent or received).
+   */
+  async listForAgent(agentId) {
+    const records = [];
+    for (const record of this.handoffs.values()) {
+      if (record.from === agentId || record.to === agentId) {
+        records.push({ ...record });
+      }
+    }
+    return records;
+  }
+  /**
+   * Get a handoff by ID (full record).
+   */
+  async get(handoffId) {
+    const record = this.handoffs.get(handoffId);
+    return record ? { ...record } : null;
+  }
+  /**
+   * Get all handoffs (for reporting).
+   */
+  async getAll() {
+    return Array.from(this.handoffs.values()).map((r) => ({ ...r }));
+  }
+  /**
+   * Count handoffs by status.
+   */
+  async countByStatus() {
+    const counts = {
+      pending: 0,
+      accepted: 0,
+      in_progress: 0,
+      completed: 0,
+      rejected: 0
+    };
+    for (const record of this.handoffs.values()) {
+      counts[record.status]++;
+    }
+    return counts;
+  }
+  /**
+   * Check if a handoff exists.
+   */
+  async exists(handoffId) {
+    return this.handoffs.has(handoffId);
+  }
+  // ─── Private Helpers ───────────────────────────────────────
+  /**
+   * Count the number of active (non-terminal) handoffs.
+   */
+  getActiveCount() {
+    let count = 0;
+    for (const record of this.handoffs.values()) {
+      if (record.status !== "completed" && record.status !== "rejected") {
+        count++;
+      }
+    }
+    return count;
+  }
+};
 
 // src/engines/orchestrator/lifecycle-pipeline.ts
-var import_node_crypto13 = require("crypto");
+var import_node_crypto12 = require("crypto");
 var LifecyclePipeline = class {
   constructor(decomposer, router, _handoffProtocol, autoDocs, skillEngine) {
     this.decomposer = decomposer;
@@ -7628,7 +7599,7 @@ var LifecyclePipeline = class {
   async execute(input) {
     this.missionStartTime = Date.now();
     const mission = {
-      id: (0, import_node_crypto13.randomUUID)(),
+      id: (0, import_node_crypto12.randomUUID)(),
       title: input.title,
       type: input.type,
       priority: input.priority,
@@ -8065,258 +8036,6 @@ var SkillRouter = class {
   }
 };
 
-// src/engines/orchestrator/auto-documentation-trigger.ts
-var import_promises5 = require("fs/promises");
-var import_node_path7 = require("path");
-var AutoDocumentationTrigger = class {
-  projectRoot;
-  writeFilesEnabled;
-  generatedDocs = [];
-  constructor(options = {}) {
-    this.projectRoot = options.projectRoot ?? process.cwd();
-    this.writeFilesEnabled = options.writeFiles ?? true;
-  }
-  /**
-   * Called when a subtask completes successfully.
-   * Generates documentation based on the subtask type.
-   */
-  async onSubtaskComplete(subtask, output, projectPath) {
-    const activePath = projectPath ?? this.projectRoot;
-    const docsGenerated = [];
-    switch (subtask.type) {
-      case "design":
-        docsGenerated.push(await this.generateDesignDoc(subtask, output, activePath));
-        break;
-      case "implementation":
-        docsGenerated.push(await this.generateFeatureDoc(subtask, output, activePath));
-        docsGenerated.push(this.generateChangelogEntry(subtask));
-        break;
-      case "testing":
-        docsGenerated.push(await this.generateTestingDoc(subtask, output, activePath));
-        break;
-      case "review":
-        docsGenerated.push(await this.generateReviewDoc(subtask, output, activePath));
-        break;
-      case "security":
-        docsGenerated.push(await this.generateSecurityAdvisory(subtask, output, activePath));
-        break;
-      case "deployment":
-        docsGenerated.push(await this.generateDeploymentDoc(subtask, output, activePath));
-        break;
-      case "documentation":
-        docsGenerated.push(`tracked:documentation-${subtask.id}`);
-        break;
-      case "compliance":
-        docsGenerated.push(await this.generateComplianceDoc(subtask, output, activePath));
-        break;
-      default:
-        docsGenerated.push(await this.generateGenericDoc(subtask, output, activePath));
-    }
-    this.generatedDocs.push(...docsGenerated);
-    return { docsGenerated };
-  }
-  /**
-   * Get the list of all generated documentation paths.
-   */
-  getGeneratedDocs() {
-    return [...this.generatedDocs];
-  }
-  /**
-   * Clear the generated docs list (for testing).
-   */
-  clear() {
-    this.generatedDocs = [];
-  }
-  // ─── Design Documentation ──────────────────────────────────
-  async generateDesignDoc(subtask, _output, projectPath) {
-    const dir = (0, import_node_path7.join)(projectPath, "docs", "architecture");
-    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
-    const filePath = (0, import_node_path7.join)(dir, filename);
-    const content = `# Architecture: ${subtask.title}
-
-## Overview
-${subtask.description ?? "Design document for architectural decision."}
-
-## Status
-- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
-- **Subtask ID:** ${subtask.id}
-- **Type:** Architecture Design
-
-## Details
-This document was auto-generated by the BehaviorOS AutonomousOrchestrator
-when the design subtask was completed.
-`;
-    await this.ensureAndWrite(dir, filePath, content);
-    return filePath;
-  }
-  // ─── Feature Documentation ─────────────────────────────────
-  async generateFeatureDoc(subtask, _output, projectPath) {
-    const dir = (0, import_node_path7.join)(projectPath, "docs", "features");
-    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
-    const filePath = (0, import_node_path7.join)(dir, filename);
-    const content = `# Feature: ${subtask.title}
-
-## Description
-${subtask.description ?? "Feature implementation documentation."}
-
-## Metadata
-- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
-- **Subtask ID:** ${subtask.id}
-- **Type:** Feature Implementation
-
-## Changelog
-- Implemented: ${(/* @__PURE__ */ new Date()).toISOString()}
-`;
-    await this.ensureAndWrite(dir, filePath, content);
-    return filePath;
-  }
-  // ─── Testing Documentation ─────────────────────────────────
-  async generateTestingDoc(subtask, _output, projectPath) {
-    const dir = (0, import_node_path7.join)(projectPath, "docs", "testing");
-    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
-    const filePath = (0, import_node_path7.join)(dir, filename);
-    const content = `# Test: ${subtask.title}
-
-## Scope
-${subtask.description ?? "Testing documentation."}
-
-## Execution
-- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
-- **Subtask ID:** ${subtask.id}
-
-## Results
-Testing completed as part of the autonomous execution pipeline.
-`;
-    await this.ensureAndWrite(dir, filePath, content);
-    return filePath;
-  }
-  // ─── Review Documentation ──────────────────────────────────
-  async generateReviewDoc(subtask, _output, projectPath) {
-    const dir = (0, import_node_path7.join)(projectPath, "docs", "reviews");
-    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
-    const filePath = (0, import_node_path7.join)(dir, filename);
-    const content = `# Review: ${subtask.title}
-
-## Context
-${subtask.description ?? "Code review documentation."}
-
-## Metadata
-- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
-- **Subtask ID:** ${subtask.id}
-- **Reviewer:** AutonomousOrchestrator
-
-## Findings
-Review completed autonomously.
-`;
-    await this.ensureAndWrite(dir, filePath, content);
-    return filePath;
-  }
-  // ─── Security Advisory ─────────────────────────────────────
-  async generateSecurityAdvisory(subtask, _output, projectPath) {
-    const date = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-    const dir = (0, import_node_path7.join)(projectPath, "docs", "security");
-    const filename = `advisory-${date}.md`;
-    const filePath = (0, import_node_path7.join)(dir, filename);
-    const content = `# Security Advisory: ${date}
-
-## Title
-${subtask.title}
-
-## Description
-${subtask.description ?? "Security advisory."}
-
-## Status
-- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
-- **Subtask ID:** ${subtask.id}
-- **Severity:** Determined by security scan
-
-## Actions Taken
-Security review completed autonomously.
-`;
-    await this.ensureAndWrite(dir, filePath, content);
-    return filePath;
-  }
-  // ─── Deployment Documentation ──────────────────────────────
-  async generateDeploymentDoc(subtask, _output, projectPath) {
-    const dir = (0, import_node_path7.join)(projectPath, "docs", "deployments");
-    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
-    const filePath = (0, import_node_path7.join)(dir, filename);
-    const content = `# Deployment: ${subtask.title}
-
-## Overview
-${subtask.description ?? "Deployment documentation."}
-
-## Timestamp
-- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
-- **Subtask ID:** ${subtask.id}
-
-## Deployment Details
-Deployment executed autonomously.
-`;
-    await this.ensureAndWrite(dir, filePath, content);
-    return filePath;
-  }
-  // ─── Compliance Documentation ──────────────────────────────
-  async generateComplianceDoc(subtask, _output, projectPath) {
-    const dir = (0, import_node_path7.join)(projectPath, "docs", "compliance");
-    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
-    const filePath = (0, import_node_path7.join)(dir, filename);
-    const content = `# Compliance: ${subtask.title}
-
-## Scope
-${subtask.description ?? "Compliance documentation."}
-
-## Verification
-- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
-- **Subtask ID:** ${subtask.id}
-
-## Status
-Compliance checks completed autonomously.
-`;
-    await this.ensureAndWrite(dir, filePath, content);
-    return filePath;
-  }
-  // ─── Generic Documentation (fallback) ──────────────────────
-  async generateGenericDoc(subtask, _output, projectPath) {
-    const dir = (0, import_node_path7.join)(projectPath, "docs", "generated");
-    const filename = `${this.sanitizeFilename(subtask.title)}.md`;
-    const filePath = (0, import_node_path7.join)(dir, filename);
-    const content = `# ${subtask.title}
-
-## Description
-${subtask.description ?? "Auto-generated documentation."}
-
-## Metadata
-- **Generated:** ${(/* @__PURE__ */ new Date()).toISOString()}
-- **Subtask ID:** ${subtask.id}
-- **Type:** ${subtask.type}
-- **Required Skill:** ${subtask.requiredSkill}
-`;
-    await this.ensureAndWrite(dir, filePath, content);
-    return filePath;
-  }
-  // ─── Changelog Entry ───────────────────────────────────────
-  generateChangelogEntry(subtask) {
-    return `changelog:${subtask.id}:${subtask.title}`;
-  }
-  // ─── Helpers ───────────────────────────────────────────────
-  async ensureAndWrite(dir, filePath, content) {
-    if (!this.writeFilesEnabled) return;
-    try {
-      await (0, import_promises5.mkdir)(dir, { recursive: true });
-      await (0, import_promises5.writeFile)(filePath, content, "utf-8");
-    } catch (error) {
-      console.warn(
-        `AutoDocumentationTrigger: Failed to write ${filePath}:`,
-        error instanceof Error ? error.message : String(error)
-      );
-    }
-  }
-  sanitizeFilename(name) {
-    return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").substring(0, 100);
-  }
-};
-
 // src/engines/orchestrator/autonomous-orchestrator.ts
 var AutonomousOrchestrator = class {
   dnaLoader;
@@ -8353,7 +8072,7 @@ var AutonomousOrchestrator = class {
   async processTask(input) {
     this.status = "processing";
     const trackingMission = {
-      id: (0, import_node_crypto14.randomUUID)(),
+      id: (0, import_node_crypto13.randomUUID)(),
       title: input.title,
       type: input.type,
       priority: input.priority,
@@ -8596,11 +8315,1123 @@ var AutonomousOrchestrator = class {
   }
 };
 
+// src/engines/quality/quality-engine.ts
+var import_node_child_process5 = require("child_process");
+var import_node_crypto14 = require("crypto");
+var import_node_fs5 = require("fs");
+function runCommand2(cmd, cwd, timeout = 12e4) {
+  try {
+    const stdout = (0, import_node_child_process5.execSync)(cmd, {
+      encoding: "utf-8",
+      cwd,
+      timeout,
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+    return { stdout, stderr: "", exitCode: 0 };
+  } catch (err) {
+    const e = err;
+    return {
+      stdout: e.stdout ?? "",
+      stderr: e.stderr ?? String(e),
+      exitCode: e.status ?? 1
+    };
+  }
+}
+function detectPackageManager2(projectPath) {
+  if ((0, import_node_fs5.existsSync)(`${projectPath}/pnpm-lock.yaml`)) return "pnpm";
+  if ((0, import_node_fs5.existsSync)(`${projectPath}/yarn.lock`)) return "yarn";
+  return "npm";
+}
+var QualityEngine = class {
+  gates;
+  history = [];
+  minScore;
+  persistPath;
+  timeout;
+  constructor(gates = [], options) {
+    this.gates = gates;
+    this.minScore = options?.minScore ?? 80;
+    this.persistPath = options?.persistPath;
+    this.timeout = options?.timeout ?? 12e4;
+  }
+  /**
+   * Run all quality gates against a real project
+   */
+  async runAll(projectPath) {
+    const reportId = (0, import_node_crypto14.randomUUID)();
+    const start = Date.now();
+    const checks = [];
+    const metrics = [];
+    for (const gate of this.gates) {
+      try {
+        const result = await this.runGate(gate.name, projectPath);
+        checks.push(result.check);
+        if (result.metric) metrics.push(result.metric);
+      } catch (error) {
+        checks.push({
+          gate: gate.name,
+          passed: false,
+          actual: false,
+          expected: true,
+          message: `Gate ${gate.name} failed: ${error instanceof Error ? error.message : String(error)}`
+        });
+      }
+    }
+    const passedChecks = checks.filter((c) => c.passed).length;
+    const score = checks.length > 0 ? Math.round(passedChecks / checks.length * 100) : 100;
+    const passed = score >= this.minScore && checks.every((c) => c.passed);
+    const report = {
+      id: reportId,
+      passed,
+      score,
+      checks,
+      metrics,
+      duration: Date.now() - start,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    this.history.push(report);
+    return report;
+  }
+  /**
+   * Run a single quality gate
+   */
+  async runGate(gateName, projectPath) {
+    switch (gateName) {
+      case "lint":
+        return this.runLint(projectPath);
+      case "typecheck":
+        return this.runTypecheck(projectPath);
+      case "test_coverage":
+        return this.runCoverage(projectPath);
+      case "security":
+        return this.runSecurity(projectPath);
+      case "performance":
+        return this.runPerformance(projectPath);
+      default:
+        return this.runCustomGate(gateName, projectPath);
+    }
+  }
+  async runLint(projectPath) {
+    let result = runCommand2(
+      "npx biome check . --no-errors-on-unmatched --max-diagnostics=100",
+      projectPath,
+      this.timeout
+    );
+    if (result.exitCode !== 0 && result.stdout.includes("biome")) {
+      result = runCommand2(
+        "npx eslint . --format json --max-warnings=1000",
+        projectPath,
+        this.timeout
+      );
+    }
+    const errorCount = this.parseLintErrors(result.stdout, result.stderr);
+    const passed = errorCount === 0;
+    return {
+      check: {
+        gate: "lint",
+        passed,
+        actual: errorCount,
+        expected: 0,
+        message: passed ? "Lint: no errors found" : `Lint: ${errorCount} error(s) found`,
+        details: { output: result.stdout.slice(0, 2e3) }
+      },
+      metric: { name: "lint", value: errorCount, unit: "errors", passed }
+    };
+  }
+  parseLintErrors(stdout, stderr) {
+    const biomeMatch = stdout.match(/(\d+)\s+error/);
+    if (biomeMatch) return Number.parseInt(biomeMatch[1], 10);
+    try {
+      const data = JSON.parse(stdout);
+      if (Array.isArray(data)) {
+        return data.reduce(
+          (sum, file) => sum + (file.errorCount ?? 0),
+          0
+        );
+      }
+    } catch {
+    }
+    const lines = (stdout + stderr).split("\n");
+    return lines.filter((l) => l.includes("error") && !l.includes("0 errors")).length;
+  }
+  async runTypecheck(projectPath) {
+    const result = runCommand2("npx tsc --noEmit --pretty false", projectPath, this.timeout);
+    const errorCount = this.parseTypecheckErrors(result.stdout, result.stderr);
+    const passed = errorCount === 0;
+    return {
+      check: {
+        gate: "typecheck",
+        passed,
+        actual: errorCount,
+        expected: 0,
+        message: passed ? "TypeScript: no type errors" : `TypeScript: ${errorCount} type error(s)`,
+        details: { output: result.stdout.slice(0, 2e3) }
+      },
+      metric: { name: "typecheck", value: errorCount, unit: "errors", passed }
+    };
+  }
+  parseTypecheckErrors(stdout, stderr) {
+    const output = stdout + stderr;
+    const match = output.match(/Found (\d+) error/);
+    if (match) return Number.parseInt(match[1], 10);
+    return output.split("\n").filter((l) => l.includes("error TS")).length;
+  }
+  async runCoverage(projectPath) {
+    const pkgMgr = detectPackageManager2(projectPath);
+    let testCmd = `${pkgMgr} run test -- --coverage`;
+    try {
+      const pkgJson = JSON.parse(
+        require("fs").readFileSync(`${projectPath}/package.json`, "utf-8")
+      );
+      if (pkgJson.devDependencies?.vitest || pkgJson.dependencies?.vitest) {
+        testCmd = `${pkgMgr} run test:coverage`;
+      } else if (pkgJson.devDependencies?.jest || pkgJson.dependencies?.jest) {
+        testCmd = `${pkgMgr} run test -- --coverage`;
+      }
+    } catch {
+    }
+    const result = runCommand2(testCmd, projectPath, this.timeout * 2);
+    const coverage = this.parseCoverageOutput(result.stdout, result.stderr);
+    const gate = this.gates.find((g) => g.name === "test_coverage");
+    const threshold = gate?.threshold ?? 80;
+    const passed = coverage >= threshold;
+    return {
+      check: {
+        gate: "test_coverage",
+        passed,
+        actual: coverage,
+        expected: threshold,
+        message: passed ? `Coverage: ${coverage}% >= ${threshold}%` : `Coverage: ${coverage}% < ${threshold}% (threshold not met)`,
+        details: { output: result.stdout.slice(0, 2e3) }
+      },
+      metric: { name: "test_coverage", value: coverage, unit: "%", threshold, passed }
+    };
+  }
+  parseCoverageOutput(stdout, stderr) {
+    const output = stdout + stderr;
+    const allFilesMatch = output.match(/All files\s+\|\s+([\d.]+)/);
+    if (allFilesMatch) return Number.parseFloat(allFilesMatch[1]);
+    try {
+      const match2 = output.match(/"total":\s*\{[^}]*"lines":\s*\{[^}]*"pct":\s*([\d.]+)/);
+      if (match2) return Number.parseFloat(match2[1]);
+    } catch {
+    }
+    const pctMatch = output.match(/([\d.]+)%\s+Lines/);
+    if (pctMatch) return Number.parseFloat(pctMatch[1]);
+    return 0;
+  }
+  async runSecurity(projectPath) {
+    const pkgMgr = detectPackageManager2(projectPath);
+    const auditCmd = pkgMgr === "pnpm" ? "pnpm audit --json" : `${pkgMgr} audit --json`;
+    const result = runCommand2(auditCmd, projectPath, this.timeout);
+    const vulns = this.parseAuditOutput(result.stdout, result.stderr);
+    const critical = vulns.critical + vulns.high;
+    const passed = critical === 0;
+    return {
+      check: {
+        gate: "security",
+        passed,
+        actual: critical,
+        expected: 0,
+        message: passed ? `Security: ${vulns.total} vulnerabilities (0 critical/high)` : `Security: ${critical} critical/high vulnerabilities found`,
+        details: vulns
+      },
+      metric: { name: "security", value: vulns.total, unit: "vulnerabilities", passed }
+    };
+  }
+  parseAuditOutput(stdout, _stderr) {
+    const vulns = { total: 0, critical: 0, high: 0, moderate: 0, low: 0, info: 0 };
+    try {
+      const data = JSON.parse(stdout);
+      if (data.vulnerabilities) {
+        for (const [, vuln] of Object.entries(data.vulnerabilities)) {
+          const sev = vuln.severity;
+          if (sev in vulns) vulns[sev]++;
+          vulns.total++;
+        }
+      }
+      if (data.advisories) {
+        for (const advisory of Object.values(data.advisories)) {
+          const sev = advisory.severity;
+          if (sev in vulns) vulns[sev]++;
+          vulns.total++;
+        }
+      }
+    } catch {
+      const lines = stdout.split("\n");
+      for (const line of lines) {
+        if (line.includes("critical")) vulns.critical++;
+        else if (line.includes("high")) vulns.high++;
+        else if (line.includes("moderate")) vulns.moderate++;
+        else if (line.includes("low")) vulns.low++;
+      }
+      vulns.total = vulns.critical + vulns.high + vulns.moderate + vulns.low;
+    }
+    return vulns;
+  }
+  async runPerformance(projectPath) {
+    const largeFiles = this.findLargeFiles(projectPath, 500);
+    const score = Math.max(0, 100 - largeFiles.length * 5);
+    const passed = score >= 80;
+    return {
+      check: {
+        gate: "performance",
+        passed,
+        actual: score,
+        expected: 80,
+        message: passed ? `Performance: score ${score}/100 (${largeFiles.length} large files)` : `Performance: score ${score}/100 (${largeFiles.length} files exceed 500 lines)`,
+        details: { largeFiles: largeFiles.slice(0, 20) }
+      },
+      metric: { name: "performance", value: score, unit: "score", threshold: 80, passed }
+    };
+  }
+  findLargeFiles(projectPath, maxLines) {
+    const largeFiles = [];
+    try {
+      const result = runCommand2(
+        `find . -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" | head -500`,
+        projectPath,
+        1e4
+      );
+      const files = result.stdout.trim().split("\n").filter(Boolean);
+      for (const file of files) {
+        try {
+          const content = (0, import_node_fs5.readFileSync)(`${projectPath}/${file}`, "utf-8");
+          const lines = content.split("\n").length;
+          if (lines > maxLines) {
+            largeFiles.push(`${file} (${lines} lines)`);
+          }
+        } catch {
+        }
+      }
+    } catch {
+    }
+    return largeFiles;
+  }
+  async runCustomGate(gateName, projectPath) {
+    const gate = this.gates.find((g) => g.name === gateName);
+    if (!gate) {
+      return {
+        check: {
+          gate: gateName,
+          passed: true,
+          actual: true,
+          expected: true,
+          message: `Unknown gate: ${gateName}, auto-pass`
+        }
+      };
+    }
+    const config = gate.config;
+    if (config?.command) {
+      const result = runCommand2(String(config.command), projectPath, this.timeout);
+      const passed = result.exitCode === 0;
+      return {
+        check: {
+          gate: gateName,
+          passed,
+          actual: passed,
+          expected: true,
+          message: passed ? `${gateName}: passed` : `${gateName}: failed (exit code ${result.exitCode})`,
+          details: { output: result.stdout.slice(0, 2e3) }
+        },
+        metric: { name: gateName, value: passed ? 1 : 0, passed }
+      };
+    }
+    return {
+      check: {
+        gate: gateName,
+        passed: true,
+        actual: true,
+        expected: true,
+        message: `${gateName}: no execution config, auto-pass`
+      }
+    };
+  }
+  /**
+   * Create a report from raw results
+   */
+  createReport(results) {
+    const passedChecks = results.filter((c) => c.passed).length;
+    const score = results.length > 0 ? Math.round(passedChecks / results.length * 100) : 100;
+    const metrics = results.map((r) => ({
+      name: r.gate,
+      value: typeof r.actual === "number" ? r.actual : r.actual === true ? 1 : 0,
+      passed: r.passed,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    }));
+    return {
+      id: (0, import_node_crypto14.randomUUID)(),
+      passed: score >= this.minScore && results.every((c) => c.passed),
+      score,
+      checks: results,
+      metrics,
+      duration: 0,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }
+  // --- Existing API ---
+  evaluate(metrics) {
+    const reportId = (0, import_node_crypto14.randomUUID)();
+    const start = Date.now();
+    const checks = [];
+    for (const gate of this.gates) {
+      const metric = metrics.find((m) => m.name === gate.name);
+      if (!metric) {
+        checks.push({
+          gate: gate.name,
+          passed: false,
+          actual: false,
+          expected: gate.threshold ?? gate.pass ?? true,
+          message: `Metric not found for gate: ${gate.name}`
+        });
+        continue;
+      }
+      const check = this.evaluateGate(gate, metric);
+      checks.push(check);
+    }
+    const passedChecks = checks.filter((c) => c.passed).length;
+    const score = checks.length > 0 ? Math.round(passedChecks / checks.length * 100) : 100;
+    const passed = score >= this.minScore && checks.every((c) => c.passed);
+    const report = {
+      id: reportId,
+      passed,
+      score,
+      checks,
+      metrics,
+      duration: Date.now() - start,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    this.history.push(report);
+    return report;
+  }
+  evaluateGate(gate, metric) {
+    if (gate.threshold !== void 0) {
+      const actual = metric.value;
+      const passed = actual >= gate.threshold;
+      return {
+        gate: gate.name,
+        passed,
+        actual,
+        expected: gate.threshold,
+        message: passed ? `${gate.name}: ${actual} >= ${gate.threshold}` : `${gate.name}: ${actual} < ${gate.threshold} (threshold not met)`
+      };
+    }
+    if (gate.pass !== void 0) {
+      const actual = metric.passed ?? metric.value > 0;
+      const passed = actual === gate.pass;
+      return {
+        gate: gate.name,
+        passed,
+        actual,
+        expected: gate.pass,
+        message: passed ? `${gate.name}: passed` : `${gate.name}: failed (expected ${gate.pass})`
+      };
+    }
+    return {
+      gate: gate.name,
+      passed: true,
+      actual: metric.value,
+      expected: metric.value,
+      message: `${gate.name}: no threshold configured, auto-pass`
+    };
+  }
+  addGate(gate) {
+    const existing = this.gates.findIndex((g) => g.name === gate.name);
+    if (existing >= 0) {
+      this.gates[existing] = gate;
+    } else {
+      this.gates.push(gate);
+    }
+  }
+  removeGate(name) {
+    const index = this.gates.findIndex((g) => g.name === name);
+    if (index >= 0) {
+      this.gates.splice(index, 1);
+      return true;
+    }
+    return false;
+  }
+  getGates() {
+    return [...this.gates];
+  }
+  getHistory() {
+    return [...this.history];
+  }
+  getLastReport() {
+    return this.history[this.history.length - 1];
+  }
+  summary(report) {
+    const lines = [];
+    lines.push(`Quality Report: ${report.id}`);
+    lines.push(`Overall: ${report.passed ? "\u2705 PASSED" : "\u274C FAILED"} (${report.score}/100)`);
+    lines.push(
+      `Checks: ${report.checks.filter((c) => c.passed).length}/${report.checks.length} passed`
+    );
+    lines.push(`Duration: ${report.duration}ms`);
+    for (const check of report.checks) {
+      const icon = check.passed ? "\u2705" : "\u274C";
+      lines.push(`  ${icon} ${check.message}`);
+    }
+    return lines.join("\n");
+  }
+};
+
+// src/engines/skill-engine.ts
+var import_promises7 = require("fs/promises");
+var import_node_os2 = require("os");
+var import_node_path8 = require("path");
+var SkillEngine = class {
+  registry;
+  dnaLoader;
+  agentSkills = /* @__PURE__ */ new Map();
+  dnaPackages = [];
+  /**
+   * Creates a SkillEngine with an optional registry and DNA loader.
+   *
+   * @param options - Configuration options (registry map and DNA loader)
+   */
+  constructor(options = {}) {
+    this.registry = options.registry ?? /* @__PURE__ */ new Map();
+    this.dnaLoader = options.dnaLoader;
+  }
+  // ─── Core Resolution ──────────────────────────────────────
+  /**
+   * Resolve a skill for a given agent.
+   * Uses two-stage routing: DNA match first, then capability match (semantic fallback).
+   *
+   * @param agentId - The agent's unique identifier
+   * @param skillId - The skill identifier to resolve
+   * @returns Object with hasSkill flag, optional proficiency level, and skill data
+   */
+  async resolve(agentId, skillId) {
+    const agentSkillRefs = this.agentSkills.get(agentId);
+    if (agentSkillRefs) {
+      const ref = agentSkillRefs.find((s) => s.id === skillId);
+      if (ref) {
+        const component2 = this.registry.get(skillId);
+        if (component2 && component2.status === "active") {
+          return {
+            hasSkill: true,
+            proficiency: ref.proficiency,
+            skill: this.toSkill(component2)
+          };
+        }
+      }
+    }
+    const component = this.registry.get(skillId);
+    if (component && component.status === "active") {
+      const agentSkills = this.agentSkills.get(agentId);
+      if (agentSkills && agentSkills.length > 0) {
+        return {
+          hasSkill: true,
+          proficiency: 2,
+          // Default low proficiency for semantic match
+          skill: this.toSkill(component)
+        };
+      }
+    }
+    return { hasSkill: false };
+  }
+  // ─── Delegation Validation ─────────────────────────────────
+  /**
+   * Validate whether an orchestrator can delegate a task to a target agent
+   * given the required skills.
+   *
+   * @param _orchestrator - The orchestrator agent ID (unused, reserved)
+   * @param targetAgent - The target agent ID to validate
+   * @param requiredSkills - Array of skill IDs required for the task
+   * @returns DelegationValidation with allowed flag and any missing/insufficient skills
+   */
+  async validateDelegation(_orchestrator, targetAgent, requiredSkills) {
+    const missingSkills = [];
+    const insufficientProficiency = [];
+    const agentSkillRefs = this.agentSkills.get(targetAgent) ?? [];
+    for (const skillId of requiredSkills) {
+      const ref = agentSkillRefs.find((s) => s.id === skillId);
+      if (!ref) {
+        missingSkills.push(skillId);
+      } else if (ref.proficiency && ref.proficiency < 2) {
+        insufficientProficiency.push(skillId);
+      }
+    }
+    const allowed = missingSkills.length === 0 && insufficientProficiency.length === 0;
+    const reason = allowed ? void 0 : this.buildRejectionReason(missingSkills, insufficientProficiency);
+    return { allowed, missingSkills, insufficientProficiency, reason };
+  }
+  // ─── Listing / Search ──────────────────────────────────────
+  /**
+   * List all available skills from the loaded DNA packages and registry.
+   *
+   * @param _dna - Optional DNA package filter (unused, reserved)
+   * @returns Array of available Skill objects
+   */
+  async listAvailable(_dna) {
+    const skills = [];
+    for (const component of this.registry.values()) {
+      if (component.type === "skill" && component.status === "active") {
+        skills.push(this.toSkill(component));
+      }
+    }
+    return skills;
+  }
+  /**
+   * Search skills by name, category, or tags.
+   *
+   * @param query - Search query string
+   * @param filters - Optional filters (category, authorityLevel, source)
+   * @returns Array of matching Skill objects
+   */
+  async search(query, filters) {
+    const results = [];
+    const lowerQuery = query.toLowerCase();
+    for (const component of this.registry.values()) {
+      if (component.type !== "skill") continue;
+      const nameMatch = component.name.toLowerCase().includes(lowerQuery);
+      const descMatch = component.description?.toLowerCase().includes(lowerQuery) ?? false;
+      const tagMatch = component.tags?.some((t) => t.toLowerCase().includes(lowerQuery)) ?? false;
+      if (!nameMatch && !descMatch && !tagMatch) continue;
+      const skill = this.toSkill(component);
+      if (filters?.category && skill.category !== filters.category) continue;
+      if (filters?.authorityLevel && skill.authorityRequired !== filters.authorityLevel) continue;
+      if (filters?.source && skill.source !== filters.source) continue;
+      results.push(skill);
+    }
+    return results;
+  }
+  /**
+   * Get a specific skill by ID from the registry.
+   *
+   * @param skillId - The skill identifier
+   * @returns The Skill object or null if not found
+   */
+  async get(skillId) {
+    const component = this.registry.get(skillId);
+    if (component?.type !== "skill") return null;
+    return this.toSkill(component);
+  }
+  // ─── Registry Management ───────────────────────────────────
+  /**
+   * Install a component into the registry.
+   *
+   * @param component - Component descriptor (type, id, source, optional metadata)
+   * @returns InstallResult with success flag and component data
+   */
+  async install(component) {
+    if (this.registry.has(component.id)) {
+      return {
+        success: false,
+        error: `Component "${component.id}" already exists in registry`
+      };
+    }
+    const entry = {
+      id: component.id,
+      type: component.type,
+      name: component.id,
+      source: component.source,
+      version: "1.0.0",
+      status: "active",
+      dependencies: [],
+      tags: [],
+      metadata: component.metadata,
+      installedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    this.registry.set(component.id, entry);
+    return { success: true, component: entry };
+  }
+  /**
+   * Uninstall a component from the registry.
+   *
+   * @param componentId - The component ID to remove
+   */
+  async uninstall(componentId) {
+    this.registry.delete(componentId);
+  }
+  /**
+   * Sync components from a DNA package, extracting persona skills.
+   *
+   * @param dna - The DNA package to sync from
+   * @returns SyncFromDNAResult with added, updated, and removed counts
+   */
+  async syncFromDNA(dna) {
+    let added = 0;
+    let updated = 0;
+    let removed = 0;
+    const existingIds = new Set(this.registry.keys());
+    for (const persona of dna.personas) {
+      const skills = persona.skills ?? [];
+      const skillRefs = [];
+      for (const skill of skills) {
+        if (typeof skill === "string") {
+          skillRefs.push({ id: skill });
+        } else {
+          skillRefs.push(skill);
+        }
+      }
+      this.agentSkills.set(persona.role, skillRefs);
+      for (const ref of skillRefs) {
+        if (this.registry.has(ref.id)) {
+          updated++;
+          existingIds.delete(ref.id);
+        } else {
+          const component = {
+            id: ref.id,
+            type: "skill",
+            name: ref.id,
+            source: "behavioros",
+            version: "1.0.0",
+            status: "active",
+            dependencies: [],
+            tags: [],
+            installedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+          };
+          this.registry.set(ref.id, component);
+          added++;
+        }
+      }
+    }
+    for (const id of existingIds) {
+      const comp = this.registry.get(id);
+      if (comp && comp.source === "behavioros") {
+        this.registry.delete(id);
+        removed++;
+      }
+    }
+    this.dnaPackages.push(dna);
+    return { added, updated, removed };
+  }
+  /**
+   * Sync components from a local skills directory.
+   * Scans for .skillfish.json or SKILL.md files in subdirectories.
+   *
+   * @param path - Path to the local skills directory
+   * @returns SyncFromLocalResult with added count and any errors
+   */
+  async syncFromLocal(path) {
+    let added = 0;
+    const errors = [];
+    try {
+      await (0, import_promises7.access)(path);
+    } catch {
+      return { added, errors };
+    }
+    const entries = await (0, import_promises7.readdir)(path, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const skillfishPath = (0, import_node_path8.join)(path, entry.name, ".skillfish.json");
+      const skillMdPath = (0, import_node_path8.join)(path, entry.name, "SKILL.md");
+      try {
+        await (0, import_promises7.access)(skillfishPath);
+        const content = await (0, import_promises7.readFile)(skillfishPath, "utf-8");
+        const skillfish = JSON.parse(content);
+        const component = {
+          id: skillfish.id ?? entry.name,
+          type: skillfish.type ?? "skill",
+          name: skillfish.name ?? entry.name,
+          source: "local",
+          version: skillfish.version ?? "1.0.0",
+          status: "active",
+          description: skillfish.description,
+          dependencies: skillfish.dependencies ?? [],
+          tags: skillfish.tags ?? [],
+          metadata: { path: (0, import_node_path8.join)(path, entry.name) },
+          installedAt: (/* @__PURE__ */ new Date()).toISOString(),
+          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        };
+        if (!this.registry.has(component.id)) {
+          this.registry.set(component.id, component);
+          added++;
+        }
+      } catch {
+        try {
+          await (0, import_promises7.access)(skillMdPath);
+          const content = await (0, import_promises7.readFile)(skillMdPath, "utf-8");
+          const nameMatch = content.match(/^#\s+(.+)/m);
+          const descMatch = content.match(/## Description\s*\n([^#]+)/);
+          const component = {
+            id: entry.name,
+            type: "skill",
+            name: nameMatch?.[1] ?? entry.name,
+            source: "local",
+            version: "1.0.0",
+            status: "active",
+            description: descMatch?.[1]?.trim(),
+            dependencies: [],
+            tags: [],
+            metadata: { path: (0, import_node_path8.join)(path, entry.name) },
+            installedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+          };
+          if (!this.registry.has(component.id)) {
+            this.registry.set(component.id, component);
+            added++;
+          }
+        } catch {
+          errors.push(`Failed to parse skill at: ${entry.name}`);
+        }
+      }
+    }
+    return { added, errors };
+  }
+  // ─── Ecosystem Status ──────────────────────────────────────
+  /**
+   * Get the full status of the ecosystem.
+   *
+   * @returns SkillEngineStatus with agents, skills, MCPs, design systems, and DNAs
+   */
+  async status() {
+    const agents = Array.from(this.agentSkills.entries()).map(([id, skills2]) => ({
+      id,
+      status: "active",
+      skillsCount: skills2.length,
+      skills: skills2.map((s) => s.id)
+    }));
+    const skills = [];
+    const mcps = [];
+    const designSystems = [];
+    for (const component of this.registry.values()) {
+      switch (component.type) {
+        case "skill":
+          skills.push(component);
+          break;
+        case "mcp":
+          mcps.push(component);
+          break;
+        case "design-system":
+          designSystems.push(component);
+          break;
+      }
+    }
+    const dnas = this.dnaPackages.map((dna) => ({
+      id: dna.id,
+      version: dna.version,
+      active: true
+    }));
+    return { agents, skills, mcps, designSystems, dnas };
+  }
+  // ─── Diagnostics ──────────────────────────────────────────
+  /**
+   * Run diagnostics on the skill ecosystem.
+   * Checks for error states, outdated components, conflicts,
+   * dangling skill references, and agents with no skills.
+   *
+   * @returns SkillEngineDoctorReport with health status and issues
+   */
+  async doctor() {
+    const issues = [];
+    let totalComponents = 0;
+    let active = 0;
+    for (const component of this.registry.values()) {
+      totalComponents++;
+      if (component.status === "active") active++;
+      if (component.status === "error") {
+        issues.push({
+          severity: "error",
+          component: component.id,
+          message: `Component "${component.id}" is in error state`,
+          fix: "Try reinstalling the component"
+        });
+      }
+      if (component.status === "outdated") {
+        issues.push({
+          severity: "warning",
+          component: component.id,
+          message: `Component "${component.id}" is outdated (v${component.version})`,
+          fix: "Sync from source to get latest version"
+        });
+      }
+      if (component.status === "conflict") {
+        issues.push({
+          severity: "error",
+          component: component.id,
+          message: `Component "${component.id}" has a version conflict`,
+          fix: "Remove duplicate entries and reinstall"
+        });
+      }
+    }
+    for (const [agentId, refs] of this.agentSkills) {
+      for (const ref of refs) {
+        if (!this.registry.has(ref.id)) {
+          issues.push({
+            severity: "warning",
+            component: `${agentId} \u2192 ${ref.id}`,
+            message: `Agent "${agentId}" references skill "${ref.id}" which is not in the registry`,
+            fix: "Add the missing skill component or remove the reference"
+          });
+        }
+      }
+    }
+    for (const [agentId, refs] of this.agentSkills) {
+      if (refs.length === 0) {
+        issues.push({
+          severity: "warning",
+          component: agentId,
+          message: `Agent "${agentId}" has no skills assigned`,
+          fix: "Assign skills to this agent in the DNA package"
+        });
+      }
+    }
+    const healthy = issues.filter((i) => i.severity === "error").length === 0;
+    return {
+      healthy,
+      issues,
+      stats: {
+        totalComponents,
+        active,
+        issues: issues.length
+      }
+    };
+  }
+  // ─── Internal Helpers ──────────────────────────────────────
+  toSkill(component) {
+    return {
+      id: component.id,
+      name: component.name,
+      version: component.version,
+      description: component.description ?? "",
+      category: "custom",
+      source: component.source,
+      tags: component.tags,
+      installedAt: component.installedAt,
+      updatedAt: component.updatedAt
+    };
+  }
+  buildRejectionReason(missing, insufficient) {
+    const parts = [];
+    if (missing.length > 0) {
+      parts.push(`missing skills: ${missing.join(", ")}`);
+    }
+    if (insufficient.length > 0) {
+      parts.push(`insufficient proficiency: ${insufficient.join(", ")}`);
+    }
+    return `Delegation not allowed: ${parts.join("; ")}`;
+  }
+  /**
+   * Get the raw registry (for testing/inspection).
+   *
+   * @returns The internal Map of component ID to ComponentRegistry
+   */
+  getRegistry() {
+    return this.registry;
+  }
+  /**
+   * Get agent skill refs (for testing/inspection).
+   *
+   * @returns The internal Map of agent ID to SkillRef array
+   */
+  getAgentSkills() {
+    return this.agentSkills;
+  }
+  /**
+   * Load from the default .opencode/skills/ directory.
+   * Checks both the project-level and home directory paths.
+   *
+   * @returns SyncFromLocalResult with added count and errors
+   */
+  async loadFromOpenCodeSkills() {
+    const possiblePaths = [
+      (0, import_node_path8.join)(process.cwd(), ".opencode", "skills"),
+      (0, import_node_path8.join)((0, import_node_os2.homedir)(), ".opencode", "skills")
+    ];
+    let totalAdded = 0;
+    const allErrors = [];
+    for (const path of possiblePaths) {
+      const result = await this.syncFromLocal(path);
+      totalAdded += result.added;
+      allErrors.push(...result.errors);
+    }
+    return { added: totalAdded, errors: allErrors };
+  }
+};
+
+// src/engines/telemetry/governance-telemetry.ts
+var GovernanceTelemetryEngine = class {
+  config;
+  windowStart = (/* @__PURE__ */ new Date()).toISOString();
+  ruleCounters = /* @__PURE__ */ new Map();
+  approvedCounters = /* @__PURE__ */ new Map();
+  agentCounters = /* @__PURE__ */ new Map();
+  missionsCompleted = 0;
+  missionsFailed = 0;
+  exportTimer;
+  sendWebhook;
+  constructor(config, sendWebhook) {
+    this.config = { enabled: false, ...config };
+    this.sendWebhook = sendWebhook;
+    if (this.config.enabled && this.config.webhookUrl && this.sendWebhook) {
+      const interval = this.config.exportIntervalMs ?? 15 * 60 * 1e3;
+      this.exportTimer = setInterval(() => {
+        this.exportNow().catch(() => {
+        });
+      }, interval);
+      this.exportTimer.unref?.();
+    }
+  }
+  isEnabled() {
+    return this.config.enabled;
+  }
+  /** Extract only the known-safe identifying fields from an unknown governance context. */
+  safeAgentId(context) {
+    if (context && typeof context === "object" && "agentId" in context) {
+      const id = context.agentId;
+      if (typeof id === "string" && id.length > 0) return id;
+    }
+    return "unknown";
+  }
+  bumpRuleCounter(map, rule) {
+    if (!this.config.enabled) return;
+    const existing = map.get(rule.id);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      map.set(rule.id, { ruleId: rule.id, ruleName: rule.name, level: rule.level, action: rule.action, count: 1 });
+    }
+  }
+  getOrCreateAgentCounter(agentId) {
+    let counter = this.agentCounters.get(agentId);
+    if (!counter) {
+      counter = { agentId, violationsTriggered: 0, missionsCompleted: 0, missionsFailed: 0 };
+      this.agentCounters.set(agentId, counter);
+    }
+    return counter;
+  }
+  /** Wire this into BehaviorOSEngine's 'governance:violation' event. */
+  onGovernanceViolation(rule, context) {
+    if (!this.config.enabled) return;
+    this.bumpRuleCounter(this.ruleCounters, rule);
+    this.getOrCreateAgentCounter(this.safeAgentId(context)).violationsTriggered += 1;
+  }
+  /** Wire this into BehaviorOSEngine's 'governance:approved' event. */
+  onGovernanceApproved(rule, _context) {
+    if (!this.config.enabled) return;
+    this.bumpRuleCounter(this.approvedCounters, rule);
+  }
+  /** Wire this into BehaviorOSEngine's 'mission:completed' event. */
+  onMissionCompleted(mission) {
+    if (!this.config.enabled) return;
+    this.missionsCompleted += 1;
+    for (const agentId of mission.assignees ?? []) {
+      this.getOrCreateAgentCounter(agentId).missionsCompleted += 1;
+    }
+  }
+  /** Wire this into BehaviorOSEngine's 'mission:failed' event. */
+  onMissionFailed(mission, _error) {
+    if (!this.config.enabled) return;
+    this.missionsFailed += 1;
+    for (const agentId of mission.assignees ?? []) {
+      this.getOrCreateAgentCounter(agentId).missionsFailed += 1;
+    }
+  }
+  /** Aggregate-only summary. Safe to log, display, or export — no free-text fields. */
+  getSummary() {
+    const total = this.missionsCompleted + this.missionsFailed;
+    return {
+      generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      windowStart: this.windowStart,
+      violationsBlocked: [...this.ruleCounters.values()],
+      violationsApproved: [...this.approvedCounters.values()],
+      byAgent: [...this.agentCounters.values()],
+      missionsCompleted: this.missionsCompleted,
+      missionsFailed: this.missionsFailed,
+      agentEfficiency: total > 0 ? this.missionsCompleted / total : null
+    };
+  }
+  /** Push the current summary to the configured webhook, if enabled and configured. */
+  async exportNow() {
+    if (!this.config.enabled || !this.config.webhookUrl || !this.sendWebhook) return;
+    await this.sendWebhook(this.getSummary());
+  }
+  /** Stop the export interval timer, if running. Call on shutdown. */
+  stop() {
+    if (this.exportTimer) clearInterval(this.exportTimer);
+  }
+};
+
+// src/engines/integration/webhook-manager.ts
+var import_node_crypto15 = require("crypto");
+var WebhookManager = class {
+  webhooks = /* @__PURE__ */ new Map();
+  deliveryHistory = [];
+  register(url, events, secret, headers) {
+    const id = (0, import_node_crypto15.randomUUID)();
+    const webhook = {
+      id,
+      url,
+      events,
+      secret,
+      headers,
+      retryCount: 0,
+      maxRetries: 3,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    this.webhooks.set(id, webhook);
+    return id;
+  }
+  unregister(id) {
+    if (!this.webhooks.has(id)) {
+      throw new Error(`Webhook not found: ${id}`);
+    }
+    this.webhooks.delete(id);
+  }
+  async deliver(event, payload) {
+    const matched = Array.from(this.webhooks.values()).filter((w) => w.events.includes(event));
+    if (matched.length === 0) return [];
+    const results = [];
+    for (const webhook of matched) {
+      let delivered = false;
+      let statusCode;
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Webhook-Event": event,
+        "X-Webhook-Signature": webhook.secret,
+        ...webhook.headers
+      };
+      try {
+        const response = await fetch(webhook.url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload)
+        });
+        delivered = response.ok;
+        statusCode = response.status;
+      } catch {
+        delivered = false;
+        statusCode = void 0;
+      }
+      if (!delivered && webhook.retryCount < webhook.maxRetries) {
+        webhook.retryCount++;
+      }
+      const record = {
+        webhookId: webhook.id,
+        event,
+        delivered,
+        statusCode,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      this.deliveryHistory.push(record);
+      results.push({ webhookId: webhook.id, delivered, statusCode });
+    }
+    return results;
+  }
+  list() {
+    return Array.from(this.webhooks.values());
+  }
+  getDeliveryHistory(webhookId) {
+    if (webhookId) {
+      return this.deliveryHistory.filter((r) => r.webhookId === webhookId);
+    }
+    return [...this.deliveryHistory];
+  }
+};
+
 // src/engines/core-engine.ts
+var DEFAULT_MAX_LOG_ENTRIES = 1e3;
 var BehaviorOSEngine = class extends import_eventemitter35.default {
   dna;
   auditLog = [];
   qualityMetrics = [];
+  maxLogEntries;
   config;
   // Extracted managers
   missionManager;
@@ -8615,10 +9446,14 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
   ecosystemRegistry;
   handoffProtocol;
   autonomousOrchestrator;
+  redisCache;
+  telemetryEngine;
+  telemetryWebhooks;
   constructor(config) {
     super();
     this.config = config;
     this.dna = config.dna;
+    this.maxLogEntries = config.maxLogEntries ?? DEFAULT_MAX_LOG_ENTRIES;
     this.governanceEngine = new GovernanceEngine(this.dna.governance ?? []);
     this.qualityEngine = new QualityEngine(this.dna.quality ?? [], {
       minScore: config.quality?.minCoverage ?? 80
@@ -8629,9 +9464,17 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
     });
     this.missionEngine = new MissionEngine();
     this.auditEngine = new AuditEngine();
+    const aitmplAdapter = new AITMPLAdapter();
+    const openDesignAdapter = new OpenDesignAdapter();
+    const uiuxAdapter = new UIUXProMaxAdapter();
     const dnaLoader = new DNALoader();
     this.skillEngine = new SkillEngine({ dnaLoader });
-    this.ecosystemRegistry = new EcosystemRegistry({ skillEngine: this.skillEngine });
+    this.ecosystemRegistry = new EcosystemRegistry({
+      skillEngine: this.skillEngine,
+      aitmpl: aitmplAdapter,
+      openDesign: openDesignAdapter,
+      uiUx: uiuxAdapter
+    });
     this.handoffProtocol = new HandoffProtocol();
     this.autonomousOrchestrator = new AutonomousOrchestrator({
       dnaLoader,
@@ -8643,6 +9486,31 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
     });
     this.agentManager = new AgentManager(this.dna);
     this.missionManager = new MissionManager(this, this.auditEvent.bind(this));
+    if (config.redis) {
+      this.redisCache = new RedisCache(config.redis);
+    }
+    this.telemetryWebhooks = new WebhookManager();
+    const telemetryConfig = config.telemetry;
+    if (telemetryConfig?.enabled && telemetryConfig.webhookUrl) {
+      this.telemetryWebhooks.register(telemetryConfig.webhookUrl, ["telemetry:summary"], (0, import_node_crypto16.randomUUID)());
+    }
+    this.telemetryEngine = new GovernanceTelemetryEngine(
+      telemetryConfig,
+      (payload) => this.telemetryWebhooks.deliver("telemetry:summary", payload).then(() => void 0)
+    );
+    this.on(
+      "governance:violation",
+      (rule, context) => this.telemetryEngine.onGovernanceViolation(rule, context)
+    );
+    this.on(
+      "governance:approved",
+      (rule, context) => this.telemetryEngine.onGovernanceApproved(rule, context)
+    );
+    this.on("mission:completed", (mission) => this.telemetryEngine.onMissionCompleted(mission));
+    this.on(
+      "mission:failed",
+      (mission, error) => this.telemetryEngine.onMissionFailed(mission, error)
+    );
   }
   // ─── Mission Management (delegates to MissionManager) ─────
   async createMission(input) {
@@ -8680,14 +9548,24 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
         warnings: [],
         reason: void 0
       };
+    const agentRole = context.agentRole ?? "system";
+    const explicitBoundaries = context.boundaries;
+    const personaBoundaries = explicitBoundaries ? void 0 : (this.dna.personas ?? []).find((p) => p.role === agentRole)?.boundaries;
     const govContext = {
       agentId: context.agentId ?? "system",
-      agentRole: context.agentRole ?? "system",
+      agentRole,
       agentAuthority: context.agentAuthority ?? "c-level",
       action,
       targetType: this.mapTargetType(context),
       impact: this.mapImpact(context),
-      metadata: context
+      metadata: context,
+      boundaries: explicitBoundaries ?? personaBoundaries,
+      targetFiles: context.targetFiles,
+      targetModules: context.targetModules,
+      fileCount: context.fileCount,
+      lineCount: context.lineCount,
+      targetDependency: context.targetDependency,
+      currentTime: context.currentTime
     };
     const decision = this.governanceEngine.evaluate(govContext);
     const applicableRules = this.governanceEngine.getApplicableRules(govContext);
@@ -8747,6 +9625,9 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
     }
     for (const m of report.metrics) {
       this.qualityMetrics.push(m);
+      if (this.qualityMetrics.length > this.maxLogEntries) {
+        this.qualityMetrics.splice(0, this.qualityMetrics.length - this.maxLogEntries);
+      }
       this.emit("quality:metric", m);
     }
     return { passed: report.passed, failedGates, metrics: report.metrics };
@@ -8770,7 +9651,7 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
   // ─── Internal Audit Log ───────────────────────────────────
   auditEvent(type, severity, result, description, details) {
     const event = {
-      id: (0, import_node_crypto15.randomUUID)(),
+      id: (0, import_node_crypto16.randomUUID)(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       type,
       severity,
@@ -8779,11 +9660,23 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
       details
     };
     this.auditLog.push(event);
+    if (this.auditLog.length > this.maxLogEntries) {
+      this.auditLog.splice(0, this.auditLog.length - this.maxLogEntries);
+    }
     this.emit("audit:event", event);
     return event;
   }
   getAuditLog() {
     return [...this.auditLog];
+  }
+  // ─── Telemetry (delegates to GovernanceTelemetryEngine) ──
+  /**
+   * Aggregate-only governance metrics collected since this engine started. Returns all-zero
+   * counters if telemetry was never enabled (config.telemetry.enabled) — nothing is recorded
+   * unless explicitly opted in.
+   */
+  getTelemetrySummary() {
+    return this.telemetryEngine.getSummary();
   }
   // ─── Query Methods ────────────────────────────────────────
   getMission(id) {
@@ -8831,11 +9724,11 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
 };
 
 // src/engines/coverage-engine.ts
-var import_promises6 = require("fs/promises");
-var import_node_path8 = require("path");
+var import_promises8 = require("fs/promises");
+var import_node_path9 = require("path");
 async function fileExists2(filePath) {
   try {
-    await (0, import_promises6.access)(filePath);
+    await (0, import_promises8.access)(filePath);
     return true;
   } catch {
     return false;
@@ -8843,7 +9736,7 @@ async function fileExists2(filePath) {
 }
 async function globMatch(dirPath, pattern) {
   try {
-    const entries = await (0, import_promises6.readdir)(dirPath);
+    const entries = await (0, import_promises8.readdir)(dirPath);
     const ext = pattern.replace("*.", "");
     return entries.filter((e) => e.endsWith(ext));
   } catch {
@@ -8852,7 +9745,7 @@ async function globMatch(dirPath, pattern) {
 }
 async function dirHasFile(dirPath, fileName) {
   try {
-    const entries = await (0, import_promises6.readdir)(dirPath);
+    const entries = await (0, import_promises8.readdir)(dirPath);
     return entries.includes(fileName);
   } catch {
     return false;
@@ -8988,7 +9881,7 @@ var CoverageEngine = class {
     const missing = [];
     let found = 0;
     for (const item of check.expected) {
-      const fullPath = (0, import_node_path8.join)(projectPath, item);
+      const fullPath = (0, import_node_path9.join)(projectPath, item);
       if (item.endsWith("/")) {
         const dirExists = await fileExists2(fullPath);
         if (dirExists) {
@@ -8997,7 +9890,7 @@ var CoverageEngine = class {
           missing.push(item);
         }
       } else if (item.includes("*.")) {
-        const dirPath = (0, import_node_path8.join)(projectPath, item.split("/*.")[0]);
+        const dirPath = (0, import_node_path9.join)(projectPath, item.split("/*.")[0]);
         const matches = await globMatch(dirPath, item);
         if (matches.length > 0) {
           found += matches.length;
@@ -9006,7 +9899,7 @@ var CoverageEngine = class {
         }
       } else if (item.includes("/src/index.ts")) {
         const pkgDir = item.replace("/src/index.ts", "");
-        const exists = await dirHasFile((0, import_node_path8.join)(projectPath, pkgDir, "src"), "index.ts");
+        const exists = await dirHasFile((0, import_node_path9.join)(projectPath, pkgDir, "src"), "index.ts");
         if (exists) {
           found++;
         } else {
@@ -9232,8 +10125,8 @@ var DecisionEngine = class {
 };
 
 // src/engines/memory-engine.ts
-var import_promises7 = require("fs/promises");
-var import_node_path9 = require("path");
+var import_promises9 = require("fs/promises");
+var import_node_path10 = require("path");
 var CATEGORY_FILES = {
   context: "memory.md",
   decision: "decisions.md",
@@ -9259,7 +10152,7 @@ var MemoryEngine = class {
    * @param options - Configuration options (basePath defaults to .behavioros/)
    */
   constructor(options) {
-    this.basePath = options?.basePath ?? (0, import_node_path9.join)(process.cwd(), ".behavioros");
+    this.basePath = options?.basePath ?? (0, import_node_path10.join)(process.cwd(), ".behavioros");
   }
   // ----------------------------------------------------------
   // Read operations
@@ -9274,9 +10167,9 @@ var MemoryEngine = class {
     const files = [];
     for (const category of CATEGORY_ORDER) {
       const fileName = CATEGORY_FILES[category];
-      const filePath = (0, import_node_path9.join)(this.basePath, fileName);
+      const filePath = (0, import_node_path10.join)(this.basePath, fileName);
       try {
-        const content = await (0, import_promises7.readFile)(filePath, "utf-8");
+        const content = await (0, import_promises9.readFile)(filePath, "utf-8");
         const stat2 = await import("fs/promises").then((fs) => fs.stat(filePath));
         files.push({
           path: filePath,
@@ -9301,9 +10194,9 @@ var MemoryEngine = class {
    */
   async read(category) {
     await this.ensureDirectory();
-    const filePath = (0, import_node_path9.join)(this.basePath, CATEGORY_FILES[category]);
+    const filePath = (0, import_node_path10.join)(this.basePath, CATEGORY_FILES[category]);
     try {
-      const content = await (0, import_promises7.readFile)(filePath, "utf-8");
+      const content = await (0, import_promises9.readFile)(filePath, "utf-8");
       return this.parseMarkdown(content, category);
     } catch {
       return [];
@@ -9442,7 +10335,7 @@ var MemoryEngine = class {
   // Private helpers
   // ----------------------------------------------------------
   async ensureDirectory() {
-    await (0, import_promises7.mkdir)(this.basePath, { recursive: true });
+    await (0, import_promises9.mkdir)(this.basePath, { recursive: true });
   }
   parseMarkdown(content, category) {
     const entries = [];
@@ -9494,9 +10387,9 @@ var MemoryEngine = class {
     return lines.join("\n");
   }
   async writeCategoryFile(category, entries) {
-    const filePath = (0, import_node_path9.join)(this.basePath, CATEGORY_FILES[category]);
+    const filePath = (0, import_node_path10.join)(this.basePath, CATEGORY_FILES[category]);
     const content = this.serializeMarkdown(entries);
-    await (0, import_promises7.writeFile)(filePath, content, "utf-8");
+    await (0, import_promises9.writeFile)(filePath, content, "utf-8");
   }
   categoryFromPath(filePath) {
     const fileName = filePath.split(/[/\\]/).pop() ?? "";
@@ -9507,21 +10400,21 @@ var MemoryEngine = class {
   }
   async withLock(fn) {
     const prev = this.writeLock;
-    let resolve2;
+    let resolve3;
     this.writeLock = new Promise((r) => {
-      resolve2 = r;
+      resolve3 = r;
     });
     await prev;
     try {
       return await fn();
     } finally {
-      resolve2(void 0);
+      resolve3(void 0);
     }
   }
 };
 
 // src/engines/pipeline/pipeline-engine.ts
-var import_node_crypto16 = require("crypto");
+var import_node_crypto17 = require("crypto");
 var import_schemas5 = require("@behavioros/schemas");
 var import_eventemitter36 = __toESM(require("eventemitter3"));
 var PipelineEngine = class extends import_eventemitter36.default {
@@ -9800,7 +10693,7 @@ var PipelineEngine = class extends import_eventemitter36.default {
   }
   createInitialState() {
     return {
-      id: (0, import_node_crypto16.randomUUID)(),
+      id: (0, import_node_crypto17.randomUUID)(),
       dnaId: this.dna.id,
       status: "created",
       currentLayer: this.options.startLayer ?? 1,
@@ -10019,7 +10912,7 @@ var PipelineEngine = class extends import_eventemitter36.default {
 
 // src/engines/protocol-engine.ts
 var import_node_fs6 = require("fs");
-var import_node_path10 = require("path");
+var import_node_path11 = require("path");
 var PROTOCOL_STEPS = {
   DNA_SELECTED: 1,
   TRUTH_RESOLVED: 2,
@@ -10428,17 +11321,174 @@ var ProtocolStateTracker = class _ProtocolStateTracker {
       return false;
     }
   }
-  /** Get the default state file path for a project root */
+  /**
+   * Get the default state file path for a project root.
+   *
+   * When no explicit `projectRoot` is given, walks up from `cwd()` looking for a
+   * `.git` directory to anchor the state file to the repo root. This avoids silently
+   * creating/reading `.agent_state.json` relative to whatever directory the MCP
+   * server happened to be launched from (e.g. a subpackage) instead of the intended
+   * project root. Falls back to `cwd()` with a stderr warning if no repo root is found.
+   */
   static getDefaultStateFilePath(projectRoot) {
     if (projectRoot) {
-      return (0, import_node_path10.join)(projectRoot, ".agent_state.json");
+      return (0, import_node_path11.join)(projectRoot, ".agent_state.json");
     }
-    return ".agent_state.json";
+    const start = (0, import_node_path11.resolve)(process.cwd());
+    let dir = start;
+    for (let i = 0; i < 20; i++) {
+      if ((0, import_node_fs6.existsSync)((0, import_node_path11.join)(dir, ".git"))) {
+        return (0, import_node_path11.join)(dir, ".agent_state.json");
+      }
+      const parent = (0, import_node_path11.dirname)(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+    console.error(
+      `[behavioros] Could not find a .git directory above ${start}; using .agent_state.json relative to the current working directory. Pass an explicit projectRoot to avoid this warning and prevent state files from landing in the wrong location.`
+    );
+    return (0, import_node_path11.join)(start, ".agent_state.json");
   }
 };
 
+// src/state/agent-state-store.ts
+var import_node_crypto18 = require("crypto");
+var import_node_fs7 = require("fs");
+var import_node_os3 = require("os");
+var import_node_path12 = require("path");
+function getStateSecretPath() {
+  return process.env.BEHAVIOROS_STATE_KEY_PATH ?? (0, import_node_path12.join)((0, import_node_os3.homedir)(), ".behavioros", "state.key");
+}
+function isStrictModeEnrolled() {
+  if (process.env.BEHAVIOROS_STATE_SECRET) return true;
+  return (0, import_node_fs7.existsSync)(getStateSecretPath());
+}
+function getOrCreateStateSecret() {
+  const envSecret = process.env.BEHAVIOROS_STATE_SECRET;
+  if (envSecret) return envSecret;
+  const keyPath = getStateSecretPath();
+  if ((0, import_node_fs7.existsSync)(keyPath)) {
+    return (0, import_node_fs7.readFileSync)(keyPath, "utf-8").trim();
+  }
+  const secret = (0, import_node_crypto18.randomBytes)(32).toString("hex");
+  (0, import_node_fs7.mkdirSync)((0, import_node_path12.dirname)(keyPath), { recursive: true });
+  (0, import_node_fs7.writeFileSync)(keyPath, secret, "utf-8");
+  try {
+    (0, import_node_fs7.chmodSync)(keyPath, 384);
+  } catch {
+  }
+  return secret;
+}
+function canonicalPayload(protocol, sessionId, issuedAt) {
+  return [
+    protocol.dnaSelected,
+    protocol.truthResolved,
+    protocol.missionCreated,
+    protocol.auditDone,
+    protocol.learningRecorded,
+    protocol.activeRole ?? "",
+    sessionId,
+    issuedAt
+  ].join("|");
+}
+function signProtocolState(protocol, secret, sessionId, issuedAt) {
+  return (0, import_node_crypto18.createHmac)("sha256", secret).update(canonicalPayload(protocol, sessionId, issuedAt)).digest("hex");
+}
+function acquireLock(lockPath, timeoutMs = 3e3, staleMs = 1e4) {
+  const deadline = Date.now() + timeoutMs;
+  for (; ; ) {
+    try {
+      (0, import_node_fs7.writeFileSync)(lockPath, String(process.pid), { flag: "wx" });
+      return;
+    } catch (err) {
+      if (err.code !== "EEXIST") throw err;
+      try {
+        const stat2 = (0, import_node_fs7.statSync)(lockPath);
+        if (Date.now() - stat2.mtimeMs > staleMs) {
+          try {
+            (0, import_node_fs7.unlinkSync)(lockPath);
+            continue;
+          } catch {
+          }
+        }
+      } catch {
+      }
+      if (Date.now() > deadline) {
+        throw new Error(`Timed out waiting for lock: ${lockPath}`);
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+    }
+  }
+}
+function releaseLock(lockPath) {
+  try {
+    (0, import_node_fs7.unlinkSync)(lockPath);
+  } catch {
+  }
+}
+function atomicWriteFileSync(path, content) {
+  const lockPath = `${path}.lock`;
+  acquireLock(lockPath);
+  try {
+    const tmpPath = `${path}.tmp.${process.pid}.${(0, import_node_crypto18.randomBytes)(4).toString("hex")}`;
+    (0, import_node_fs7.writeFileSync)(tmpPath, content, "utf-8");
+    (0, import_node_fs7.renameSync)(tmpPath, path);
+  } finally {
+    releaseLock(lockPath);
+  }
+}
+function writeSignedState(filePath, protocol, opts) {
+  const secret = getOrCreateStateSecret();
+  const sessionId = opts?.sessionId ?? process.env.BEHAVIOROS_SESSION_ID ?? (0, import_node_crypto18.randomBytes)(8).toString("hex");
+  const issuedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const signature = signProtocolState(protocol, secret, sessionId, issuedAt);
+  const data = {
+    version: "1.0",
+    protocol,
+    security: { sessionId, issuedAt, signature }
+  };
+  atomicWriteFileSync(filePath, JSON.stringify(data, null, 2));
+}
+function readState(filePath) {
+  if (!(0, import_node_fs7.existsSync)(filePath)) {
+    return { ok: false, tampered: false, reason: "not-found" };
+  }
+  let raw;
+  try {
+    raw = (0, import_node_fs7.readFileSync)(filePath, "utf-8");
+  } catch {
+    return { ok: false, tampered: false, reason: "read-error" };
+  }
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return { ok: false, tampered: false, reason: "corrupt-json" };
+  }
+  if (!data.protocol) {
+    return { ok: false, tampered: false, reason: "missing-protocol" };
+  }
+  if (data.security?.signature) {
+    const secret = getOrCreateStateSecret();
+    const expected = signProtocolState(
+      data.protocol,
+      secret,
+      data.security.sessionId,
+      data.security.issuedAt
+    );
+    if (expected !== data.security.signature) {
+      return { ok: false, tampered: true, data, reason: "signature-mismatch" };
+    }
+    return { ok: true, tampered: false, data, reason: "ok" };
+  }
+  if (isStrictModeEnrolled()) {
+    return { ok: false, tampered: true, data, reason: "signature-required" };
+  }
+  return { ok: true, tampered: false, data, reason: "ok" };
+}
+
 // src/engines/quality/self-healing-engine.ts
-var import_node_crypto17 = require("crypto");
+var import_node_crypto19 = require("crypto");
 var DEFAULT_MAX_RETRIES = 3;
 var SelfHealingEngine = class {
   enabled;
@@ -10540,7 +11590,7 @@ var SelfHealingEngine = class {
   // ----------------------------------------------------------
   recordAction(data) {
     const action = {
-      id: (0, import_node_crypto17.randomUUID)(),
+      id: (0, import_node_crypto19.randomUUID)(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       ...data
     };
@@ -10550,9 +11600,9 @@ var SelfHealingEngine = class {
 };
 
 // src/engines/recovery/context-recovery-engine.ts
-var import_node_crypto18 = require("crypto");
-var import_promises8 = require("fs/promises");
-var import_node_path11 = require("path");
+var import_node_crypto20 = require("crypto");
+var import_promises10 = require("fs/promises");
+var import_node_path13 = require("path");
 var DEFAULT_MAX_CHECKPOINTS = 50;
 var CHECKPOINTS_FILE = "recovery-checkpoints.json";
 var COVERAGE_MAJOR_THRESHOLD = 20;
@@ -10561,7 +11611,7 @@ var ContextRecoveryEngine = class {
   basePath;
   maxCheckpoints;
   constructor(options) {
-    this.basePath = options?.basePath ?? (0, import_node_path11.join)(process.cwd(), ".behavioros");
+    this.basePath = options?.basePath ?? (0, import_node_path13.join)(process.cwd(), ".behavioros");
     this.maxCheckpoints = options?.maxCheckpoints ?? DEFAULT_MAX_CHECKPOINTS;
   }
   // ----------------------------------------------------------
@@ -10569,7 +11619,7 @@ var ContextRecoveryEngine = class {
   // ----------------------------------------------------------
   async createCheckpoint(missionId, phase, state) {
     const checkpoint = {
-      id: (0, import_node_crypto18.randomUUID)(),
+      id: (0, import_node_crypto20.randomUUID)(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       missionId,
       phase,
@@ -10674,8 +11724,8 @@ var ContextRecoveryEngine = class {
   async loadCheckpoints() {
     await this.ensureDirectory();
     try {
-      const filePath = (0, import_node_path11.join)(this.basePath, CHECKPOINTS_FILE);
-      const content = await (0, import_promises8.readFile)(filePath, "utf-8");
+      const filePath = (0, import_node_path13.join)(this.basePath, CHECKPOINTS_FILE);
+      const content = await (0, import_promises10.readFile)(filePath, "utf-8");
       const parsed = JSON.parse(content);
       return Array.isArray(parsed) ? parsed : [];
     } catch {
@@ -10684,19 +11734,19 @@ var ContextRecoveryEngine = class {
   }
   async saveCheckpoints(checkpoints) {
     await this.ensureDirectory();
-    const filePath = (0, import_node_path11.join)(this.basePath, CHECKPOINTS_FILE);
-    await (0, import_promises8.writeFile)(filePath, JSON.stringify(checkpoints, null, 2), "utf-8");
+    const filePath = (0, import_node_path13.join)(this.basePath, CHECKPOINTS_FILE);
+    await (0, import_promises10.writeFile)(filePath, JSON.stringify(checkpoints, null, 2), "utf-8");
   }
   async ensureDirectory() {
-    await (0, import_promises8.mkdir)(this.basePath, { recursive: true });
+    await (0, import_promises10.mkdir)(this.basePath, { recursive: true });
   }
   async readMemoryFiles() {
     const entries = [];
     const memoryFiles = ["memory.md", "decisions.md", "domains.md", "architecture.md"];
     for (const fileName of memoryFiles) {
       try {
-        const filePath = (0, import_node_path11.join)(this.basePath, fileName);
-        const content = await (0, import_promises8.readFile)(filePath, "utf-8");
+        const filePath = (0, import_node_path13.join)(this.basePath, fileName);
+        const content = await (0, import_promises10.readFile)(filePath, "utf-8");
         const sections = content.split(/^## /m).filter(Boolean);
         for (const section of sections) {
           const lines = section.split("\n");
@@ -10823,9 +11873,9 @@ var EventReplay = class {
 };
 
 // src/events/event-store.ts
-var import_node_fs7 = require("fs");
-var import_node_path12 = require("path");
-var DEFAULT_MAX_EVENTS = 1e5;
+var import_node_fs8 = require("fs");
+var import_node_path14 = require("path");
+var DEFAULT_MAX_EVENTS2 = 1e5;
 var DEFAULT_SNAPSHOT_INTERVAL = 100;
 var EventStore = class {
   events = [];
@@ -10834,13 +11884,13 @@ var EventStore = class {
   snapshotInterval;
   persistPath;
   constructor(config) {
-    this.maxEvents = config?.maxEvents ?? DEFAULT_MAX_EVENTS;
+    this.maxEvents = config?.maxEvents ?? DEFAULT_MAX_EVENTS2;
     this.snapshotInterval = config?.snapshotInterval ?? DEFAULT_SNAPSHOT_INTERVAL;
     this.persistPath = config?.persistPath ?? null;
     if (this.persistPath) {
-      const dir = (0, import_node_path12.dirname)(this.persistPath);
-      if (!(0, import_node_fs7.existsSync)(dir)) {
-        (0, import_node_fs7.mkdirSync)(dir, { recursive: true });
+      const dir = (0, import_node_path14.dirname)(this.persistPath);
+      if (!(0, import_node_fs8.existsSync)(dir)) {
+        (0, import_node_fs8.mkdirSync)(dir, { recursive: true });
       }
       this.load();
     }
@@ -10916,13 +11966,13 @@ var EventStore = class {
   persist() {
     if (!this.persistPath) return;
     const data = JSON.stringify({ events: this.events, snapshots: this.snapshots }, null, 2);
-    (0, import_node_fs7.writeFileSync)(this.persistPath, data);
+    (0, import_node_fs8.writeFileSync)(this.persistPath, data);
   }
   load() {
     if (!this.persistPath) return;
     try {
-      if ((0, import_node_fs7.existsSync)(this.persistPath)) {
-        const raw = (0, import_node_fs7.readFileSync)(this.persistPath, "utf-8");
+      if ((0, import_node_fs8.existsSync)(this.persistPath)) {
+        const raw = (0, import_node_fs8.readFileSync)(this.persistPath, "utf-8");
         const parsed = JSON.parse(raw);
         this.events = parsed.events ?? [];
         this.snapshots = parsed.snapshots ?? [];
@@ -10940,7 +11990,7 @@ var EventStore = class {
 };
 
 // src/engines/knowledge/knowledge-graph.ts
-var import_node_crypto19 = require("crypto");
+var import_node_crypto21 = require("crypto");
 
 // src/kernel/capability-registry.ts
 var CapabilityRegistry = class {
@@ -11063,12 +12113,12 @@ var EngineRegistry = class {
 };
 
 // src/kernel/storage/fs-storage.ts
-var import_promises9 = require("fs/promises");
-var import_node_path13 = require("path");
+var import_promises11 = require("fs/promises");
+var import_node_path15 = require("path");
 
 // src/kernel/storage/sqlite-storage.ts
-var import_node_fs8 = require("fs");
-var import_node_path14 = require("path");
+var import_node_fs9 = require("fs");
+var import_node_path16 = require("path");
 
 // src/mesh/command-bus.ts
 var CommandBus = class {
@@ -11373,9 +12423,9 @@ var MeshHub = class {
 };
 
 // src/persistence/sqlite-audit-store.ts
-var import_node_crypto20 = require("crypto");
-var import_node_fs9 = require("fs");
-var import_node_path15 = require("path");
+var import_node_crypto22 = require("crypto");
+var import_node_fs10 = require("fs");
+var import_node_path17 = require("path");
 var SQLiteAuditStore = class {
   entries = [];
   maxEntries;
@@ -11387,9 +12437,9 @@ var SQLiteAuditStore = class {
     this.maxEntries = config.maxEntries ?? 1e5;
     this.enableHMAC = config.enableHMAC ?? false;
     this.hmacKey = config.hmacKey;
-    const dir = (0, import_node_path15.dirname)(config.dbPath);
-    if (!(0, import_node_fs9.existsSync)(dir)) {
-      (0, import_node_fs9.mkdirSync)(dir, { recursive: true });
+    const dir = (0, import_node_path17.dirname)(config.dbPath);
+    if (!(0, import_node_fs10.existsSync)(dir)) {
+      (0, import_node_fs10.mkdirSync)(dir, { recursive: true });
     }
     this.load();
   }
@@ -11480,25 +12530,25 @@ var SQLiteAuditStore = class {
   }
   computeHash(data) {
     const canonical = JSON.stringify(data, Object.keys(data).sort());
-    let hash = (0, import_node_crypto20.createHash)("sha256").update(canonical).digest("hex");
+    let hash = (0, import_node_crypto22.createHash)("sha256").update(canonical).digest("hex");
     if (this.enableHMAC && this.hmacKey) {
-      const { createHmac } = require("crypto");
-      hash = createHmac("sha256", this.hmacKey).update(canonical).digest("hex");
+      const { createHmac: createHmac2 } = require("crypto");
+      hash = createHmac2("sha256", this.hmacKey).update(canonical).digest("hex");
     }
     return hash;
   }
   save() {
     try {
-      const { writeFileSync: writeFileSync7 } = require("fs");
-      writeFileSync7(this.dbPath, JSON.stringify(this.entries, null, 2));
+      const { writeFileSync: writeFileSync8 } = require("fs");
+      writeFileSync8(this.dbPath, JSON.stringify(this.entries, null, 2));
     } catch {
     }
   }
   load() {
     try {
-      const { readFileSync: readFileSync9 } = require("fs");
-      if ((0, import_node_fs9.existsSync)(this.dbPath)) {
-        const data = readFileSync9(this.dbPath, "utf-8");
+      const { readFileSync: readFileSync11 } = require("fs");
+      if ((0, import_node_fs10.existsSync)(this.dbPath)) {
+        const data = readFileSync11(this.dbPath, "utf-8");
         this.entries = JSON.parse(data);
       }
     } catch {
@@ -11508,18 +12558,18 @@ var SQLiteAuditStore = class {
 };
 
 // src/persistence/sqlite-store.ts
-var import_node_crypto21 = require("crypto");
-var import_node_fs10 = require("fs");
-var import_node_path16 = require("path");
+var import_node_crypto23 = require("crypto");
+var import_node_fs11 = require("fs");
+var import_node_path18 = require("path");
 var import_better_sqlite3 = __toESM(require("better-sqlite3"));
 var SQLiteStore = class {
   db;
   constructor(config = {}) {
     const dbPath = config.dbPath ?? "./.behavioros/data/behavioros.db";
     if (!config.memory) {
-      const dir = (0, import_node_path16.dirname)(dbPath);
-      if (!(0, import_node_fs10.existsSync)(dir)) {
-        (0, import_node_fs10.mkdirSync)(dir, { recursive: true });
+      const dir = (0, import_node_path18.dirname)(dbPath);
+      if (!(0, import_node_fs11.existsSync)(dir)) {
+        (0, import_node_fs11.mkdirSync)(dir, { recursive: true });
       }
     }
     this.db = config.memory ? new import_better_sqlite3.default(":memory:") : new import_better_sqlite3.default(dbPath);
@@ -11686,7 +12736,7 @@ var SQLiteStore = class {
   }
   // --- Quality Metrics ---
   saveQualityMetric(metric) {
-    const id = (0, import_node_crypto21.randomUUID)();
+    const id = (0, import_node_crypto23.randomUUID)();
     this.db.prepare(
       `INSERT INTO quality_metrics (id, name, value, data, timestamp)
          VALUES (?, ?, ?, ?, ?)`
@@ -12239,7 +13289,7 @@ var PipelineDispatcher = class {
 };
 
 // src/resilience/agent-isolation/forensic-collector.ts
-var import_node_crypto22 = require("crypto");
+var import_node_crypto24 = require("crypto");
 var import_eventemitter37 = __toESM(require("eventemitter3"));
 var ForensicCollector = class {
   config;
@@ -12451,7 +13501,7 @@ var ForensicCollector = class {
   }
   computeHash(data, previousHash) {
     const combined = previousHash + data;
-    return (0, import_node_crypto22.createHash)("sha256").update(combined).digest("hex");
+    return (0, import_node_crypto24.createHash)("sha256").update(combined).digest("hex");
   }
   generateId() {
     const timestamp = Date.now().toString(36);
@@ -13336,7 +14386,7 @@ var ShadowEnvironment = class {
 };
 
 // src/sandbox/sandbox-engine.ts
-var import_node_crypto23 = require("crypto");
+var import_node_crypto25 = require("crypto");
 var EXPIRY_DURATION = {
   ephemeral: void 0,
   persistent: 24 * 60 * 60 * 1e3,
@@ -13345,7 +14395,7 @@ var EXPIRY_DURATION = {
 var SandboxEngine = class {
   environments = /* @__PURE__ */ new Map();
   createEnvironment(type, dnaId) {
-    const id = `sandbox-${Date.now()}-${(0, import_node_crypto23.randomUUID)().slice(0, 9)}`;
+    const id = `sandbox-${Date.now()}-${(0, import_node_crypto25.randomUUID)().slice(0, 9)}`;
     const now = Date.now();
     const env = {
       id,
@@ -13420,12 +14470,12 @@ var PromptSimulator = class {
 };
 
 // src/sandbox/simulation/response-collector.ts
-var import_node_crypto24 = require("crypto");
+var import_node_crypto26 = require("crypto");
 var ResponseCollector = class {
   responses = [];
   collect(scenarioId, response, metadata = {}) {
     const collected = {
-      id: `response-${Date.now()}-${(0, import_node_crypto24.randomUUID)().slice(0, 9)}`,
+      id: `response-${Date.now()}-${(0, import_node_crypto26.randomUUID)().slice(0, 9)}`,
       timestamp: Date.now(),
       scenarioId,
       response,
@@ -13449,12 +14499,12 @@ var ResponseCollector = class {
 };
 
 // src/sandbox/simulation/traffic-replay.ts
-var import_node_crypto25 = require("crypto");
+var import_node_crypto27 = require("crypto");
 var TrafficReplay = class {
   captures = [];
   capture(request, response, metadata = {}) {
     const capture = {
-      id: `capture-${Date.now()}-${(0, import_node_crypto25.randomUUID)().slice(0, 9)}`,
+      id: `capture-${Date.now()}-${(0, import_node_crypto27.randomUUID)().slice(0, 9)}`,
       timestamp: Date.now(),
       request,
       response,
@@ -13485,30 +14535,30 @@ var TrafficReplay = class {
 };
 
 // src/security/authority-verifier.ts
-var import_node_crypto26 = require("crypto");
-var import_node_fs11 = require("fs");
-var import_node_path17 = require("path");
+var import_node_crypto28 = require("crypto");
+var import_node_fs12 = require("fs");
+var import_node_path19 = require("path");
 var AuthorityVerifier = class {
   privateKey;
   publicKey;
   defaultTtlMs;
   constructor(config) {
     this.defaultTtlMs = config.defaultTtlMs ?? 36e5;
-    const privateKeyPath = (0, import_node_path17.join)(config.keyDir, "authority-key.pem");
-    const publicKeyPath = (0, import_node_path17.join)(config.keyDir, "authority-key.pub.pem");
-    if ((0, import_node_fs11.existsSync)(privateKeyPath) && (0, import_node_fs11.existsSync)(publicKeyPath)) {
-      this.privateKey = (0, import_node_fs11.readFileSync)(privateKeyPath, "utf-8");
-      this.publicKey = (0, import_node_fs11.readFileSync)(publicKeyPath, "utf-8");
+    const privateKeyPath = (0, import_node_path19.join)(config.keyDir, "authority-key.pem");
+    const publicKeyPath = (0, import_node_path19.join)(config.keyDir, "authority-key.pub.pem");
+    if ((0, import_node_fs12.existsSync)(privateKeyPath) && (0, import_node_fs12.existsSync)(publicKeyPath)) {
+      this.privateKey = (0, import_node_fs12.readFileSync)(privateKeyPath, "utf-8");
+      this.publicKey = (0, import_node_fs12.readFileSync)(publicKeyPath, "utf-8");
     } else {
-      const keyPair = (0, import_node_crypto26.generateKeyPairSync)("ed25519");
+      const keyPair = (0, import_node_crypto28.generateKeyPairSync)("ed25519");
       this.privateKey = keyPair.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
       this.publicKey = keyPair.publicKey.export({ type: "spki", format: "pem" }).toString();
       const dir = config.keyDir;
-      if (!(0, import_node_fs11.existsSync)(dir)) {
-        (0, import_node_fs11.writeFileSync)((0, import_node_path17.join)(dir, ".gitkeep"), "");
+      if (!(0, import_node_fs12.existsSync)(dir)) {
+        (0, import_node_fs12.writeFileSync)((0, import_node_path19.join)(dir, ".gitkeep"), "");
       }
-      (0, import_node_fs11.writeFileSync)(privateKeyPath, this.privateKey);
-      (0, import_node_fs11.writeFileSync)(publicKeyPath, this.publicKey);
+      (0, import_node_fs12.writeFileSync)(privateKeyPath, this.privateKey);
+      (0, import_node_fs12.writeFileSync)(publicKeyPath, this.publicKey);
     }
   }
   /**
@@ -13518,7 +14568,7 @@ var AuthorityVerifier = class {
     const issuedAt = Date.now();
     const expiresAt = issuedAt + (ttlMs ?? this.defaultTtlMs);
     const payload = JSON.stringify({ agentId, level, issuedAt, expiresAt });
-    const signature = (0, import_node_crypto26.sign)(null, Buffer.from(payload), this.privateKey).toString("base64");
+    const signature = (0, import_node_crypto28.sign)(null, Buffer.from(payload), this.privateKey).toString("base64");
     return { agentId, level, issuedAt, expiresAt, signature };
   }
   /**
@@ -13535,7 +14585,7 @@ var AuthorityVerifier = class {
       expiresAt: token.expiresAt
     });
     try {
-      const valid = (0, import_node_crypto26.verify)(
+      const valid = (0, import_node_crypto28.verify)(
         null,
         Buffer.from(payload),
         this.publicKey,
@@ -13628,6 +14678,7 @@ var Logger = class {
   EventStore,
   ForensicCollector,
   GovernanceEngine,
+  GovernanceTelemetryEngine,
   HandoffProtocol,
   HealthChecker,
   LearningEngine,
@@ -13675,10 +14726,17 @@ var Logger = class {
   TrafficSplitter,
   YAMLToOPACompiler,
   analyzeIntent,
+  atomicWriteFileSync,
   bosMatchesGlob,
   createDispatcherContext,
   createEvent,
+  getOrCreateStateSecret,
+  getStateSecretPath,
+  isStrictModeEnrolled,
+  readState,
   sanitizeDNA,
   shouldSkipForConversational,
-  shouldSkipForTransactional
+  shouldSkipForTransactional,
+  signProtocolState,
+  writeSignedState
 });

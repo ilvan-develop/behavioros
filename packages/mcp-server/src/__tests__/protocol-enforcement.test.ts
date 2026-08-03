@@ -1,6 +1,6 @@
 import { BehaviorOSEngine, ProtocolStateTracker } from '@behavioros/core';
 import type { DNAPackage } from '@behavioros/schemas';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test } from 'vitest';
 import { EnforcementMiddleware } from '../middleware/enforcement-middleware';
 import { bosResetProtocol, bosResetProtocolInput } from '../tools/bos-reset-protocol';
 import { bosValidateProtocol } from '../tools/bos-validate-protocol';

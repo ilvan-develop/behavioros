@@ -1,0 +1,334 @@
+id: complex-monorepo
+name: Complex Monorepo DNA
+version: '1.0.0'
+description: |
+  Governance DNA for a large monorepo with many independently-owned packages
+  (à la this repository: pnpm workspaces + turbo). Caps blast radius per change,
+  requires impact analysis before touching shared tooling or another package's
+  internals, and coordinates releases across packages instead of per-PR merges.
+author: BehaviorOS Team
+license: MIT
+tags:
+  - monorepo
+  - pnpm
+  - turborepo
+  - multi-package
+
+personas:
+  - role: architect
+    authority: architect
+    name: Monorepo Maintainer
+    description: >-
+      Owns shared tooling (top-level package.json, tsconfig base, turbo.json,
+      CI pipeline config) and cross-package dependency policy.
+    boundaries:
+      - id: arch-shared-tooling-approval
+        name: Require approval for shared tooling changes
+        type: require_approval
+        value: true
+        scope: per_commit
+      - id: arch-max-modules
+        name: Max packages touched per change
+        type: max_modules
+        value: 3
+        scope: per_pr
+    skills:
+      - monorepo-architecture
+      - build-system-design
+      - dependency-graph-analysis
+    tools:
+      - read
+      - write
+      - architecture-diagram
+
+  - role: engineer
+    authority: senior
+    name: Package Owner
+    description: >-
+      Owns one or more packages. Must not edit another package's internal
+      (non-exported) source without that package's owner reviewing, and must
+      not touch shared top-level tooling directly.
+    boundaries:
+      - id: pkg-no-other-package-internals
+        name: No direct edits to another package's internal source
+        type: forbidden
+        value: 'packages/*/src/internal/**'
+        scope: global
+      - id: pkg-no-shared-tooling
+        name: No direct edits to shared root tooling
+        type: forbidden
+        value: 'turbo.json'
+        scope: global
+      - id: pkg-max-files
+        name: Max files per change
+        type: max_files
+        value: 20
+        scope: per_pr
+      - id: pkg-require-review
+        name: Require code review
+        type: require_approval
+        value: true
+        scope: per_pr
+    skills:
+      - typescript
+      - package-design
+      - semantic-versioning
+    tools:
+      - read
+      - write
+      - test-runner
+      - linter
+
+  - role: qa
+    authority: senior
+    name: Quality Assurance Lead
+    description: >-
+      Owns cross-package integration testing and verifies changesets/version
+      bumps are consistent with actual changes.
+    boundaries:
+      - id: qa-min-coverage
+        name: Minimum test coverage
+        type: max_lines
+        value: 80
+        scope: per_pr
+      - id: qa-require-changeset
+        name: Require a changeset for any published package change
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - test-strategy
+      - integration-testing
+      - release-verification
+    tools:
+      - read
+      - write
+      - test-runner
+      - coverage-report
+
+  - role: devops
+    authority: senior
+    name: Release Engineer
+    description: >-
+      Manages the coordinated release process (changesets/versioning) and
+      CI pipeline health across all packages.
+    boundaries:
+      - id: ops-no-prod-direct
+        name: No direct publish/prod access
+        type: forbidden
+        value: true
+        scope: global
+      - id: ops-require-change-request
+        name: Require change request for CI pipeline changes
+        type: require_approval
+        value: true
+        scope: per_commit
+    skills:
+      - ci-cd
+      - release-management
+      - build-caching
+    tools:
+      - read
+      - write
+      - docker
+
+  - role: orchestrator
+    authority: lead
+    name: Orchestrator
+    description: >-
+      Central coordinator. MUST delegate all execution work to the owning
+      package's engineer. CANNOT edit files directly.
+    boundaries:
+      - id: orch-no-direct-edit
+        name: No direct file editing
+        type: forbidden
+        value: true
+        scope: global
+      - id: orch-must-delegate
+        name: Must delegate via Task tool
+        type: require_approval
+        value: true
+        scope: per_session
+    skills:
+      - delegation
+      - mission-management
+      - dependency-graph-analysis
+    tools:
+      - task-delegation
+      - behavioros-mcp
+
+governance:
+  - id: gov-shared-tooling-change
+    name: Shared Tooling Change
+    description: >-
+      Changes to root-level build/CI configuration (turbo.json, tsconfig base,
+      root package.json) require architect approval — they affect every package.
+    level: critical
+    action: escalate
+    conditions:
+      - type:config
+      - type:infrastructure
+
+  - id: gov-cross-package-boundary
+    name: Cross-Package Boundary
+    description: Package owners must not directly edit another package's internal source.
+    level: high
+    action: block
+    conditions:
+      - type:cross-package-edit
+
+  - id: gov-changeset-required
+    name: Changeset Required
+    description: Any change to a published package must include a changeset for correct versioning.
+    level: high
+    action: escalate
+    conditions:
+      - type:feature
+      - type:bugfix
+      - type:refactor
+
+  - id: gov-quality-gate
+    name: Quality Gate
+    description: Features and bugfixes must pass quality gates before merge
+    level: medium
+    action: warn
+    conditions:
+      - type:feature
+      - type:bugfix
+
+  - id: gov-orchestrator-no-direct-execution
+    name: Orchestrator Must Not Execute Directly
+    description: Orchestrator must delegate all implementation work to the owning package's engineer.
+    level: critical
+    action: block
+    conditions:
+      - type:orchestrator-direct-execution
+      - type:edit-code
+
+quality:
+  - id: qg-test-coverage
+    name: Test Coverage
+    description: Minimum test coverage threshold per package
+    type: test_coverage
+    threshold: 80
+
+  - id: qg-lint
+    name: Lint Check
+    description: Code must pass linting across all touched packages
+    type: lint
+    pass: true
+
+  - id: qg-typecheck
+    name: Type Check
+    description: Code must pass typechecking across all touched packages
+    type: typecheck
+    pass: true
+
+  - id: qg-security-scan
+    name: Security Scan
+    description: No critical vulnerabilities in any touched package's dependencies
+    type: security
+    pass: true
+
+  - id: qg-build-graph
+    name: Dependency Graph Integrity
+    description: No circular dependencies introduced between packages
+    type: custom
+    pass: true
+
+patterns:
+  - id: pat-impact-analysis
+    name: Cross-Package Impact Analysis
+    type: review
+    description: Before merging, identify every downstream package affected by the change
+    triggers:
+      - agent:package-owner
+      - agent:architect
+    actions:
+      - run-dependency-graph
+      - identify-downstream-packages
+      - notify-affected-owners
+      - review-impact
+    conditions:
+      - type:feature
+      - type:refactor
+      - type:config
+
+  - id: pat-code-review
+    name: Code Review
+    type: review
+    description: Multi-reviewer code review process, including the owner of any package touched indirectly
+    triggers:
+      - agent:engineer
+      - agent:qa
+    actions:
+      - self-review
+      - peer-review
+      - approve-or-request-changes
+    conditions:
+      - type:feature
+      - type:bugfix
+
+  - id: pat-coordinated-release
+    name: Coordinated Release
+    type: deployment
+    description: Release all changed packages together via a single versioned changeset batch
+    triggers:
+      - agent:devops
+      - agent:qa
+    actions:
+      - collect-changesets
+      - version-packages
+      - run-quality-gates
+      - publish-packages
+    conditions:
+      - type:release
+
+workflows:
+  - id: wf-feature-development
+    name: Feature Development
+    type: action
+    description: Standard feature development workflow within one or more packages
+    agent: engineer
+    next:
+      - wf-impact-analysis
+    timeout: 86400000
+    retries: 2
+
+  - id: wf-impact-analysis
+    name: Impact Analysis
+    type: gate
+    description: Determine which other packages are affected before review
+    agent: architect
+    next:
+      - wf-code-review
+    timeout: 3600000
+    retries: 1
+
+  - id: wf-code-review
+    name: Code Review
+    type: gate
+    description: Code review gate, including affected-package owners
+    agent: qa
+    next:
+      - wf-testing
+    timeout: 43200000
+    retries: 1
+
+  - id: wf-testing
+    name: Testing
+    type: parallel
+    description: Run unit and integration test suites for all affected packages
+    agent: qa
+    next:
+      - wf-release
+    timeout: 3600000
+    retries: 3
+
+  - id: wf-release
+    name: Coordinated Release
+    type: conditional
+    description: Version and publish all changed packages together
+    agent: devops
+    timeout: 1800000
+    retries: 1

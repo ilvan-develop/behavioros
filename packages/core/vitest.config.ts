@@ -13,7 +13,10 @@ export default defineConfig({
     testTimeout: 60000,
     include: ['src/**/*.test.ts'],
     coverage: {
-      provider: 'istanbul',
+      // 'istanbul' was configured here but @vitest/coverage-istanbul was never installed —
+      // `vitest run --coverage` failed outright with MISSING DEPENDENCY. @vitest/coverage-v8
+      // is the one actually present in this workspace's lockfile, so that's what runs.
+      provider: 'v8',
       include: ['src/**/*.ts'],
       exclude: [
         'src/**/*.test.ts',
@@ -45,6 +48,15 @@ export default defineConfig({
         'src/pipeline/telemetry/index.ts',
       ],
       excludeAfterRemap: true,
+      // Measured baseline (2026-08-03): ~95% lines/statements, ~97% functions, ~89% branches.
+      // Thresholds set a few points below baseline so normal work has headroom without
+      // coverage silently regressing — previously this was measured but never enforced.
+      thresholds: {
+        lines: 90,
+        statements: 90,
+        functions: 90,
+        branches: 80,
+      },
     },
   },
   bench: {

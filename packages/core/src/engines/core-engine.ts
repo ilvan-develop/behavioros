@@ -13,24 +13,28 @@ import type {
   QualityMetric,
 } from '@behavioros/schemas';
 import EventEmitter from 'eventemitter3';
+import { AITMPLAdapter } from './adapters/aitmpl-adapter';
+import { OpenDesignAdapter } from './adapters/open-design-adapter';
+import { UIUXProMaxAdapter } from './adapters/ui-ux-adapter';
 import { AgentManager } from './agent-manager';
 import type { AuditPipelineResult, AuditStage } from './audit/audit-engine';
 import { AuditEngine } from './audit/audit-engine';
 import { DNALoader } from './behavioral/dna-loader';
+import { RedisCache, type RedisCacheConfig } from './cache/redis-cache';
 import { EcosystemRegistry } from './ecosystem-registry';
 import type { AuthorityLevelValue, GovernanceContext } from './governance/governance-engine';
 import { GovernanceEngine } from './governance/governance-engine';
 import { LearningEngine } from './learning/learning-engine';
 import { MissionEngine } from './mission/mission-engine';
 import { MissionManager } from './mission-manager';
-import { AutoDocumentationTrigger } from './orchestrator/auto-documentation-trigger';
 import { AutonomousDecomposer } from './orchestrator/autonomous-decomposer';
 import { AutonomousOrchestrator } from './orchestrator/autonomous-orchestrator';
 import { HandoffProtocol } from './orchestrator/handoff-protocol';
-import { LifecyclePipeline } from './orchestrator/lifecycle-pipeline';
-import { SkillRouter } from './orchestrator/skill-router';
 import { QualityEngine } from './quality/quality-engine';
 import { SkillEngine } from './skill-engine';
+import type { TelemetryConfig } from './telemetry/governance-telemetry';
+import { GovernanceTelemetryEngine } from './telemetry/governance-telemetry';
+import { WebhookManager } from './integration/webhook-manager';
 
 // ============================================================
 // BehaviorOS Core Engine — Central Orchestrator (Facade)
@@ -63,6 +67,15 @@ export interface BehaviorOSEngineConfig {
   quality?: BehaviorOSConfig['quality'];
   learning?: BehaviorOSConfig['learning'];
   audit?: BehaviorOSConfig['audit'];
+  redis?: RedisCacheConfig;
+  /** Max in-memory auditLog/qualityMetrics entries before oldest are pruned (default 1000). */
+  maxLogEntries?: number;
+  /**
+   * Opt-in, aggregate-only governance telemetry (violations blocked, agent efficiency).
+   * Disabled by default — nothing is recorded or exported unless `enabled: true`.
+   * See docs/TELEMETRY.md.
+   */
+  telemetry?: Partial<TelemetryConfig>;
 }
 
 /**
@@ -72,10 +85,14 @@ export interface BehaviorOSEngineConfig {
  *
  * @extends EventEmitter
  */
+/** Default cap on in-memory audit/quality history before oldest entries are pruned. */
+const DEFAULT_MAX_LOG_ENTRIES = 1000;
+
 export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
   private dna: DNAPackage;
   private auditLog: AuditEvent[] = [];
   private qualityMetrics: QualityMetric[] = [];
+  private readonly maxLogEntries: number;
   private config: BehaviorOSEngineConfig;
 
   // Extracted managers
@@ -92,11 +109,15 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
   public ecosystemRegistry: EcosystemRegistry;
   public handoffProtocol: HandoffProtocol;
   public autonomousOrchestrator: AutonomousOrchestrator;
+  public redisCache?: RedisCache;
+  public telemetryEngine: GovernanceTelemetryEngine;
+  private telemetryWebhooks: WebhookManager;
 
   constructor(config: BehaviorOSEngineConfig) {
     super();
     this.config = config;
     this.dna = config.dna;
+    this.maxLogEntries = config.maxLogEntries ?? DEFAULT_MAX_LOG_ENTRIES;
 
     // Instantiate sub-engines
     this.governanceEngine = new GovernanceEngine(this.dna.governance ?? []);
@@ -110,10 +131,20 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
     this.missionEngine = new MissionEngine();
     this.auditEngine = new AuditEngine();
 
+    // Instantiate adapters
+    const aitmplAdapter = new AITMPLAdapter();
+    const openDesignAdapter = new OpenDesignAdapter();
+    const uiuxAdapter = new UIUXProMaxAdapter();
+
     // Instantiate extended sub-engines
     const dnaLoader = new DNALoader();
     this.skillEngine = new SkillEngine({ dnaLoader });
-    this.ecosystemRegistry = new EcosystemRegistry({ skillEngine: this.skillEngine });
+    this.ecosystemRegistry = new EcosystemRegistry({
+      skillEngine: this.skillEngine,
+      aitmpl: aitmplAdapter,
+      openDesign: openDesignAdapter,
+      uiUx: uiuxAdapter,
+    });
     this.handoffProtocol = new HandoffProtocol();
     this.autonomousOrchestrator = new AutonomousOrchestrator({
       dnaLoader,
@@ -127,6 +158,30 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
     // Instantiate extracted managers
     this.agentManager = new AgentManager(this.dna);
     this.missionManager = new MissionManager(this, this.auditEvent.bind(this));
+
+    if (config.redis) {
+      this.redisCache = new RedisCache(config.redis);
+    }
+
+    // Telemetry — opt-in, aggregate-only (see governance-telemetry.ts). Disabled by default.
+    this.telemetryWebhooks = new WebhookManager();
+    const telemetryConfig = config.telemetry;
+    if (telemetryConfig?.enabled && telemetryConfig.webhookUrl) {
+      this.telemetryWebhooks.register(telemetryConfig.webhookUrl, ['telemetry:summary'], randomUUID());
+    }
+    this.telemetryEngine = new GovernanceTelemetryEngine(telemetryConfig, (payload) =>
+      this.telemetryWebhooks.deliver('telemetry:summary', payload).then(() => undefined),
+    );
+    this.on('governance:violation', (rule, context) =>
+      this.telemetryEngine.onGovernanceViolation(rule, context),
+    );
+    this.on('governance:approved', (rule, context) =>
+      this.telemetryEngine.onGovernanceApproved(rule, context),
+    );
+    this.on('mission:completed', (mission) => this.telemetryEngine.onMissionCompleted(mission));
+    this.on('mission:failed', (mission, error) =>
+      this.telemetryEngine.onMissionFailed(mission, error),
+    );
   }
 
   // ─── Mission Management (delegates to MissionManager) ─────
@@ -181,14 +236,31 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
         reason: undefined as string | undefined,
       };
 
+    const agentRole = (context.agentRole as string) ?? 'system';
+    // Fall back to the DNA persona's own boundary rules for this role when the caller
+    // doesn't explicitly pass boundaries — otherwise per-persona boundaries (e.g. an
+    // 'orchestrator' persona's max_files/forbidden rules) are defined in the DNA but
+    // never actually reach the governance engine.
+    const explicitBoundaries = context.boundaries as GovernanceContext['boundaries'];
+    const personaBoundaries = explicitBoundaries
+      ? undefined
+      : (this.dna.personas ?? []).find((p) => p.role === agentRole)?.boundaries;
+
     const govContext: GovernanceContext = {
       agentId: (context.agentId as string) ?? 'system',
-      agentRole: (context.agentRole as string) ?? 'system',
+      agentRole,
       agentAuthority: (context.agentAuthority as AuthorityLevelValue) ?? 'c-level',
       action,
       targetType: this.mapTargetType(context),
       impact: this.mapImpact(context),
       metadata: context,
+      boundaries: explicitBoundaries ?? personaBoundaries,
+      targetFiles: context.targetFiles as string[] | undefined,
+      targetModules: context.targetModules as number | undefined,
+      fileCount: context.fileCount as number | undefined,
+      lineCount: context.lineCount as number | undefined,
+      targetDependency: context.targetDependency as string | undefined,
+      currentTime: context.currentTime as Date | undefined,
     };
 
     const decision = this.governanceEngine.evaluate(govContext);
@@ -263,6 +335,9 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
 
     for (const m of report.metrics) {
       this.qualityMetrics.push(m);
+      if (this.qualityMetrics.length > this.maxLogEntries) {
+        this.qualityMetrics.splice(0, this.qualityMetrics.length - this.maxLogEntries);
+      }
       this.emit('quality:metric', m);
     }
 
@@ -310,12 +385,26 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
       details,
     };
     this.auditLog.push(event);
+    if (this.auditLog.length > this.maxLogEntries) {
+      this.auditLog.splice(0, this.auditLog.length - this.maxLogEntries);
+    }
     this.emit('audit:event', event);
     return event;
   }
 
   getAuditLog(): AuditEvent[] {
     return [...this.auditLog];
+  }
+
+  // ─── Telemetry (delegates to GovernanceTelemetryEngine) ──
+
+  /**
+   * Aggregate-only governance metrics collected since this engine started. Returns all-zero
+   * counters if telemetry was never enabled (config.telemetry.enabled) — nothing is recorded
+   * unless explicitly opted in.
+   */
+  getTelemetrySummary() {
+    return this.telemetryEngine.getSummary();
   }
 
   // ─── Query Methods ────────────────────────────────────────
