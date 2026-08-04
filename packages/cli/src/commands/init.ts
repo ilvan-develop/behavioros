@@ -70,6 +70,12 @@ function buildYAML(answers: InitAnswers): string {
     '    authority: senior',
     '    name: Senior Engineer',
     `    description: Senior developer for ${answers.projectName}`,
+    '    boundaries:',
+    '      - id: eng-max-files',
+    '        name: Max files per change',
+    '        type: max_files',
+    '        value: 15',
+    '        scope: per_pr',
     '    skills:',
     '      - full-stack-development',
     '      - code-review',
@@ -81,6 +87,12 @@ function buildYAML(answers: InitAnswers): string {
     '    authority: senior',
     '    name: QA Lead',
     `    description: Quality assurance for ${answers.projectName}`,
+    '    boundaries:',
+    '      - id: qa-require-tests',
+    '        name: Require tests for new features',
+    '        type: require_approval',
+    '        value: true',
+    '        scope: per_commit',
     '    skills:',
     '      - test-strategy',
     '      - quality-gates',
@@ -182,6 +194,14 @@ function generateProtocolFiles(vars: ProtocolVars): string[] {
   return created;
 }
 
+const DEFAULT_ANSWERS: Omit<InitAnswers, 'projectName'> = {
+  description: 'A BehaviorOS-managed project',
+  author: 'behavioros',
+  teamSize: 'small',
+  governanceLevel: 'standard',
+  qualityGates: true,
+};
+
 export function initCommand(program: Command): void {
   program
     .command('init')
@@ -191,111 +211,147 @@ export function initCommand(program: Command): void {
       'Also generate BehaviorOS Protocol files (AGENTS.md, platform rules, CI workflow)',
       false,
     )
-    .action(async (opts?: { withProtocol?: boolean }) => {
+    .option(
+      '--yes',
+      'Skip interactive prompts and use defaults (for CI/scripting — non-interactive ' +
+        'stdin used to crash with a raw stack trace instead of a usable error)',
+      false,
+    )
+    .action(async (opts?: { withProtocol?: boolean; yes?: boolean }) => {
       const targetFile = 'behavioros.yaml';
-
-      if (existsSync(targetFile)) {
-        const overwrite = await confirm({
-          message: `${targetFile} already exists. Overwrite?`,
-          default: false,
-        });
-        if (!overwrite) {
-          console.log(chalk.yellow('Aborted.'));
-          return;
-        }
-      }
-
-      console.log(chalk.bold('\n🧬 BehaviorOS Init Wizard\n'));
-
-      const projectNameDefault = detectProjectName();
-
-      const answers: InitAnswers = {
-        projectName: await input({
-          message: 'Project name:',
-          default: projectNameDefault,
-        }),
-        description: await input({
-          message: 'Project description:',
-          default: 'A BehaviorOS-managed project',
-        }),
-        author: await input({
-          message: 'Author:',
-          default: 'behavioros',
-        }),
-        teamSize: await select({
-          message: 'Team size:',
-          choices: [
-            { name: 'Small (1-5 agents)', value: 'small' },
-            { name: 'Medium (6-15 agents)', value: 'medium' },
-            { name: 'Large (16-50 agents)', value: 'large' },
-          ],
-        }),
-        governanceLevel: await select({
-          message: 'Governance level:',
-          choices: [
-            { name: 'Strict (all changes require approval)', value: 'strict' },
-            {
-              name: 'Standard (critical changes require approval)',
-              value: 'standard',
-            },
-            { name: 'Relaxed (warnings only)', value: 'relaxed' },
-          ],
-        }),
-        qualityGates: await confirm({
-          message: 'Include default quality gates (lint, typecheck, coverage)?',
-          default: true,
-        }),
-      };
-
-      const spinner = ora('Generating behavioros.yaml...').start();
+      const nonInteractive = opts?.yes ?? false;
 
       try {
-        const yaml = buildYAML(answers);
-        writeFileSync(targetFile, yaml, 'utf-8');
-        spinner.succeed(`Created ${targetFile}`);
-
-        if (opts?.withProtocol) {
-          const protocolSpinner = ora('Generating protocol files...').start();
-
-          try {
-            const filesCreated = generateProtocolFiles({
-              PROJECT_NAME: answers.projectName,
-              PROTOCOL_PATH: 'docs/PROTOCOL.md',
-              MCP_SERVER_COMMAND: 'node packages/mcp-server/dist/server.js',
-              DNA_PATH: './behavioros.yaml',
-              ENFORCEMENT_LEVEL: answers.governanceLevel,
-            });
-
-            protocolSpinner.succeed(`Generated ${filesCreated.length} protocol file(s)`);
-            console.log(chalk.bold('\nProtocol files created:'));
-            for (const file of filesCreated) {
-              console.log(`  ${chalk.cyan('✓')} ${file}`);
-            }
-            console.log('');
-          } catch (err) {
-            protocolSpinner.fail('Protocol file generation failed');
-            console.error(chalk.red(`\n${String(err)}\n`));
-            process.exitCode = 1;
+        if (existsSync(targetFile)) {
+          if (nonInteractive) {
+            console.log(chalk.yellow(`${targetFile} already exists. Use without --yes to overwrite interactively, or delete it first.`));
+            return;
+          }
+          const overwrite = await confirm({
+            message: `${targetFile} already exists. Overwrite?`,
+            default: false,
+          });
+          if (!overwrite) {
+            console.log(chalk.yellow('Aborted.'));
             return;
           }
         }
 
-        console.log(chalk.green(`\n✅ BehaviorOS initialized successfully!\n`));
-        console.log(`  Next steps:`);
-        console.log(`    ${chalk.cyan('behavioros validate')}  — Validate your DNA config`);
-        console.log(`    ${chalk.cyan('behavioros compile')}   — Compile to generated files`);
-        console.log(`    ${chalk.cyan('behavioros status')}    — View project status`);
-        if (opts?.withProtocol) {
-          console.log(
-            `    ${chalk.cyan('behavioros validate --protocol')}  — Validate protocol enforcement\n`,
-          );
-        } else {
-          console.log('');
-        }
+        console.log(chalk.bold('\n🧬 BehaviorOS Init Wizard\n'));
+
+        const projectNameDefault = detectProjectName();
+
+        const answers: InitAnswers = nonInteractive
+          ? { projectName: projectNameDefault, ...DEFAULT_ANSWERS }
+          : {
+              projectName: await input({
+                message: 'Project name:',
+                default: projectNameDefault,
+              }),
+              description: await input({
+                message: 'Project description:',
+                default: DEFAULT_ANSWERS.description,
+              }),
+              author: await input({
+                message: 'Author:',
+                default: DEFAULT_ANSWERS.author,
+              }),
+              teamSize: await select({
+                message: 'Team size:',
+                choices: [
+                  { name: 'Small (1-5 agents)', value: 'small' },
+                  { name: 'Medium (6-15 agents)', value: 'medium' },
+                  { name: 'Large (16-50 agents)', value: 'large' },
+                ],
+              }),
+              governanceLevel: await select({
+                message: 'Governance level:',
+                choices: [
+                  { name: 'Strict (all changes require approval)', value: 'strict' },
+                  {
+                    name: 'Standard (critical changes require approval)',
+                    value: 'standard',
+                  },
+                  { name: 'Relaxed (warnings only)', value: 'relaxed' },
+                ],
+              }),
+              qualityGates: await confirm({
+                message: 'Include default quality gates (lint, typecheck, coverage)?',
+                default: true,
+              }),
+            };
+
+        await runInit(targetFile, answers, opts);
       } catch (err) {
-        spinner.fail('Failed to create config');
-        console.error(chalk.red(String(err)));
+        // Covers ExitPromptError (Ctrl+C, or stdin isn't a TTY — e.g. piped/CI input) and
+        // any other prompt failure. Previously unhandled: a real `init` run with non-TTY
+        // stdin crashed with a raw Node stack trace instead of a usable message.
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(
+          chalk.red(
+            `\nInit cancelled: ${message}\n` +
+              `Tip: run with --yes for a non-interactive run (CI/scripting), e.g.:\n` +
+              `  npx @behavioros/cli init --yes\n`,
+          ),
+        );
         process.exitCode = 1;
       }
     });
+}
+
+async function runInit(
+  targetFile: string,
+  answers: InitAnswers,
+  opts?: { withProtocol?: boolean },
+): Promise<void> {
+  const spinner = ora('Generating behavioros.yaml...').start();
+
+  try {
+    const yaml = buildYAML(answers);
+    writeFileSync(targetFile, yaml, 'utf-8');
+    spinner.succeed(`Created ${targetFile}`);
+
+    if (opts?.withProtocol) {
+      const protocolSpinner = ora('Generating protocol files...').start();
+
+      try {
+        const filesCreated = generateProtocolFiles({
+          PROJECT_NAME: answers.projectName,
+          PROTOCOL_PATH: 'docs/PROTOCOL.md',
+          MCP_SERVER_COMMAND: 'node packages/mcp-server/dist/server.js',
+          DNA_PATH: './behavioros.yaml',
+          ENFORCEMENT_LEVEL: answers.governanceLevel,
+        });
+
+        protocolSpinner.succeed(`Generated ${filesCreated.length} protocol file(s)`);
+        console.log(chalk.bold('\nProtocol files created:'));
+        for (const file of filesCreated) {
+          console.log(`  ${chalk.cyan('✓')} ${file}`);
+        }
+        console.log('');
+      } catch (err) {
+        protocolSpinner.fail('Protocol file generation failed');
+        console.error(chalk.red(`\n${String(err)}\n`));
+        process.exitCode = 1;
+        return;
+      }
+    }
+
+    console.log(chalk.green(`\n✅ BehaviorOS initialized successfully!\n`));
+    console.log(`  Next steps:`);
+    console.log(`    ${chalk.cyan('behavioros validate')}  — Validate your DNA config`);
+    console.log(`    ${chalk.cyan('behavioros compile')}   — Compile to generated files`);
+    console.log(`    ${chalk.cyan('behavioros status')}    — View project status`);
+    if (opts?.withProtocol) {
+      console.log(
+        `    ${chalk.cyan('behavioros validate --protocol')}  — Validate protocol enforcement\n`,
+      );
+    } else {
+      console.log('');
+    }
+  } catch (err) {
+    spinner.fail('Failed to create config');
+    console.error(chalk.red(String(err)));
+    process.exitCode = 1;
+  }
 }

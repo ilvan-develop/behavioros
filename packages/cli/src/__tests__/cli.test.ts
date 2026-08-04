@@ -1,8 +1,11 @@
-import { sep } from 'node:path';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, sep } from 'node:path';
 import { BehaviorCompiler, DNALoader, DNAValidator } from '@behavioros/core';
+import { sanitizeDNA } from '@behavioros/core';
 import type { DNAPackage } from '@behavioros/schemas';
 import { Command } from 'commander';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { compileCommand } from '../commands/compile.js';
 import { initCommand } from '../commands/init.js';
 import { statusCommand } from '../commands/status.js';
@@ -78,6 +81,54 @@ describe('CLI Program Setup', () => {
     const commands = program.commands.map((c) => c.name());
     expect(commands).toEqual(expect.arrayContaining(['init', 'compile', 'validate', 'status']));
     expect(commands).toHaveLength(4);
+  });
+});
+
+// ─── init --yes (non-interactive) ────────────────────────
+
+describe('init --yes (non-interactive)', () => {
+  let tmpDir: string;
+  let originalCwd: string;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'bos-cli-init-'));
+    originalCwd = process.cwd();
+    process.chdir(tmpDir);
+  });
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('generates behavioros.yaml with no prompts and no stack trace on non-TTY stdin', async () => {
+    // Live verification found `init` (without --yes) crashed with a raw, unhandled
+    // ExitPromptError stack trace whenever stdin wasn't an interactive TTY — e.g. any CI
+    // pipeline or script, despite README documenting `npx @behavioros/cli init` as the
+    // first onboarding step. --yes exists specifically to fix that.
+    const program = new Command();
+    program.name('behavioros-test').version('0.1.0-test').exitOverride();
+    initCommand(program);
+
+    await program.parseAsync(['node', 'behavioros', 'init', '--yes']);
+
+    expect(existsSync(join(tmpDir, 'behavioros.yaml'))).toBe(true);
+  });
+
+  it('the generated DNA passes its own sanitizer clean (personas have real boundaries)', async () => {
+    // Live verification found the default scaffold's two personas had zero boundaries,
+    // which tripped the CLI's own security sanitizer as "medium risk" on the very first
+    // `validate` run after `init` — a bad first impression fixed by giving each default
+    // persona one real boundary.
+    const program = new Command();
+    program.name('behavioros-test').version('0.1.0-test').exitOverride();
+    initCommand(program);
+    await program.parseAsync(['node', 'behavioros', 'init', '--yes']);
+
+    const yaml = readFileSync(join(tmpDir, 'behavioros.yaml'), 'utf-8');
+    const result = sanitizeDNA(yaml);
+    expect(result.violations).toHaveLength(0);
+    expect(result.riskScore).toBe(0);
   });
 });
 
