@@ -199,6 +199,15 @@ export async function createServer(): Promise<McpServer> {
     },
   });
 
+  // Sync each persona's DNA-authored skills into the SkillEngine, then alias them onto the
+  // actual generated agent ids (AgentManager creates ids like "agent-orchestrator-<uuid>",
+  // not "orchestrator") — without this, bos-skills-validate/bos-agent-handoff always report
+  // every agent as missing every skill, even skills its own DNA persona explicitly grants it.
+  await _engine.skillEngine.syncFromDNA(dna);
+  for (const agent of _engine.getAllAgents()) {
+    _engine.skillEngine.assignPersonaSkillsToAgent(agent.id, agent.role);
+  }
+
   // Initialize protocol state tracker for the 7-step delegation protocol
   _protocolTracker = new ProtocolStateTracker();
 

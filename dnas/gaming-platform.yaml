@@ -186,9 +186,9 @@ governance:
     level: critical
     action: block
     conditions:
-      - type: matchmaking-algorithm
-      - type: skill-rating
-      - type: rank-system
+      - "type:matchmaking-algorithm"
+      - "type:skill-rating"
+      - "type:rank-system"
 
   - id: gov-anti-cheat-evidence
     name: Anti-Cheat Evidence Standard
@@ -198,9 +198,9 @@ governance:
     level: critical
     action: escalate
     conditions:
-      - type: player-ban
-      - type: account-suspension
-      - type: item-confiscation
+      - "type:player-ban"
+      - "type:account-suspension"
+      - "type:item-confiscation"
 
   - id: gov-economy-balance
     name: Economy Balance
@@ -210,9 +210,9 @@ governance:
     level: high
     action: escalate
     conditions:
-      - type: economy-change
-      - type: currency-adjustment
-      - type: pricing-tweak
+      - "type:economy-change"
+      - "type:currency-adjustment"
+      - "type:pricing-tweak"
 
   - id: gov-content-safety
     name: Content Safety
@@ -223,9 +223,9 @@ governance:
     level: critical
     action: block
     conditions:
-      - type: user-content
-      - type: chat-message
-      - type: custom-avatar
+      - "type:user-content"
+      - "type:chat-message"
+      - "type:custom-avatar"
 
   - id: gov-monetization-ethics
     name: Monetization Ethics
@@ -236,9 +236,9 @@ governance:
     level: high
     action: escalate
     conditions:
-      - type: monetization
-      - type: loot-box
-      - type: battle-pass
+      - "type:monetization"
+      - "type:loot-box"
+      - "type:battle-pass"
 
   - id: gov-server-integrity
     name: Server Integrity
@@ -248,9 +248,9 @@ governance:
     level: critical
     action: block
     conditions:
-      - type: server-authoritative
-      - type: game-state
-      - type: physics-tick
+      - "type:server-authoritative"
+      - "type:game-state"
+      - "type:physics-tick"
 
   - id: gov-data-privacy
     name: Player Data Privacy
@@ -260,9 +260,9 @@ governance:
     level: critical
     action: block
     conditions:
-      - type: player-data
-      - type: telemetry
-      - type: behavioral-tracking
+      - "type:player-data"
+      - "type:telemetry"
+      - "type:behavioral-tracking"
 
 # ============================================================
 # QUALITY GATES
@@ -304,7 +304,7 @@ quality:
 patterns:
   - id: pat-matchmaking
     name: Matchmaking Pipeline
-    type: action
+    type: custom
     description: |
       Multi-stage matchmaking pipeline: party formation, skill-based
       matching, latency optimization, and lobby assignment.

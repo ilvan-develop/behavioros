@@ -25,6 +25,23 @@ const MANIFEST = [
     file: 'python-go-microservices.yaml',
   },
   { id: 'complex-monorepo', name: 'Complex Monorepo DNA', file: 'complex-monorepo.yaml' },
+  { id: 'ecommerce-platform', name: 'E-Commerce Platform DNA', file: 'ecommerce-platform.yaml' },
+  { id: 'gaming-platform', name: 'Gaming Platform DNA', file: 'gaming-platform.yaml' },
+  {
+    id: 'healthcare-operations',
+    name: 'Healthcare Operations DNA',
+    file: 'healthcare-operations.yaml',
+  },
+  {
+    id: 'enterprise-agent-review',
+    name: 'Enterprise Agent Architecture Review Guide (EAARG)',
+    file: 'enterprise-agent-review.yaml',
+  },
+  // 'autonomous-orchestrator' is deliberately NOT registered here: its persona roles
+  // ('autonomous-orchestrator', 'sub-agent') aren't valid AgentRoleSchema values and its
+  // pattern types aren't valid BehaviorPatternSchema values, so it fails schema validation.
+  // Found via live catalog verification (2026-08-04) — needs a real design decision on how
+  // to remap those roles, not a mechanical fix, so it's left out until someone does that.
 ] as const;
 
 export interface DNAManifestEntry {

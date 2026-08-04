@@ -155,6 +155,50 @@ describe('SkillEngine', () => {
     });
   });
 
+  // ─── assignPersonaSkillsToAgent() ──────────────────────────
+
+  describe('assignPersonaSkillsToAgent()', () => {
+    it('reproduces the live-verification bug: a real generated agent id has no skills until aliased', async () => {
+      const dna = makeSampleDNA();
+      await engine.syncFromDNA(dna);
+
+      // AgentManager creates ids like "agent-engineer-<uuid>", not the bare role "engineer" —
+      // syncFromDNA() only registers skills under the role key, so validateDelegation() against
+      // a real agent id always reports every skill as missing until assignPersonaSkillsToAgent()
+      // aliases the role's skills onto it. This is exactly what a live Claude Code session
+      // hitting bos-skills-validate with a real agent id observed before this fix.
+      const realAgentId = 'agent-engineer-f388e319';
+
+      const before = await engine.validateDelegation('orchestrator', realAgentId, ['typescript']);
+      expect(before.allowed).toBe(false);
+      expect(before.missingSkills).toContain('typescript');
+
+      engine.assignPersonaSkillsToAgent(realAgentId, 'engineer');
+
+      const after = await engine.validateDelegation('orchestrator', realAgentId, [
+        'typescript',
+        'react',
+      ]);
+      expect(after.allowed).toBe(true);
+      expect(after.missingSkills).toHaveLength(0);
+    });
+
+    it('is a no-op when the role has no synced skills', async () => {
+      const dna = makeSampleDNA();
+      await engine.syncFromDNA(dna); // qa persona has skills: []
+
+      engine.assignPersonaSkillsToAgent('agent-qa-abc123', 'qa');
+      const agentSkills = engine.getAgentSkills();
+      expect(agentSkills.get('agent-qa-abc123')).toEqual([]);
+    });
+
+    it('is a no-op for a role that was never synced', () => {
+      engine.assignPersonaSkillsToAgent('agent-ghost-abc123', 'nonexistent-role');
+      const agentSkills = engine.getAgentSkills();
+      expect(agentSkills.has('agent-ghost-abc123')).toBe(false);
+    });
+  });
+
   // ─── listAvailable() ───────────────────────────────────────
 
   describe('listAvailable()', () => {

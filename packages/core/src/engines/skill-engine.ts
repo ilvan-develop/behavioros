@@ -172,6 +172,23 @@ export class SkillEngine {
     return { hasSkill: false };
   }
 
+  /**
+   * Alias a persona role's synced skills onto a concrete agent id.
+   *
+   * syncFromDNA() registers skill refs keyed by `persona.role` (e.g. "orchestrator"),
+   * but AgentManager creates agents with generated ids (e.g. "agent-orchestrator-f388e319")
+   * that don't match any role key. Without this, validateDelegation()/resolve() always miss
+   * for real agent ids — found via live verification: every agent in a running server was
+   * reported as missing skills its own DNA persona explicitly grants it, because the two
+   * were never connected. Call this once per agent after syncFromDNA().
+   */
+  assignPersonaSkillsToAgent(agentId: string, role: string): void {
+    const roleSkills = this.agentSkills.get(role);
+    if (roleSkills) {
+      this.agentSkills.set(agentId, roleSkills);
+    }
+  }
+
   // ─── Delegation Validation ─────────────────────────────────
 
   /**

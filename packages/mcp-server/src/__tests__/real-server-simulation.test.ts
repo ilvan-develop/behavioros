@@ -106,6 +106,64 @@ describeIfBuilt('Real MCP server simulation (spawns actual dist/server.js over s
     });
   });
 
+  describe('Promise: "DNA persona skills gate delegation"', () => {
+    let session: Awaited<ReturnType<typeof spawnRealServer>>;
+    beforeAll(async () => {
+      session = await spawnRealServer();
+      // bos-skills-validate requires dna/truth/mission steps to be complete first.
+      await session.client.callTool({
+        name: 'bos_select_dna',
+        arguments: { taskType: 'feature', domain: 'backend' },
+      });
+      await session.client.callTool({
+        name: 'bos_resolve_truth',
+        arguments: { taskType: 'feature', domain: 'backend' },
+      });
+      await session.client.callTool({
+        name: 'create-mission',
+        arguments: { title: 'Skill gating simulation', type: 'feature' },
+      });
+    }, 30000);
+    afterAll(async () => session.cleanup());
+
+    it('a real generated agent id already has the skills its DNA persona grants it', async () => {
+      // Live verification found this broken: syncFromDNA() was never called at startup, and
+      // even when called it keys skills by persona.role ("orchestrator"), not by the actual
+      // generated agent id ("agent-orchestrator-<uuid>") — so every agent was reported as
+      // missing every skill, including skills its own DNA persona explicitly grants it.
+      const agentsResult = await session.client.callTool({ name: 'list-agents', arguments: {} });
+      const agents = toolJSON(agentsResult) as Array<{ id: string; role: string }>;
+      const orchestrator = agents.find((a) => a.role === 'orchestrator')!;
+      expect(orchestrator.id).toMatch(/^agent-orchestrator-/);
+
+      // enterprise-governance.yaml's orchestrator persona grants exactly these skills.
+      const validation = await session.client.callTool({
+        name: 'bos-skills-validate',
+        arguments: {
+          agentId: orchestrator.id,
+          requiredSkills: ['delegation', 'mission-management'],
+        },
+      });
+      const result = toolJSON(validation);
+      expect(result.allowed).toBe(true);
+      expect(result.missingSkills).toHaveLength(0);
+    });
+
+    it('still correctly blocks a skill no persona was granted', async () => {
+      const agentsResult = await session.client.callTool({ name: 'list-agents', arguments: {} });
+      const agents = toolJSON(agentsResult) as Array<{ id: string; role: string }>;
+      const engineer = agents.find((a) => a.role === 'engineer')!;
+
+      const validation = await session.client.callTool({
+        name: 'bos-skills-validate',
+        arguments: { agentId: engineer.id, requiredSkills: ['quantum-computing'] },
+      });
+      const result = toolJSON(validation);
+      expect(result.allowed).toBe(false);
+      expect(result.missingSkills).toContain('quantum-computing');
+    });
+  });
+
   describe('Promise: "7-step protocol is enforced, not just documented"', () => {
     let session: Awaited<ReturnType<typeof spawnRealServer>>;
     beforeAll(async () => {

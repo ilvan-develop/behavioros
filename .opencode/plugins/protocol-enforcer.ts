@@ -1,5 +1,7 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { createHmac, randomBytes } from 'node:crypto';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
 import type { Plugin } from '@opencode-ai/plugin';
 
 const STATE_FILE = '.agent_state.json';
@@ -13,8 +15,62 @@ interface ProtocolState {
     learningRecorded: boolean;
     lastStep: number | null;
     lastUpdated: string | null;
+    activeRole?: string;
   };
+  security?: { sessionId: string; issuedAt: string; signature: string };
 }
+
+// ─── Signed state (mirrors packages/core/src/state/agent-state-store.ts and
+// scripts/validate-protocol.js — MUST stay in sync with both, and deliberately
+// duplicated rather than imported so this plugin has zero build-time dependency
+// on the workspace packages). Sharing the same secret/scheme here means state
+// written by Claude Code's MCP server and state written by OpenCode's own
+// delegation flow both verify against each other instead of one tool silently
+// stripping the other's signature.
+
+function getStateSecretPath(): string {
+  return process.env.BEHAVIOROS_STATE_KEY_PATH || join(homedir(), '.behavioros', 'state.key');
+}
+
+function isStrictModeEnrolled(): boolean {
+  if (process.env.BEHAVIOROS_STATE_SECRET) return true;
+  return existsSync(getStateSecretPath());
+}
+
+function getOrCreateStateSecret(): string {
+  if (process.env.BEHAVIOROS_STATE_SECRET) return process.env.BEHAVIOROS_STATE_SECRET;
+  const keyPath = getStateSecretPath();
+  if (existsSync(keyPath)) return readFileSync(keyPath, 'utf-8').trim();
+
+  const secret = randomBytes(32).toString('hex');
+  mkdirSync(dirname(keyPath), { recursive: true });
+  writeFileSync(keyPath, secret, 'utf-8');
+  try {
+    chmodSync(keyPath, 0o600);
+  } catch {
+    // best-effort
+  }
+  return secret;
+}
+
+function canonicalPayload(protocol: ProtocolState['protocol'], sessionId: string, issuedAt: string): string {
+  return [
+    !!protocol.dnaSelected,
+    !!protocol.truthResolved,
+    !!protocol.missionCreated,
+    !!protocol.auditDone,
+    !!protocol.learningRecorded,
+    protocol.activeRole || '',
+    sessionId,
+    issuedAt,
+  ].join('|');
+}
+
+function signProtocolState(protocol: ProtocolState['protocol'], secret: string, sessionId: string, issuedAt: string): string {
+  return createHmac('sha256', secret).update(canonicalPayload(protocol, sessionId, issuedAt)).digest('hex');
+}
+
+const SESSION_ID = randomBytes(8).toString('hex');
 
 function defaultState(): ProtocolState {
   return {
@@ -38,21 +94,53 @@ function loadState(projectPath: string): ProtocolState {
   const path = getStatePath(projectPath);
   if (!existsSync(path)) {
     const state = defaultState();
-    writeFileSync(path, JSON.stringify(state, null, 2), 'utf-8');
+    saveState(projectPath, state);
     return state;
   }
+
+  let raw: string;
+  let data: ProtocolState;
   try {
-    const raw = readFileSync(path, 'utf-8');
-    return JSON.parse(raw) as ProtocolState;
+    raw = readFileSync(path, 'utf-8');
+    data = JSON.parse(raw) as ProtocolState;
   } catch {
     const state = defaultState();
-    writeFileSync(path, JSON.stringify(state, null, 2), 'utf-8');
+    saveState(projectPath, state);
     return state;
   }
+
+  if (data.security?.signature) {
+    const secret = getOrCreateStateSecret();
+    const expected = signProtocolState(data.protocol, secret, data.security.sessionId, data.security.issuedAt);
+    if (expected !== data.security.signature) {
+      throw new Error(
+        'BehaviorOS protocol state integrity check failed: .agent_state.json was modified ' +
+          'without going through BehaviorOS tools (signature mismatch). Use bos_reset_protocol ' +
+          '(confirm=true) to acknowledge and reset before continuing.',
+      );
+    }
+    return data;
+  }
+
+  if (isStrictModeEnrolled()) {
+    throw new Error(
+      'BehaviorOS protocol state integrity check failed: .agent_state.json has no signature, ' +
+        'but this machine has already enrolled in signed-state mode. Use bos_reset_protocol ' +
+        '(confirm=true) to acknowledge and reset before continuing.',
+    );
+  }
+
+  // Legacy/back-compat: unsigned file, and this machine has never enrolled in signed-state
+  // mode (no secret key exists yet) — trust it as-is, matching pre-signing behavior.
+  return data;
 }
 
 function saveState(projectPath: string, state: ProtocolState): void {
   state.protocol.lastUpdated = new Date().toISOString();
+  const secret = getOrCreateStateSecret();
+  const issuedAt = new Date().toISOString();
+  const signature = signProtocolState(state.protocol, secret, SESSION_ID, issuedAt);
+  state.security = { sessionId: SESSION_ID, issuedAt, signature };
   writeFileSync(getStatePath(projectPath), JSON.stringify(state, null, 2), 'utf-8');
 }
 

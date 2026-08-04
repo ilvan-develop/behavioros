@@ -92,27 +92,60 @@ npx @behavioros/cli status
 
 You should see your DNA's name and persona count. If it falls back to `enterprise-governance-fallback`, double-check `BEHAVIOROS_DNA_PATH` points at your actual file.
 
-## 4. Turn on deterministic enforcement (Claude Code)
+## 4. Turn on deterministic enforcement
 
-Step 1–3 get the MCP tools (`bos_select_dna`, `create-mission`, etc.) available to your agent, but by themselves they're **advisory** — nothing stops the agent from ignoring them and calling `Edit`/`Write` directly. To actually gate native file-edit tools, add a `PreToolUse` hook:
+Step 1–3 get the MCP tools (`bos_select_dna`, `create-mission`, etc.) available to your agent, but by themselves they're **advisory** — nothing stops the agent from ignoring them and calling `Edit`/`Write` directly. To actually gate native file-edit tools, you need a `PreToolUse`-style hook — and the exact mechanics differ enough per tool that getting them wrong means the hook silently never fires. This section was corrected after live-verifying it against a real Claude Code session; the version below is the one that actually works, not the one that looks right on paper.
 
-`.claude/hooks.json`:
+### Claude Code
+
+Hooks live in **`.claude/settings.json`** (project-level) or `~/.claude/settings.json` (user-global) under a `"hooks"` key — **not** a standalone `.claude/hooks.json` file. A hook configured in the wrong file is silently never read; Claude Code won't warn you.
+
+`.claude/settings.json`:
 
 ```json
 {
   "hooks": {
     "PreToolUse": [
-      { "matcher": ".*", "hooks": [{ "type": "command", "command": "node scripts/validate-protocol.js" }] }
+      {
+        "matcher": "Edit|Write|NotebookEdit|MultiEdit|Bash",
+        "hooks": [{ "type": "command", "command": "node scripts/validate-protocol.js" }]
+      }
     ]
   }
 }
 ```
 
-Copy `scripts/validate-protocol.js` from this repo alongside it. It verifies a signed `.agent_state.json` (HMAC-keyed via a secret the MCP server creates at `~/.behavioros/state.key` on first run) and blocks `Edit`/`Write`/`NotebookEdit`/`MultiEdit`/`Bash` until `bos_select_dna` has run — see [PROTOCOL.md § Enforcement Rules](PROTOCOL.md#enforcement-rules) for exactly what it checks and why the signature (not just the raw JSON flags) is the part that matters.
+Copy `scripts/validate-protocol.js` from this repo alongside it. It verifies a signed `.agent_state.json` (HMAC-keyed via a secret the MCP server creates at `~/.behavioros/state.key` on first run) and blocks `Edit`/`Write`/`NotebookEdit`/`MultiEdit`/`Bash` until `bos_select_dna` has run. Note it exits with code **2** to signal a block — Claude Code's `PreToolUse` contract specifically requires exit 2; exit 1 is treated as a generic script error and does *not* stop the tool call. See [PROTOCOL.md § Enforcement Rules](PROTOCOL.md#enforcement-rules) for exactly what it checks and why the signature (not just the raw JSON flags) is the part that matters.
 
-> **Known gap**: `init --with-protocol` does not yet generate `.claude/hooks.json` or `scripts/validate-protocol.js` for you — copy them by hand for now. Everything else in this guide (DNA file, MCP config, protocol reference docs) *is* generated.
+You also need a project-scoped `.mcp.json` pointing at the built server so Claude Code actually launches it:
 
-**Cursor** has its own hook shape (`.cursor/hooks.json` with `beforeMCPExecution`/`afterFileEdit`) — see the live example in this repo's own `.cursor/hooks.json` if you want to replicate it; MCP tool calls are gated in-process by `EnforcementMiddleware` regardless of whether you wire the Cursor-specific hook.
+```json
+{
+  "mcpServers": {
+    "behavioros": {
+      "command": "node",
+      "args": ["packages/mcp-server/dist/server.js"],
+      "env": { "BEHAVIOROS_DNA_PATH": "./behavioros.yaml" }
+    }
+  }
+}
+```
+
+Claude Code loads both MCP servers and hooks at session start — editing either file requires restarting the session (or reconnecting via `/mcp` for MCP config) before it takes effect.
+
+> **Known gap**: `init --with-protocol` does not yet generate `.claude/settings.json`, `.mcp.json`, or `scripts/validate-protocol.js` for you — copy them by hand for now. Everything else in this guide (DNA file, MCP config, protocol reference docs) *is* generated.
+
+### Cursor
+
+Has its own hook shape (`.cursor/hooks.json` with `beforeMCPExecution`/`afterFileEdit`) — see the live example in this repo's own `.cursor/hooks.json` if you want to replicate it; MCP tool calls are gated in-process by `EnforcementMiddleware` regardless of whether you wire the Cursor-specific hook.
+
+### OpenCode
+
+Ships as a real plugin in this repo: `.opencode/plugins/protocol-enforcer.ts`, registered via `opencode.json`'s `plugin` array. It implements the same signed-state scheme as the Claude Code hook (same secret, same HMAC algorithm) specifically so state written by one tool is trusted, not silently downgraded, when read by the other on the same project.
+
+### Codex CLI
+
+**Not currently viable for file-edit gating** — see [CODEX-INTEGRATION.md](CODEX-INTEGRATION.md) for why (hooks are experimental, unavailable on Windows, and only intercept the `Bash` tool as of Aug 2026). MCP tool calls are still gated in-process regardless.
 
 ## 5. Try it
 
@@ -131,5 +164,6 @@ If it tries to edit a file before step 1 and you've wired the hook from step 4, 
 - [PROTOCOL.md](PROTOCOL.md) — the full 7-step protocol spec, error messages, and per-platform integration blocks.
 - [DNAs.md](DNAs.md) — the DNA catalog, including stack-specific presets.
 - [EAARG-18-LAYERS.md](EAARG-18-LAYERS.md) — the 18-layer architecture review framework, for a deeper SDLC-wide governance pass beyond the 7-step protocol.
+- [CODEX-INTEGRATION.md](CODEX-INTEGRATION.md) — current (limited) status of Codex CLI support.
 - [RUNBOOK.md](RUNBOOK.md) — operational troubleshooting once BehaviorOS is running.
 - [CLI.md](CLI.md) — full CLI command reference.

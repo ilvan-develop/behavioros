@@ -10,22 +10,52 @@ personas:
     authority: architect
     name: Enterprise Architect
     description: Responsável pela revisão geral de arquitetura
+    boundaries:
+      - id: eaarg-arch-require-review
+        name: Require architecture review sign-off
+        type: require_approval
+        value: true
+        scope: per_pr
   - role: engineer
     authority: senior
     name: Senior Engineer
     description: Responsável pela implementação técnica
+    boundaries:
+      - id: eaarg-eng-max-files
+        name: Max files per change
+        type: max_files
+        value: 20
+        scope: per_pr
   - role: qa
     authority: senior
     name: QA Lead
     description: Responsável pela qualidade e testes
+    boundaries:
+      - id: eaarg-qa-require-evidence
+        name: Require evidence for each layer's acceptance criteria
+        type: require_approval
+        value: true
+        scope: per_pr
   - role: security
     authority: architect
     name: Security Architect
     description: Responsável pela segurança
+    boundaries:
+      - id: eaarg-sec-no-secrets
+        name: No secrets in code
+        type: forbidden
+        value: true
+        scope: global
   - role: devops
     authority: senior
     name: DevOps Engineer
     description: Responsável pela infraestrutura e deploy
+    boundaries:
+      - id: eaarg-ops-no-prod-direct
+        name: No direct prod access
+        type: forbidden
+        value: true
+        scope: global
 
 governance:
   - id: eaarg-change-management

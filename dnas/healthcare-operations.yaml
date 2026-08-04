@@ -182,9 +182,9 @@ governance:
     level: critical
     action: block
     conditions:
-      - type: phi-access
-      - type: patient-data
-      - type: ehr-modification
+      - "type:phi-access"
+      - "type:patient-data"
+      - "type:ehr-modification"
 
   - id: gov-clinical-validated
     name: Clinical Validation Required
@@ -194,9 +194,9 @@ governance:
     level: critical
     action: block
     conditions:
-      - type: clinical-algorithm
-      - type: treatment-protocol
-      - type: diagnosis-support
+      - "type:clinical-algorithm"
+      - "type:treatment-protocol"
+      - "type:diagnosis-support"
 
   - id: gov-data-integrity
     name: Data Integrity
@@ -206,9 +206,9 @@ governance:
     level: high
     action: escalate
     conditions:
-      - type: data-migration
-      - type: record-merge
-      - type: schema-change
+      - "type:data-migration"
+      - "type:record-merge"
+      - "type:schema-change"
 
   - id: gov-breach-response
     name: Breach Response Protocol
@@ -218,9 +218,9 @@ governance:
     level: critical
     action: escalate
     conditions:
-      - type: security-incident
-      - type: phi-exposure
-      - type: unauthorized-access
+      - "type:security-incident"
+      - "type:phi-exposure"
+      - "type:unauthorized-access"
 
   - id: gov-clinical-audit
     name: Clinical Audit Trail
@@ -230,9 +230,9 @@ governance:
     level: high
     action: warn
     conditions:
-      - type: system-change
-      - type: configuration-update
-      - type: access-log
+      - "type:system-change"
+      - "type:configuration-update"
+      - "type:access-log"
 
   - id: gov-interoperability
     name: Interoperability Compliance
@@ -242,9 +242,9 @@ governance:
     level: medium
     action: warn
     conditions:
-      - type: api-development
-      - type: data-exchange
-      - type: integration
+      - "type:api-development"
+      - "type:data-exchange"
+      - "type:integration"
 
   - id: gov-patient-consent
     name: Patient Consent Management
@@ -254,9 +254,9 @@ governance:
     level: critical
     action: block
     conditions:
-      - type: patient-data-access
-      - type: research-data-use
-      - type: data-sharing
+      - "type:patient-data-access"
+      - "type:research-data-use"
+      - "type:data-sharing"
 
 # ============================================================
 # QUALITY GATES

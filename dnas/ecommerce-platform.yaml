@@ -187,9 +187,9 @@ governance:
     level: critical
     action: block
     conditions:
-      - type: payment-flow
-      - type: checkout
-      - type: card-processing
+      - "type:payment-flow"
+      - "type:checkout"
+      - "type:card-processing"
 
   - id: gov-price-integrity
     name: Pricing Integrity
@@ -199,9 +199,9 @@ governance:
     level: high
     action: escalate
     conditions:
-      - type: price-change
-      - type: promotion
-      - type: discount
+      - "type:price-change"
+      - "type:promotion"
+      - "type:discount"
 
   - id: gov-vendor-governance
     name: Vendor Governance
@@ -211,8 +211,8 @@ governance:
     level: high
     action: block
     conditions:
-      - type: vendor-onboarding
-      - type: vendor-policy-change
+      - "type:vendor-onboarding"
+      - "type:vendor-policy-change"
 
   - id: gov-fraud-threshold
     name: Fraud Detection Threshold
@@ -222,9 +222,9 @@ governance:
     level: critical
     action: escalate
     conditions:
-      - type: high-risk-transaction
-      - type: chargeback-dispute
-      - type: refund-override
+      - "type:high-risk-transaction"
+      - "type:chargeback-dispute"
+      - "type:refund-override"
 
   - id: gov-inventory-accuracy
     name: Inventory Accuracy
@@ -234,9 +234,9 @@ governance:
     level: medium
     action: warn
     conditions:
-      - type: inventory-update
-      - type: stock-count
-      - type: fulfillment
+      - "type:inventory-update"
+      - "type:stock-count"
+      - "type:fulfillment"
 
   - id: gov-logistics-sla
     name: Logistics SLA Enforcement
@@ -246,9 +246,9 @@ governance:
     level: medium
     action: warn
     conditions:
-      - type: shipping
-      - type: delivery
-      - type: returns
+      - "type:shipping"
+      - "type:delivery"
+      - "type:returns"
 
   - id: gov-customer-data
     name: Customer Data Protection
@@ -258,9 +258,9 @@ governance:
     level: critical
     action: block
     conditions:
-      - type: customer-data
-      - type: user-profile
-      - type: address-management
+      - "type:customer-data"
+      - "type:user-profile"
+      - "type:address-management"
 
 # ============================================================
 # QUALITY GATES
@@ -302,7 +302,7 @@ quality:
 patterns:
   - id: pat-payment-orchestration
     name: Payment Orchestration
-    type: action
+    type: custom
     description: |
       Multi-provider payment orchestration with automatic failover,
       retry logic, and idempotency guarantees for all payment
@@ -335,7 +335,7 @@ patterns:
 
   - id: pat-order-lifecycle
     name: Order Lifecycle Management
-    type: action
+    type: custom
     description: |
       Complete order lifecycle from placement through fulfillment,
       tracking, delivery, and potential returns or replacements.
