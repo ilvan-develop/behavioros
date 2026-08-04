@@ -53,7 +53,6 @@ import {
   setObservabilityEngine,
 } from './tools/bos-observability.js';
 import { bosResetProtocol, bosResetProtocolInput } from './tools/bos-reset-protocol.js';
-import { bosTelemetrySummary } from './tools/bos-telemetry-summary.js';
 import { bosResolveConflict, bosResolveConflictInput } from './tools/bos-resolve-conflict.js';
 import { bosResolveTruth, bosResolveTruthInput } from './tools/bos-resolve-truth.js';
 import { bosRunAudit, bosRunAuditInput } from './tools/bos-run-audit.js';
@@ -61,6 +60,7 @@ import { bosRunAudit, bosRunAuditInput } from './tools/bos-run-audit.js';
 import { bosSelectDna, bosSelectDnaInput } from './tools/bos-select-dna.js';
 import { bosSkillsList, bosSkillsListInput } from './tools/bos-skills-list.js';
 import { bosSkillsValidate, bosSkillsValidateInput } from './tools/bos-skills-validate.js';
+import { bosTelemetrySummary } from './tools/bos-telemetry-summary.js';
 import { bosValidateProtocol, bosValidateProtocolInput } from './tools/bos-validate-protocol.js';
 import {
   approveLayer,
@@ -190,6 +190,13 @@ export async function createServer(): Promise<McpServer> {
       persistPath: resolve(defaultPersistDir, 'learning.json'),
     },
     audit: { enabled: true },
+    telemetry: {
+      enabled: process.env.BEHAVIOROS_TELEMETRY_ENABLED === 'true',
+      webhookUrl: process.env.BEHAVIOROS_TELEMETRY_WEBHOOK_URL,
+      exportIntervalMs: process.env.BEHAVIOROS_TELEMETRY_INTERVAL_MS
+        ? Number(process.env.BEHAVIOROS_TELEMETRY_INTERVAL_MS)
+        : undefined,
+    },
   });
 
   // Initialize protocol state tracker for the 7-step delegation protocol
@@ -264,14 +271,19 @@ export async function createServer(): Promise<McpServer> {
   _server.tool(
     'list-agents',
     'List all agents in the system',
-    (listAgentsInput as any).shape,
+    // listAgentsInput is `z.object({...}).optional()` — `.shape` doesn't exist on a
+    // ZodOptional wrapper (it's `undefined`), which silently confused the MCP SDK's
+    // overload resolution and dropped the real handler, crashing every call to this
+    // tool with "Cannot use 'in' operator to search for 'createTask' in undefined".
+    // .unwrap() gets back to the underlying ZodObject, which does have .shape.
+    listAgentsInput.unwrap().shape,
     async (args: any) => listAgents(_engine!, args),
   );
 
   _server.tool(
     'list-missions',
     'List missions with optional filtering',
-    (listMissionsInput as any).shape,
+    listMissionsInput.unwrap().shape,
     async (args: any) => listMissions(_engine!, args),
   );
 
@@ -722,7 +734,8 @@ export async function createServer(): Promise<McpServer> {
   _server.tool(
     'cicd-get-audit-history',
     'Get historical audit results from CI/CD pipelines',
-    (getAuditHistoryInput as any).shape,
+    // See the list-agents registration above for why .unwrap() is required here.
+    getAuditHistoryInput.unwrap().shape,
     async (args: any) => getAuditHistory(args),
   );
 
@@ -745,7 +758,7 @@ export async function createServer(): Promise<McpServer> {
   _server.tool(
     'cicd-get-learning-report',
     'Get learning recommendations from CI/CD events',
-    (getLearningReportInput as any).shape,
+    getLearningReportInput.unwrap().shape,
     async (args: any) => getLearningReport(args),
   );
 

@@ -43,12 +43,28 @@ describe('T6: Platform Kernel Enforcement', () => {
     expect(pluginCode).toContain('tool.execute.before');
   });
 
-  test('T6.6: .claude/hooks.json exists with PreToolUse', () => {
-    const filePath = join(ROOT, '.claude/hooks.json');
+  test('T6.6: .claude/settings.json exists with PreToolUse hook (the location Claude Code actually reads)', () => {
+    // .claude/hooks.json (the old location this test used to check) is never read by Claude
+    // Code — hooks live under a "hooks" key in .claude/settings.json (or ~/.claude/settings.json
+    // for user-global hooks). This was found via live verification: a hook configured only in
+    // .claude/hooks.json never fired against a real Claude Code session.
+    const filePath = join(ROOT, '.claude/settings.json');
     expect(existsSync(filePath)).toBe(true);
-    const hooks = JSON.parse(readFileSync(filePath, 'utf-8'));
-    expect(hooks.hooks.PreToolUse).toBeDefined();
-    expect(hooks.hooks.PreToolUse.length).toBeGreaterThan(0);
+    const settings = JSON.parse(readFileSync(filePath, 'utf-8'));
+    expect(settings.hooks.PreToolUse).toBeDefined();
+    expect(settings.hooks.PreToolUse.length).toBeGreaterThan(0);
+    expect(existsSync(join(ROOT, '.claude/hooks.json'))).toBe(false);
+  });
+
+  test('T6.6b: validate-protocol.js blocks with exit code 2, not 1 (Claude Code PreToolUse contract)', () => {
+    // Exit code 1 is treated by Claude Code as a generic script error, not a block — only
+    // exit code 2 actually stops the tool call. Also found via live verification.
+    const scriptCode = readFileSync(join(ROOT, 'scripts/validate-protocol.js'), 'utf-8');
+    const blockingExits = scriptCode.match(/console\.error\([^)]*\);\s*\n\s*process\.exit\((\d)\)/g) ?? [];
+    expect(blockingExits.length).toBeGreaterThan(0);
+    for (const match of blockingExits) {
+      expect(match).toContain('process.exit(2)');
+    }
   });
 
   test('T6.7: CLAUDE.md contains BehaviorOS kernel instructions', () => {

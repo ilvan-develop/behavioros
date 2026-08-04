@@ -24,6 +24,7 @@ import { RedisCache, type RedisCacheConfig } from './cache/redis-cache';
 import { EcosystemRegistry } from './ecosystem-registry';
 import type { AuthorityLevelValue, GovernanceContext } from './governance/governance-engine';
 import { GovernanceEngine } from './governance/governance-engine';
+import { WebhookManager } from './integration/webhook-manager';
 import { LearningEngine } from './learning/learning-engine';
 import { MissionEngine } from './mission/mission-engine';
 import { MissionManager } from './mission-manager';
@@ -34,7 +35,6 @@ import { QualityEngine } from './quality/quality-engine';
 import { SkillEngine } from './skill-engine';
 import type { TelemetryConfig } from './telemetry/governance-telemetry';
 import { GovernanceTelemetryEngine } from './telemetry/governance-telemetry';
-import { WebhookManager } from './integration/webhook-manager';
 
 // ============================================================
 // BehaviorOS Core Engine — Central Orchestrator (Facade)
@@ -167,7 +167,11 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
     this.telemetryWebhooks = new WebhookManager();
     const telemetryConfig = config.telemetry;
     if (telemetryConfig?.enabled && telemetryConfig.webhookUrl) {
-      this.telemetryWebhooks.register(telemetryConfig.webhookUrl, ['telemetry:summary'], randomUUID());
+      this.telemetryWebhooks.register(
+        telemetryConfig.webhookUrl,
+        ['telemetry:summary'],
+        randomUUID(),
+      );
     }
     this.telemetryEngine = new GovernanceTelemetryEngine(telemetryConfig, (payload) =>
       this.telemetryWebhooks.deliver('telemetry:summary', payload).then(() => undefined),

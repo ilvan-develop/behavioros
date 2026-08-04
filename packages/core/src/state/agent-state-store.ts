@@ -108,7 +108,11 @@ export function getOrCreateStateSecret(): string {
 
 // ─── Signing ────────────────────────────────────────────────────────
 
-function canonicalPayload(protocol: SignedProtocolFields, sessionId: string, issuedAt: string): string {
+function canonicalPayload(
+  protocol: SignedProtocolFields,
+  sessionId: string,
+  issuedAt: string,
+): string {
   return [
     protocol.dnaSelected,
     protocol.truthResolved,
@@ -127,7 +131,9 @@ export function signProtocolState(
   sessionId: string,
   issuedAt: string,
 ): string {
-  return createHmac('sha256', secret).update(canonicalPayload(protocol, sessionId, issuedAt)).digest('hex');
+  return createHmac('sha256', secret)
+    .update(canonicalPayload(protocol, sessionId, issuedAt))
+    .digest('hex');
 }
 
 // ─── Atomic Write + Lock ────────────────────────────────────────────
@@ -193,7 +199,8 @@ export function writeSignedState(
   opts?: { sessionId?: string },
 ): void {
   const secret = getOrCreateStateSecret();
-  const sessionId = opts?.sessionId ?? process.env.BEHAVIOROS_SESSION_ID ?? randomBytes(8).toString('hex');
+  const sessionId =
+    opts?.sessionId ?? process.env.BEHAVIOROS_SESSION_ID ?? randomBytes(8).toString('hex');
   const issuedAt = new Date().toISOString();
   const signature = signProtocolState(protocol, secret, sessionId, issuedAt);
 

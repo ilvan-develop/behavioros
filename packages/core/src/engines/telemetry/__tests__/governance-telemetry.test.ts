@@ -55,10 +55,22 @@ describe('GovernanceTelemetryEngine', () => {
     const summary = engine.getSummary();
 
     expect(summary.violationsBlocked).toEqual([
-      { ruleId: 'gov-test-rule', ruleName: 'Test Rule', level: 'critical', action: 'block', count: 3 },
+      {
+        ruleId: 'gov-test-rule',
+        ruleName: 'Test Rule',
+        level: 'critical',
+        action: 'block',
+        count: 3,
+      },
     ]);
     expect(summary.violationsApproved).toEqual([
-      { ruleId: 'gov-test-rule', ruleName: 'Test Rule', level: 'critical', action: 'block', count: 1 },
+      {
+        ruleId: 'gov-test-rule',
+        ruleName: 'Test Rule',
+        level: 'critical',
+        action: 'block',
+        count: 1,
+      },
     ]);
 
     const agent1 = summary.byAgent.find((a) => a.agentId === 'agent-1');

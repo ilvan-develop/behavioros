@@ -79,11 +79,19 @@ interface CommandResult {
 
 // --- Helpers ---
 
-function runCommand(cmd: string, cwd: string): CommandResult {
+// Live audit run against this repo (2026-08-04) found the previous 60s cap here made the
+// typecheck stage flaky-fail: `turbo typecheck` across this monorepo's 10 packages genuinely
+// takes ~49-60s on a cold cache, so it would occasionally get killed mid-run and reported as
+// FAIL even though the underlying command was still passing, just slow. 180s gives real
+// headroom for a monorepo-scale command without meaningfully slowing down failure detection
+// for commands that are actually hung.
+const DEFAULT_COMMAND_TIMEOUT_MS = 180_000;
+
+function runCommand(cmd: string, cwd: string, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS): CommandResult {
   try {
     const stdout = execSync(cmd, {
       encoding: 'utf-8',
-      timeout: 60_000,
+      timeout: timeoutMs,
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
     });

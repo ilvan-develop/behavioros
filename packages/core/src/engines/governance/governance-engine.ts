@@ -201,9 +201,15 @@ export class GovernanceEngine {
       return ruleCheck;
     }
 
-    // 3. Check boundaries
+    // 3. Check boundaries.
     const boundaryCheck = this.checkBoundaries(context);
     if (!boundaryCheck.allowed) {
+      return boundaryCheck;
+    }
+    // A boundary that passed via scope-escalation still carries escalationRequired: true and a
+    // specific reason — propagate those instead of the generic message below, which would
+    // otherwise silently hide that an elevated-authority override was used to allow the action.
+    if (boundaryCheck.escalationRequired) {
       return boundaryCheck;
     }
 
@@ -306,11 +312,18 @@ export class GovernanceEngine {
 
   private checkBoundaries(context: GovernanceContext): GovernanceDecision {
     const boundaries = context.boundaries ?? [];
+    // Track a boundary that passed only via scope-escalation, so the escalation signal survives
+    // even when a later boundary in the same list passes cleanly and would otherwise cause the
+    // generic "All boundary checks passed" (escalationRequired: false) to overwrite it.
+    let escalated: GovernanceDecision | undefined;
 
     for (const boundary of boundaries) {
       const result = this.evaluateBoundaryRule(boundary, context);
       if (!result.allowed) {
         return result;
+      }
+      if (result.escalationRequired) {
+        escalated = result;
       }
     }
 
@@ -324,6 +337,10 @@ export class GovernanceEngine {
     const depCheck = this.checkDependencyBoundary(context);
     if (!depCheck.allowed) {
       return depCheck;
+    }
+
+    if (escalated) {
+      return escalated;
     }
 
     return { allowed: true, reason: 'All boundary checks passed', escalationRequired: false };
@@ -358,6 +375,33 @@ export class GovernanceEngine {
    * Forbidden boundaries block access to specific paths/modules.
    */
   private checkForbidden(boundary: BoundaryRule, context: GovernanceContext): GovernanceDecision {
+    // `value: true` means "unconditionally forbidden" (e.g. an orchestrator persona that may
+    // never edit files, full stop) — NOT the literal glob pattern "true". Only a string value
+    // is treated as a path/scope glob. Without this check, `String(true)` produced the pattern
+    // "true", which only matched a target literally named "true" — meaning every DNA using the
+    // boolean form (as the bundled enterprise-governance.yaml does for its orchestrator persona)
+    // silently never blocked anything.
+    if (boundary.value === true) {
+      // Unlike glob-scoped forbidden boundaries below, an unconditional one is a hard stop —
+      // NOT run through applyScopeEscalation()'s architect+ override. Personas that need this
+      // kind of absolute restriction (e.g. an orchestrator persona whose own `authority` may
+      // itself be 'lead', which numerically exceeds the 'architect' escalation threshold) would
+      // otherwise be able to override their own "may never do X" rule simply by holding enough
+      // authority for other, unrelated responsibilities (e.g. mission approval).
+      return {
+        allowed: false,
+        reason: `Boundary violation: action unconditionally forbidden (boundary: ${boundary.name}). No authority level overrides this.`,
+        escalationRequired: false,
+      };
+    }
+    if (boundary.value === false) {
+      return {
+        allowed: true,
+        reason: `Boundary '${boundary.name}' is disabled (value: false)`,
+        escalationRequired: false,
+      };
+    }
+
     const pattern = String(boundary.value);
 
     // Check individual files against the forbidden pattern

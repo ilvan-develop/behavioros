@@ -100,7 +100,13 @@ export class GovernanceTelemetryEngine {
     if (existing) {
       existing.count += 1;
     } else {
-      map.set(rule.id, { ruleId: rule.id, ruleName: rule.name, level: rule.level, action: rule.action, count: 1 });
+      map.set(rule.id, {
+        ruleId: rule.id,
+        ruleName: rule.name,
+        level: rule.level,
+        action: rule.action,
+        count: 1,
+      });
     }
   }
 

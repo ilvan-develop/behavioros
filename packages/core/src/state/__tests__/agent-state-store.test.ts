@@ -146,7 +146,9 @@ describe('AgentStateStore', () => {
     const lockPath = `${statePath}.lock`;
     writeFileSync(lockPath, String(process.pid)); // fresh lock, held by "another process"
 
-    expect(() => atomicWriteFileSync(statePath, 'should-not-write')).toThrow(/Timed out waiting for lock/);
+    expect(() => atomicWriteFileSync(statePath, 'should-not-write')).toThrow(
+      /Timed out waiting for lock/,
+    );
     expect(existsSync(statePath)).toBe(false);
   }, 10000);
 });

@@ -544,6 +544,76 @@ describe('GovernanceEngine', () => {
         expect(result.allowed).toBe(true);
       });
 
+      it('should unconditionally block when value is boolean true, regardless of targetFiles', () => {
+        // Regression test: bundled DNAs (e.g. dnas/enterprise-governance.yaml's orchestrator
+        // persona `orch-no-direct-edit`) author forbidden boundaries with `value: true` meaning
+        // "always forbidden" — not the literal glob pattern "true". Before this fix,
+        // String(true) produced the pattern "true", which only matched a target file literally
+        // named "true", so these boundaries silently never blocked anything.
+        const engine = new GovernanceEngine([]);
+        const ctx: GovernanceContext = {
+          ...juniorContext,
+          impact: 'low',
+          boundaries: [
+            {
+              id: 'orch-no-direct-edit',
+              name: 'No direct file editing',
+              type: 'forbidden',
+              value: true,
+              scope: 'global',
+            },
+          ],
+          targetFiles: ['apps/api/src/payments.ts'],
+        };
+        const result = engine.evaluate(ctx);
+        expect(result.allowed).toBe(false);
+        expect(result.reason).toContain('unconditionally forbidden');
+      });
+
+      it('should unconditionally block on value: true even with no targetFiles/targetScope', () => {
+        const engine = new GovernanceEngine([]);
+        const ctx: GovernanceContext = {
+          ...juniorContext,
+          impact: 'low',
+          boundaries: [
+            { id: 'b1', name: 'Always forbidden', type: 'forbidden', value: true, scope: 'global' },
+          ],
+        };
+        const result = engine.evaluate(ctx);
+        expect(result.allowed).toBe(false);
+      });
+
+      it('should allow (boundary disabled) when value is boolean false', () => {
+        const engine = new GovernanceEngine([]);
+        const ctx: GovernanceContext = {
+          ...juniorContext,
+          impact: 'low',
+          boundaries: [
+            { id: 'b1', name: 'Disabled rule', type: 'forbidden', value: false, scope: 'global' },
+          ],
+          targetFiles: ['anything.ts'],
+        };
+        const result = engine.evaluate(ctx);
+        expect(result.allowed).toBe(true);
+      });
+
+      it('no authority level, however high, overrides an unconditional (value: true) forbidden boundary', () => {
+        const engine = new GovernanceEngine([]);
+        const ctx: GovernanceContext = {
+          ...architectContext,
+          agentAuthority: 'c-level',
+          impact: 'low',
+          boundaries: [
+            { id: 'b1', name: 'Always forbidden', type: 'forbidden', value: true, scope: 'global' },
+          ],
+        };
+        const result = engine.evaluate(ctx);
+        // Unlike glob-scoped forbidden boundaries, unconditional ones are a hard stop — not
+        // run through the architect+ scope-escalation override. See checkForbidden().
+        expect(result.allowed).toBe(false);
+        expect(result.escalationRequired).toBe(false);
+      });
+
       it('should block when targetScope matches forbidden pattern', () => {
         const engine = new GovernanceEngine([]);
         const ctx: GovernanceContext = {

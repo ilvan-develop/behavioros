@@ -1784,11 +1784,12 @@ var import_node_child_process = require("child_process");
 var import_node_crypto5 = require("crypto");
 var import_node_fs2 = require("fs");
 var import_node_path2 = require("path");
-function runCommand(cmd, cwd) {
+var DEFAULT_COMMAND_TIMEOUT_MS = 18e4;
+function runCommand(cmd, cwd, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS) {
   try {
     const stdout = (0, import_node_child_process.execSync)(cmd, {
       encoding: "utf-8",
-      timeout: 6e4,
+      timeout: timeoutMs,
       cwd,
       stdio: ["pipe", "pipe", "pipe"]
     });
@@ -5748,6 +5749,9 @@ var GovernanceEngine = class _GovernanceEngine {
     if (!boundaryCheck.allowed) {
       return boundaryCheck;
     }
+    if (boundaryCheck.escalationRequired) {
+      return boundaryCheck;
+    }
     return { allowed: true, reason: "All governance checks passed", escalationRequired: false };
   }
   checkAuthority(context) {
@@ -5830,10 +5834,14 @@ var GovernanceEngine = class _GovernanceEngine {
   // ----------------------------------------------------------
   checkBoundaries(context) {
     const boundaries = context.boundaries ?? [];
+    let escalated;
     for (const boundary of boundaries) {
       const result = this.evaluateBoundaryRule(boundary, context);
       if (!result.allowed) {
         return result;
+      }
+      if (result.escalationRequired) {
+        escalated = result;
       }
     }
     const timeCheck = this.checkTimeRestrictions(context);
@@ -5843,6 +5851,9 @@ var GovernanceEngine = class _GovernanceEngine {
     const depCheck = this.checkDependencyBoundary(context);
     if (!depCheck.allowed) {
       return depCheck;
+    }
+    if (escalated) {
+      return escalated;
     }
     return { allowed: true, reason: "All boundary checks passed", escalationRequired: false };
   }
@@ -5871,6 +5882,20 @@ var GovernanceEngine = class _GovernanceEngine {
    * Forbidden boundaries block access to specific paths/modules.
    */
   checkForbidden(boundary, context) {
+    if (boundary.value === true) {
+      return {
+        allowed: false,
+        reason: `Boundary violation: action unconditionally forbidden (boundary: ${boundary.name}). No authority level overrides this.`,
+        escalationRequired: false
+      };
+    }
+    if (boundary.value === false) {
+      return {
+        allowed: true,
+        reason: `Boundary '${boundary.name}' is disabled (value: false)`,
+        escalationRequired: false
+      };
+    }
     const pattern = String(boundary.value);
     if (context.targetFiles) {
       for (const file of context.targetFiles) {
@@ -6160,8 +6185,85 @@ var GovernanceEngine = class _GovernanceEngine {
   }
 };
 
-// src/engines/learning/learning-engine.ts
+// src/engines/integration/webhook-manager.ts
 var import_node_crypto7 = require("crypto");
+var WebhookManager = class {
+  webhooks = /* @__PURE__ */ new Map();
+  deliveryHistory = [];
+  register(url, events, secret, headers) {
+    const id = (0, import_node_crypto7.randomUUID)();
+    const webhook = {
+      id,
+      url,
+      events,
+      secret,
+      headers,
+      retryCount: 0,
+      maxRetries: 3,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    this.webhooks.set(id, webhook);
+    return id;
+  }
+  unregister(id) {
+    if (!this.webhooks.has(id)) {
+      throw new Error(`Webhook not found: ${id}`);
+    }
+    this.webhooks.delete(id);
+  }
+  async deliver(event, payload) {
+    const matched = Array.from(this.webhooks.values()).filter((w) => w.events.includes(event));
+    if (matched.length === 0) return [];
+    const results = [];
+    for (const webhook of matched) {
+      let delivered = false;
+      let statusCode;
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Webhook-Event": event,
+        "X-Webhook-Signature": webhook.secret,
+        ...webhook.headers
+      };
+      try {
+        const response = await fetch(webhook.url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload)
+        });
+        delivered = response.ok;
+        statusCode = response.status;
+      } catch {
+        delivered = false;
+        statusCode = void 0;
+      }
+      if (!delivered && webhook.retryCount < webhook.maxRetries) {
+        webhook.retryCount++;
+      }
+      const record = {
+        webhookId: webhook.id,
+        event,
+        delivered,
+        statusCode,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      this.deliveryHistory.push(record);
+      results.push({ webhookId: webhook.id, delivered, statusCode });
+    }
+    return results;
+  }
+  list() {
+    return Array.from(this.webhooks.values());
+  }
+  getDeliveryHistory(webhookId) {
+    if (webhookId) {
+      return this.deliveryHistory.filter((r) => r.webhookId === webhookId);
+    }
+    return [...this.deliveryHistory];
+  }
+};
+
+// src/engines/learning/learning-engine.ts
+var import_node_crypto8 = require("crypto");
 var import_promises5 = require("fs/promises");
 var DEFAULT_MAX_EVENTS = 5e3;
 var DEFAULT_MAX_INSIGHTS = 1e3;
@@ -6180,7 +6282,7 @@ var LearningEngine = class {
   }
   record(event) {
     const enriched = {
-      id: (0, import_node_crypto7.randomUUID)(),
+      id: (0, import_node_crypto8.randomUUID)(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       ...event
     };
@@ -6308,7 +6410,7 @@ var LearningEngine = class {
   }
   generateReport() {
     return {
-      id: (0, import_node_crypto7.randomUUID)(),
+      id: (0, import_node_crypto8.randomUUID)(),
       totalEvents: this.events.length,
       insights: this.insights,
       appliedCount: this.events.filter((e) => e.applied).length,
@@ -6708,7 +6810,7 @@ var LearningEngine = class {
 };
 
 // src/engines/mission/mission-engine.ts
-var import_node_crypto8 = require("crypto");
+var import_node_crypto9 = require("crypto");
 var import_schemas3 = require("@behavioros/schemas");
 var VALID_TRANSITIONS = {
   draft: ["queued", "cancelled"],
@@ -6733,7 +6835,7 @@ var MissionEngine = class {
    */
   decompose(mission, subMissions) {
     const plan = {
-      id: (0, import_node_crypto8.randomUUID)(),
+      id: (0, import_node_crypto9.randomUUID)(),
       rootMission: mission.id,
       subMissions: [],
       dependencies: [],
@@ -6742,7 +6844,7 @@ var MissionEngine = class {
     };
     for (const sub of subMissions) {
       const subMission = import_schemas3.MissionSchema.parse({
-        id: (0, import_node_crypto8.randomUUID)(),
+        id: (0, import_node_crypto9.randomUUID)(),
         title: sub.title ?? `Sub-task of ${mission.title}`,
         description: sub.description,
         type: sub.type ?? mission.type,
@@ -6817,7 +6919,7 @@ var MissionEngine = class {
 };
 
 // src/engines/mission-manager.ts
-var import_node_crypto9 = require("crypto");
+var import_node_crypto10 = require("crypto");
 var import_schemas4 = require("@behavioros/schemas");
 var MissionManager = class {
   missions = /* @__PURE__ */ new Map();
@@ -6829,7 +6931,7 @@ var MissionManager = class {
   }
   async create(input) {
     const mission = import_schemas4.MissionSchema.parse({
-      id: (0, import_node_crypto9.randomUUID)(),
+      id: (0, import_node_crypto10.randomUUID)(),
       title: input.title,
       description: input.description,
       type: input.type,
@@ -6931,7 +7033,7 @@ var MissionManager = class {
 };
 
 // src/engines/orchestrator/autonomous-decomposer.ts
-var import_node_crypto10 = require("crypto");
+var import_node_crypto11 = require("crypto");
 var AutonomousDecomposer = class {
   constructor(options = {}) {
     this.options = options;
@@ -7150,7 +7252,7 @@ var AutonomousDecomposer = class {
   // ─── Helpers ───────────────────────────────────────────────
   createSubtask(type, requiredSkill, overrides = {}) {
     return {
-      id: (0, import_node_crypto10.randomUUID)(),
+      id: (0, import_node_crypto11.randomUUID)(),
       title: overrides.title ?? "Untitled subtask",
       type,
       requiredSkill,
@@ -7161,7 +7263,7 @@ var AutonomousDecomposer = class {
 };
 
 // src/engines/orchestrator/autonomous-orchestrator.ts
-var import_node_crypto13 = require("crypto");
+var import_node_crypto14 = require("crypto");
 
 // src/engines/orchestrator/auto-documentation-trigger.ts
 var import_promises6 = require("fs/promises");
@@ -7416,7 +7518,7 @@ ${subtask.description ?? "Auto-generated documentation."}
 };
 
 // src/engines/orchestrator/handoff-protocol.ts
-var import_node_crypto11 = require("crypto");
+var import_node_crypto12 = require("crypto");
 var HandoffProtocol = class {
   handoffs = /* @__PURE__ */ new Map();
   maxActiveHandoffs;
@@ -7434,7 +7536,7 @@ var HandoffProtocol = class {
         `Maximum active handoffs reached (${this.maxActiveHandoffs}). Complete or cancel some handoffs before requesting new ones.`
       );
     }
-    const handoffId = (0, import_node_crypto11.randomUUID)();
+    const handoffId = (0, import_node_crypto12.randomUUID)();
     const now = (/* @__PURE__ */ new Date()).toISOString();
     const record = {
       handoffId,
@@ -7580,7 +7682,7 @@ var HandoffProtocol = class {
 };
 
 // src/engines/orchestrator/lifecycle-pipeline.ts
-var import_node_crypto12 = require("crypto");
+var import_node_crypto13 = require("crypto");
 var LifecyclePipeline = class {
   constructor(decomposer, router, _handoffProtocol, autoDocs, skillEngine) {
     this.decomposer = decomposer;
@@ -7599,7 +7701,7 @@ var LifecyclePipeline = class {
   async execute(input) {
     this.missionStartTime = Date.now();
     const mission = {
-      id: (0, import_node_crypto12.randomUUID)(),
+      id: (0, import_node_crypto13.randomUUID)(),
       title: input.title,
       type: input.type,
       priority: input.priority,
@@ -8072,7 +8174,7 @@ var AutonomousOrchestrator = class {
   async processTask(input) {
     this.status = "processing";
     const trackingMission = {
-      id: (0, import_node_crypto13.randomUUID)(),
+      id: (0, import_node_crypto14.randomUUID)(),
       title: input.title,
       type: input.type,
       priority: input.priority,
@@ -8317,7 +8419,7 @@ var AutonomousOrchestrator = class {
 
 // src/engines/quality/quality-engine.ts
 var import_node_child_process5 = require("child_process");
-var import_node_crypto14 = require("crypto");
+var import_node_crypto15 = require("crypto");
 var import_node_fs5 = require("fs");
 function runCommand2(cmd, cwd, timeout = 12e4) {
   try {
@@ -8358,7 +8460,7 @@ var QualityEngine = class {
    * Run all quality gates against a real project
    */
   async runAll(projectPath) {
-    const reportId = (0, import_node_crypto14.randomUUID)();
+    const reportId = (0, import_node_crypto15.randomUUID)();
     const start = Date.now();
     const checks = [];
     const metrics = [];
@@ -8660,7 +8762,7 @@ var QualityEngine = class {
       timestamp: (/* @__PURE__ */ new Date()).toISOString()
     }));
     return {
-      id: (0, import_node_crypto14.randomUUID)(),
+      id: (0, import_node_crypto15.randomUUID)(),
       passed: score >= this.minScore && results.every((c) => c.passed),
       score,
       checks: results,
@@ -8671,7 +8773,7 @@ var QualityEngine = class {
   }
   // --- Existing API ---
   evaluate(metrics) {
-    const reportId = (0, import_node_crypto14.randomUUID)();
+    const reportId = (0, import_node_crypto15.randomUUID)();
     const start = Date.now();
     const checks = [];
     for (const gate of this.gates) {
@@ -9285,7 +9387,13 @@ var GovernanceTelemetryEngine = class {
     if (existing) {
       existing.count += 1;
     } else {
-      map.set(rule.id, { ruleId: rule.id, ruleName: rule.name, level: rule.level, action: rule.action, count: 1 });
+      map.set(rule.id, {
+        ruleId: rule.id,
+        ruleName: rule.name,
+        level: rule.level,
+        action: rule.action,
+        count: 1
+      });
     }
   }
   getOrCreateAgentCounter(agentId) {
@@ -9345,83 +9453,6 @@ var GovernanceTelemetryEngine = class {
   /** Stop the export interval timer, if running. Call on shutdown. */
   stop() {
     if (this.exportTimer) clearInterval(this.exportTimer);
-  }
-};
-
-// src/engines/integration/webhook-manager.ts
-var import_node_crypto15 = require("crypto");
-var WebhookManager = class {
-  webhooks = /* @__PURE__ */ new Map();
-  deliveryHistory = [];
-  register(url, events, secret, headers) {
-    const id = (0, import_node_crypto15.randomUUID)();
-    const webhook = {
-      id,
-      url,
-      events,
-      secret,
-      headers,
-      retryCount: 0,
-      maxRetries: 3,
-      createdAt: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    this.webhooks.set(id, webhook);
-    return id;
-  }
-  unregister(id) {
-    if (!this.webhooks.has(id)) {
-      throw new Error(`Webhook not found: ${id}`);
-    }
-    this.webhooks.delete(id);
-  }
-  async deliver(event, payload) {
-    const matched = Array.from(this.webhooks.values()).filter((w) => w.events.includes(event));
-    if (matched.length === 0) return [];
-    const results = [];
-    for (const webhook of matched) {
-      let delivered = false;
-      let statusCode;
-      const headers = {
-        "Content-Type": "application/json",
-        "X-Webhook-Event": event,
-        "X-Webhook-Signature": webhook.secret,
-        ...webhook.headers
-      };
-      try {
-        const response = await fetch(webhook.url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(payload)
-        });
-        delivered = response.ok;
-        statusCode = response.status;
-      } catch {
-        delivered = false;
-        statusCode = void 0;
-      }
-      if (!delivered && webhook.retryCount < webhook.maxRetries) {
-        webhook.retryCount++;
-      }
-      const record = {
-        webhookId: webhook.id,
-        event,
-        delivered,
-        statusCode,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      this.deliveryHistory.push(record);
-      results.push({ webhookId: webhook.id, delivered, statusCode });
-    }
-    return results;
-  }
-  list() {
-    return Array.from(this.webhooks.values());
-  }
-  getDeliveryHistory(webhookId) {
-    if (webhookId) {
-      return this.deliveryHistory.filter((r) => r.webhookId === webhookId);
-    }
-    return [...this.deliveryHistory];
   }
 };
 
@@ -9492,7 +9523,11 @@ var BehaviorOSEngine = class extends import_eventemitter35.default {
     this.telemetryWebhooks = new WebhookManager();
     const telemetryConfig = config.telemetry;
     if (telemetryConfig?.enabled && telemetryConfig.webhookUrl) {
-      this.telemetryWebhooks.register(telemetryConfig.webhookUrl, ["telemetry:summary"], (0, import_node_crypto16.randomUUID)());
+      this.telemetryWebhooks.register(
+        telemetryConfig.webhookUrl,
+        ["telemetry:summary"],
+        (0, import_node_crypto16.randomUUID)()
+      );
     }
     this.telemetryEngine = new GovernanceTelemetryEngine(
       telemetryConfig,
@@ -11351,144 +11386,8 @@ var ProtocolStateTracker = class _ProtocolStateTracker {
   }
 };
 
-// src/state/agent-state-store.ts
-var import_node_crypto18 = require("crypto");
-var import_node_fs7 = require("fs");
-var import_node_os3 = require("os");
-var import_node_path12 = require("path");
-function getStateSecretPath() {
-  return process.env.BEHAVIOROS_STATE_KEY_PATH ?? (0, import_node_path12.join)((0, import_node_os3.homedir)(), ".behavioros", "state.key");
-}
-function isStrictModeEnrolled() {
-  if (process.env.BEHAVIOROS_STATE_SECRET) return true;
-  return (0, import_node_fs7.existsSync)(getStateSecretPath());
-}
-function getOrCreateStateSecret() {
-  const envSecret = process.env.BEHAVIOROS_STATE_SECRET;
-  if (envSecret) return envSecret;
-  const keyPath = getStateSecretPath();
-  if ((0, import_node_fs7.existsSync)(keyPath)) {
-    return (0, import_node_fs7.readFileSync)(keyPath, "utf-8").trim();
-  }
-  const secret = (0, import_node_crypto18.randomBytes)(32).toString("hex");
-  (0, import_node_fs7.mkdirSync)((0, import_node_path12.dirname)(keyPath), { recursive: true });
-  (0, import_node_fs7.writeFileSync)(keyPath, secret, "utf-8");
-  try {
-    (0, import_node_fs7.chmodSync)(keyPath, 384);
-  } catch {
-  }
-  return secret;
-}
-function canonicalPayload(protocol, sessionId, issuedAt) {
-  return [
-    protocol.dnaSelected,
-    protocol.truthResolved,
-    protocol.missionCreated,
-    protocol.auditDone,
-    protocol.learningRecorded,
-    protocol.activeRole ?? "",
-    sessionId,
-    issuedAt
-  ].join("|");
-}
-function signProtocolState(protocol, secret, sessionId, issuedAt) {
-  return (0, import_node_crypto18.createHmac)("sha256", secret).update(canonicalPayload(protocol, sessionId, issuedAt)).digest("hex");
-}
-function acquireLock(lockPath, timeoutMs = 3e3, staleMs = 1e4) {
-  const deadline = Date.now() + timeoutMs;
-  for (; ; ) {
-    try {
-      (0, import_node_fs7.writeFileSync)(lockPath, String(process.pid), { flag: "wx" });
-      return;
-    } catch (err) {
-      if (err.code !== "EEXIST") throw err;
-      try {
-        const stat2 = (0, import_node_fs7.statSync)(lockPath);
-        if (Date.now() - stat2.mtimeMs > staleMs) {
-          try {
-            (0, import_node_fs7.unlinkSync)(lockPath);
-            continue;
-          } catch {
-          }
-        }
-      } catch {
-      }
-      if (Date.now() > deadline) {
-        throw new Error(`Timed out waiting for lock: ${lockPath}`);
-      }
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
-    }
-  }
-}
-function releaseLock(lockPath) {
-  try {
-    (0, import_node_fs7.unlinkSync)(lockPath);
-  } catch {
-  }
-}
-function atomicWriteFileSync(path, content) {
-  const lockPath = `${path}.lock`;
-  acquireLock(lockPath);
-  try {
-    const tmpPath = `${path}.tmp.${process.pid}.${(0, import_node_crypto18.randomBytes)(4).toString("hex")}`;
-    (0, import_node_fs7.writeFileSync)(tmpPath, content, "utf-8");
-    (0, import_node_fs7.renameSync)(tmpPath, path);
-  } finally {
-    releaseLock(lockPath);
-  }
-}
-function writeSignedState(filePath, protocol, opts) {
-  const secret = getOrCreateStateSecret();
-  const sessionId = opts?.sessionId ?? process.env.BEHAVIOROS_SESSION_ID ?? (0, import_node_crypto18.randomBytes)(8).toString("hex");
-  const issuedAt = (/* @__PURE__ */ new Date()).toISOString();
-  const signature = signProtocolState(protocol, secret, sessionId, issuedAt);
-  const data = {
-    version: "1.0",
-    protocol,
-    security: { sessionId, issuedAt, signature }
-  };
-  atomicWriteFileSync(filePath, JSON.stringify(data, null, 2));
-}
-function readState(filePath) {
-  if (!(0, import_node_fs7.existsSync)(filePath)) {
-    return { ok: false, tampered: false, reason: "not-found" };
-  }
-  let raw;
-  try {
-    raw = (0, import_node_fs7.readFileSync)(filePath, "utf-8");
-  } catch {
-    return { ok: false, tampered: false, reason: "read-error" };
-  }
-  let data;
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    return { ok: false, tampered: false, reason: "corrupt-json" };
-  }
-  if (!data.protocol) {
-    return { ok: false, tampered: false, reason: "missing-protocol" };
-  }
-  if (data.security?.signature) {
-    const secret = getOrCreateStateSecret();
-    const expected = signProtocolState(
-      data.protocol,
-      secret,
-      data.security.sessionId,
-      data.security.issuedAt
-    );
-    if (expected !== data.security.signature) {
-      return { ok: false, tampered: true, data, reason: "signature-mismatch" };
-    }
-    return { ok: true, tampered: false, data, reason: "ok" };
-  }
-  if (isStrictModeEnrolled()) {
-    return { ok: false, tampered: true, data, reason: "signature-required" };
-  }
-  return { ok: true, tampered: false, data, reason: "ok" };
-}
-
 // src/engines/quality/self-healing-engine.ts
-var import_node_crypto19 = require("crypto");
+var import_node_crypto18 = require("crypto");
 var DEFAULT_MAX_RETRIES = 3;
 var SelfHealingEngine = class {
   enabled;
@@ -11590,7 +11489,7 @@ var SelfHealingEngine = class {
   // ----------------------------------------------------------
   recordAction(data) {
     const action = {
-      id: (0, import_node_crypto19.randomUUID)(),
+      id: (0, import_node_crypto18.randomUUID)(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       ...data
     };
@@ -11600,9 +11499,9 @@ var SelfHealingEngine = class {
 };
 
 // src/engines/recovery/context-recovery-engine.ts
-var import_node_crypto20 = require("crypto");
+var import_node_crypto19 = require("crypto");
 var import_promises10 = require("fs/promises");
-var import_node_path13 = require("path");
+var import_node_path12 = require("path");
 var DEFAULT_MAX_CHECKPOINTS = 50;
 var CHECKPOINTS_FILE = "recovery-checkpoints.json";
 var COVERAGE_MAJOR_THRESHOLD = 20;
@@ -11611,7 +11510,7 @@ var ContextRecoveryEngine = class {
   basePath;
   maxCheckpoints;
   constructor(options) {
-    this.basePath = options?.basePath ?? (0, import_node_path13.join)(process.cwd(), ".behavioros");
+    this.basePath = options?.basePath ?? (0, import_node_path12.join)(process.cwd(), ".behavioros");
     this.maxCheckpoints = options?.maxCheckpoints ?? DEFAULT_MAX_CHECKPOINTS;
   }
   // ----------------------------------------------------------
@@ -11619,7 +11518,7 @@ var ContextRecoveryEngine = class {
   // ----------------------------------------------------------
   async createCheckpoint(missionId, phase, state) {
     const checkpoint = {
-      id: (0, import_node_crypto20.randomUUID)(),
+      id: (0, import_node_crypto19.randomUUID)(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       missionId,
       phase,
@@ -11724,7 +11623,7 @@ var ContextRecoveryEngine = class {
   async loadCheckpoints() {
     await this.ensureDirectory();
     try {
-      const filePath = (0, import_node_path13.join)(this.basePath, CHECKPOINTS_FILE);
+      const filePath = (0, import_node_path12.join)(this.basePath, CHECKPOINTS_FILE);
       const content = await (0, import_promises10.readFile)(filePath, "utf-8");
       const parsed = JSON.parse(content);
       return Array.isArray(parsed) ? parsed : [];
@@ -11734,7 +11633,7 @@ var ContextRecoveryEngine = class {
   }
   async saveCheckpoints(checkpoints) {
     await this.ensureDirectory();
-    const filePath = (0, import_node_path13.join)(this.basePath, CHECKPOINTS_FILE);
+    const filePath = (0, import_node_path12.join)(this.basePath, CHECKPOINTS_FILE);
     await (0, import_promises10.writeFile)(filePath, JSON.stringify(checkpoints, null, 2), "utf-8");
   }
   async ensureDirectory() {
@@ -11745,7 +11644,7 @@ var ContextRecoveryEngine = class {
     const memoryFiles = ["memory.md", "decisions.md", "domains.md", "architecture.md"];
     for (const fileName of memoryFiles) {
       try {
-        const filePath = (0, import_node_path13.join)(this.basePath, fileName);
+        const filePath = (0, import_node_path12.join)(this.basePath, fileName);
         const content = await (0, import_promises10.readFile)(filePath, "utf-8");
         const sections = content.split(/^## /m).filter(Boolean);
         for (const section of sections) {
@@ -11873,8 +11772,8 @@ var EventReplay = class {
 };
 
 // src/events/event-store.ts
-var import_node_fs8 = require("fs");
-var import_node_path14 = require("path");
+var import_node_fs7 = require("fs");
+var import_node_path13 = require("path");
 var DEFAULT_MAX_EVENTS2 = 1e5;
 var DEFAULT_SNAPSHOT_INTERVAL = 100;
 var EventStore = class {
@@ -11888,9 +11787,9 @@ var EventStore = class {
     this.snapshotInterval = config?.snapshotInterval ?? DEFAULT_SNAPSHOT_INTERVAL;
     this.persistPath = config?.persistPath ?? null;
     if (this.persistPath) {
-      const dir = (0, import_node_path14.dirname)(this.persistPath);
-      if (!(0, import_node_fs8.existsSync)(dir)) {
-        (0, import_node_fs8.mkdirSync)(dir, { recursive: true });
+      const dir = (0, import_node_path13.dirname)(this.persistPath);
+      if (!(0, import_node_fs7.existsSync)(dir)) {
+        (0, import_node_fs7.mkdirSync)(dir, { recursive: true });
       }
       this.load();
     }
@@ -11966,13 +11865,13 @@ var EventStore = class {
   persist() {
     if (!this.persistPath) return;
     const data = JSON.stringify({ events: this.events, snapshots: this.snapshots }, null, 2);
-    (0, import_node_fs8.writeFileSync)(this.persistPath, data);
+    (0, import_node_fs7.writeFileSync)(this.persistPath, data);
   }
   load() {
     if (!this.persistPath) return;
     try {
-      if ((0, import_node_fs8.existsSync)(this.persistPath)) {
-        const raw = (0, import_node_fs8.readFileSync)(this.persistPath, "utf-8");
+      if ((0, import_node_fs7.existsSync)(this.persistPath)) {
+        const raw = (0, import_node_fs7.readFileSync)(this.persistPath, "utf-8");
         const parsed = JSON.parse(raw);
         this.events = parsed.events ?? [];
         this.snapshots = parsed.snapshots ?? [];
@@ -11990,7 +11889,7 @@ var EventStore = class {
 };
 
 // src/engines/knowledge/knowledge-graph.ts
-var import_node_crypto21 = require("crypto");
+var import_node_crypto20 = require("crypto");
 
 // src/kernel/capability-registry.ts
 var CapabilityRegistry = class {
@@ -12114,11 +12013,11 @@ var EngineRegistry = class {
 
 // src/kernel/storage/fs-storage.ts
 var import_promises11 = require("fs/promises");
-var import_node_path15 = require("path");
+var import_node_path14 = require("path");
 
 // src/kernel/storage/sqlite-storage.ts
-var import_node_fs9 = require("fs");
-var import_node_path16 = require("path");
+var import_node_fs8 = require("fs");
+var import_node_path15 = require("path");
 
 // src/mesh/command-bus.ts
 var CommandBus = class {
@@ -12423,9 +12322,9 @@ var MeshHub = class {
 };
 
 // src/persistence/sqlite-audit-store.ts
-var import_node_crypto22 = require("crypto");
-var import_node_fs10 = require("fs");
-var import_node_path17 = require("path");
+var import_node_crypto21 = require("crypto");
+var import_node_fs9 = require("fs");
+var import_node_path16 = require("path");
 var SQLiteAuditStore = class {
   entries = [];
   maxEntries;
@@ -12437,9 +12336,9 @@ var SQLiteAuditStore = class {
     this.maxEntries = config.maxEntries ?? 1e5;
     this.enableHMAC = config.enableHMAC ?? false;
     this.hmacKey = config.hmacKey;
-    const dir = (0, import_node_path17.dirname)(config.dbPath);
-    if (!(0, import_node_fs10.existsSync)(dir)) {
-      (0, import_node_fs10.mkdirSync)(dir, { recursive: true });
+    const dir = (0, import_node_path16.dirname)(config.dbPath);
+    if (!(0, import_node_fs9.existsSync)(dir)) {
+      (0, import_node_fs9.mkdirSync)(dir, { recursive: true });
     }
     this.load();
   }
@@ -12530,7 +12429,7 @@ var SQLiteAuditStore = class {
   }
   computeHash(data) {
     const canonical = JSON.stringify(data, Object.keys(data).sort());
-    let hash = (0, import_node_crypto22.createHash)("sha256").update(canonical).digest("hex");
+    let hash = (0, import_node_crypto21.createHash)("sha256").update(canonical).digest("hex");
     if (this.enableHMAC && this.hmacKey) {
       const { createHmac: createHmac2 } = require("crypto");
       hash = createHmac2("sha256", this.hmacKey).update(canonical).digest("hex");
@@ -12547,7 +12446,7 @@ var SQLiteAuditStore = class {
   load() {
     try {
       const { readFileSync: readFileSync11 } = require("fs");
-      if ((0, import_node_fs10.existsSync)(this.dbPath)) {
+      if ((0, import_node_fs9.existsSync)(this.dbPath)) {
         const data = readFileSync11(this.dbPath, "utf-8");
         this.entries = JSON.parse(data);
       }
@@ -12558,18 +12457,18 @@ var SQLiteAuditStore = class {
 };
 
 // src/persistence/sqlite-store.ts
-var import_node_crypto23 = require("crypto");
-var import_node_fs11 = require("fs");
-var import_node_path18 = require("path");
+var import_node_crypto22 = require("crypto");
+var import_node_fs10 = require("fs");
+var import_node_path17 = require("path");
 var import_better_sqlite3 = __toESM(require("better-sqlite3"));
 var SQLiteStore = class {
   db;
   constructor(config = {}) {
     const dbPath = config.dbPath ?? "./.behavioros/data/behavioros.db";
     if (!config.memory) {
-      const dir = (0, import_node_path18.dirname)(dbPath);
-      if (!(0, import_node_fs11.existsSync)(dir)) {
-        (0, import_node_fs11.mkdirSync)(dir, { recursive: true });
+      const dir = (0, import_node_path17.dirname)(dbPath);
+      if (!(0, import_node_fs10.existsSync)(dir)) {
+        (0, import_node_fs10.mkdirSync)(dir, { recursive: true });
       }
     }
     this.db = config.memory ? new import_better_sqlite3.default(":memory:") : new import_better_sqlite3.default(dbPath);
@@ -12736,7 +12635,7 @@ var SQLiteStore = class {
   }
   // --- Quality Metrics ---
   saveQualityMetric(metric) {
-    const id = (0, import_node_crypto23.randomUUID)();
+    const id = (0, import_node_crypto22.randomUUID)();
     this.db.prepare(
       `INSERT INTO quality_metrics (id, name, value, data, timestamp)
          VALUES (?, ?, ?, ?, ?)`
@@ -13289,7 +13188,7 @@ var PipelineDispatcher = class {
 };
 
 // src/resilience/agent-isolation/forensic-collector.ts
-var import_node_crypto24 = require("crypto");
+var import_node_crypto23 = require("crypto");
 var import_eventemitter37 = __toESM(require("eventemitter3"));
 var ForensicCollector = class {
   config;
@@ -13501,7 +13400,7 @@ var ForensicCollector = class {
   }
   computeHash(data, previousHash) {
     const combined = previousHash + data;
-    return (0, import_node_crypto24.createHash)("sha256").update(combined).digest("hex");
+    return (0, import_node_crypto23.createHash)("sha256").update(combined).digest("hex");
   }
   generateId() {
     const timestamp = Date.now().toString(36);
@@ -14386,7 +14285,7 @@ var ShadowEnvironment = class {
 };
 
 // src/sandbox/sandbox-engine.ts
-var import_node_crypto25 = require("crypto");
+var import_node_crypto24 = require("crypto");
 var EXPIRY_DURATION = {
   ephemeral: void 0,
   persistent: 24 * 60 * 60 * 1e3,
@@ -14395,7 +14294,7 @@ var EXPIRY_DURATION = {
 var SandboxEngine = class {
   environments = /* @__PURE__ */ new Map();
   createEnvironment(type, dnaId) {
-    const id = `sandbox-${Date.now()}-${(0, import_node_crypto25.randomUUID)().slice(0, 9)}`;
+    const id = `sandbox-${Date.now()}-${(0, import_node_crypto24.randomUUID)().slice(0, 9)}`;
     const now = Date.now();
     const env = {
       id,
@@ -14470,12 +14369,12 @@ var PromptSimulator = class {
 };
 
 // src/sandbox/simulation/response-collector.ts
-var import_node_crypto26 = require("crypto");
+var import_node_crypto25 = require("crypto");
 var ResponseCollector = class {
   responses = [];
   collect(scenarioId, response, metadata = {}) {
     const collected = {
-      id: `response-${Date.now()}-${(0, import_node_crypto26.randomUUID)().slice(0, 9)}`,
+      id: `response-${Date.now()}-${(0, import_node_crypto25.randomUUID)().slice(0, 9)}`,
       timestamp: Date.now(),
       scenarioId,
       response,
@@ -14499,12 +14398,12 @@ var ResponseCollector = class {
 };
 
 // src/sandbox/simulation/traffic-replay.ts
-var import_node_crypto27 = require("crypto");
+var import_node_crypto26 = require("crypto");
 var TrafficReplay = class {
   captures = [];
   capture(request, response, metadata = {}) {
     const capture = {
-      id: `capture-${Date.now()}-${(0, import_node_crypto27.randomUUID)().slice(0, 9)}`,
+      id: `capture-${Date.now()}-${(0, import_node_crypto26.randomUUID)().slice(0, 9)}`,
       timestamp: Date.now(),
       request,
       response,
@@ -14535,30 +14434,30 @@ var TrafficReplay = class {
 };
 
 // src/security/authority-verifier.ts
-var import_node_crypto28 = require("crypto");
-var import_node_fs12 = require("fs");
-var import_node_path19 = require("path");
+var import_node_crypto27 = require("crypto");
+var import_node_fs11 = require("fs");
+var import_node_path18 = require("path");
 var AuthorityVerifier = class {
   privateKey;
   publicKey;
   defaultTtlMs;
   constructor(config) {
     this.defaultTtlMs = config.defaultTtlMs ?? 36e5;
-    const privateKeyPath = (0, import_node_path19.join)(config.keyDir, "authority-key.pem");
-    const publicKeyPath = (0, import_node_path19.join)(config.keyDir, "authority-key.pub.pem");
-    if ((0, import_node_fs12.existsSync)(privateKeyPath) && (0, import_node_fs12.existsSync)(publicKeyPath)) {
-      this.privateKey = (0, import_node_fs12.readFileSync)(privateKeyPath, "utf-8");
-      this.publicKey = (0, import_node_fs12.readFileSync)(publicKeyPath, "utf-8");
+    const privateKeyPath = (0, import_node_path18.join)(config.keyDir, "authority-key.pem");
+    const publicKeyPath = (0, import_node_path18.join)(config.keyDir, "authority-key.pub.pem");
+    if ((0, import_node_fs11.existsSync)(privateKeyPath) && (0, import_node_fs11.existsSync)(publicKeyPath)) {
+      this.privateKey = (0, import_node_fs11.readFileSync)(privateKeyPath, "utf-8");
+      this.publicKey = (0, import_node_fs11.readFileSync)(publicKeyPath, "utf-8");
     } else {
-      const keyPair = (0, import_node_crypto28.generateKeyPairSync)("ed25519");
+      const keyPair = (0, import_node_crypto27.generateKeyPairSync)("ed25519");
       this.privateKey = keyPair.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
       this.publicKey = keyPair.publicKey.export({ type: "spki", format: "pem" }).toString();
       const dir = config.keyDir;
-      if (!(0, import_node_fs12.existsSync)(dir)) {
-        (0, import_node_fs12.writeFileSync)((0, import_node_path19.join)(dir, ".gitkeep"), "");
+      if (!(0, import_node_fs11.existsSync)(dir)) {
+        (0, import_node_fs11.writeFileSync)((0, import_node_path18.join)(dir, ".gitkeep"), "");
       }
-      (0, import_node_fs12.writeFileSync)(privateKeyPath, this.privateKey);
-      (0, import_node_fs12.writeFileSync)(publicKeyPath, this.publicKey);
+      (0, import_node_fs11.writeFileSync)(privateKeyPath, this.privateKey);
+      (0, import_node_fs11.writeFileSync)(publicKeyPath, this.publicKey);
     }
   }
   /**
@@ -14568,7 +14467,7 @@ var AuthorityVerifier = class {
     const issuedAt = Date.now();
     const expiresAt = issuedAt + (ttlMs ?? this.defaultTtlMs);
     const payload = JSON.stringify({ agentId, level, issuedAt, expiresAt });
-    const signature = (0, import_node_crypto28.sign)(null, Buffer.from(payload), this.privateKey).toString("base64");
+    const signature = (0, import_node_crypto27.sign)(null, Buffer.from(payload), this.privateKey).toString("base64");
     return { agentId, level, issuedAt, expiresAt, signature };
   }
   /**
@@ -14585,7 +14484,7 @@ var AuthorityVerifier = class {
       expiresAt: token.expiresAt
     });
     try {
-      const valid = (0, import_node_crypto28.verify)(
+      const valid = (0, import_node_crypto27.verify)(
         null,
         Buffer.from(payload),
         this.publicKey,
@@ -14637,6 +14536,142 @@ var Logger = class {
     }
   }
 };
+
+// src/state/agent-state-store.ts
+var import_node_crypto28 = require("crypto");
+var import_node_fs12 = require("fs");
+var import_node_os3 = require("os");
+var import_node_path19 = require("path");
+function getStateSecretPath() {
+  return process.env.BEHAVIOROS_STATE_KEY_PATH ?? (0, import_node_path19.join)((0, import_node_os3.homedir)(), ".behavioros", "state.key");
+}
+function isStrictModeEnrolled() {
+  if (process.env.BEHAVIOROS_STATE_SECRET) return true;
+  return (0, import_node_fs12.existsSync)(getStateSecretPath());
+}
+function getOrCreateStateSecret() {
+  const envSecret = process.env.BEHAVIOROS_STATE_SECRET;
+  if (envSecret) return envSecret;
+  const keyPath = getStateSecretPath();
+  if ((0, import_node_fs12.existsSync)(keyPath)) {
+    return (0, import_node_fs12.readFileSync)(keyPath, "utf-8").trim();
+  }
+  const secret = (0, import_node_crypto28.randomBytes)(32).toString("hex");
+  (0, import_node_fs12.mkdirSync)((0, import_node_path19.dirname)(keyPath), { recursive: true });
+  (0, import_node_fs12.writeFileSync)(keyPath, secret, "utf-8");
+  try {
+    (0, import_node_fs12.chmodSync)(keyPath, 384);
+  } catch {
+  }
+  return secret;
+}
+function canonicalPayload(protocol, sessionId, issuedAt) {
+  return [
+    protocol.dnaSelected,
+    protocol.truthResolved,
+    protocol.missionCreated,
+    protocol.auditDone,
+    protocol.learningRecorded,
+    protocol.activeRole ?? "",
+    sessionId,
+    issuedAt
+  ].join("|");
+}
+function signProtocolState(protocol, secret, sessionId, issuedAt) {
+  return (0, import_node_crypto28.createHmac)("sha256", secret).update(canonicalPayload(protocol, sessionId, issuedAt)).digest("hex");
+}
+function acquireLock(lockPath, timeoutMs = 3e3, staleMs = 1e4) {
+  const deadline = Date.now() + timeoutMs;
+  for (; ; ) {
+    try {
+      (0, import_node_fs12.writeFileSync)(lockPath, String(process.pid), { flag: "wx" });
+      return;
+    } catch (err) {
+      if (err.code !== "EEXIST") throw err;
+      try {
+        const stat2 = (0, import_node_fs12.statSync)(lockPath);
+        if (Date.now() - stat2.mtimeMs > staleMs) {
+          try {
+            (0, import_node_fs12.unlinkSync)(lockPath);
+            continue;
+          } catch {
+          }
+        }
+      } catch {
+      }
+      if (Date.now() > deadline) {
+        throw new Error(`Timed out waiting for lock: ${lockPath}`);
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+    }
+  }
+}
+function releaseLock(lockPath) {
+  try {
+    (0, import_node_fs12.unlinkSync)(lockPath);
+  } catch {
+  }
+}
+function atomicWriteFileSync(path, content) {
+  const lockPath = `${path}.lock`;
+  acquireLock(lockPath);
+  try {
+    const tmpPath = `${path}.tmp.${process.pid}.${(0, import_node_crypto28.randomBytes)(4).toString("hex")}`;
+    (0, import_node_fs12.writeFileSync)(tmpPath, content, "utf-8");
+    (0, import_node_fs12.renameSync)(tmpPath, path);
+  } finally {
+    releaseLock(lockPath);
+  }
+}
+function writeSignedState(filePath, protocol, opts) {
+  const secret = getOrCreateStateSecret();
+  const sessionId = opts?.sessionId ?? process.env.BEHAVIOROS_SESSION_ID ?? (0, import_node_crypto28.randomBytes)(8).toString("hex");
+  const issuedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const signature = signProtocolState(protocol, secret, sessionId, issuedAt);
+  const data = {
+    version: "1.0",
+    protocol,
+    security: { sessionId, issuedAt, signature }
+  };
+  atomicWriteFileSync(filePath, JSON.stringify(data, null, 2));
+}
+function readState(filePath) {
+  if (!(0, import_node_fs12.existsSync)(filePath)) {
+    return { ok: false, tampered: false, reason: "not-found" };
+  }
+  let raw;
+  try {
+    raw = (0, import_node_fs12.readFileSync)(filePath, "utf-8");
+  } catch {
+    return { ok: false, tampered: false, reason: "read-error" };
+  }
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return { ok: false, tampered: false, reason: "corrupt-json" };
+  }
+  if (!data.protocol) {
+    return { ok: false, tampered: false, reason: "missing-protocol" };
+  }
+  if (data.security?.signature) {
+    const secret = getOrCreateStateSecret();
+    const expected = signProtocolState(
+      data.protocol,
+      secret,
+      data.security.sessionId,
+      data.security.issuedAt
+    );
+    if (expected !== data.security.signature) {
+      return { ok: false, tampered: true, data, reason: "signature-mismatch" };
+    }
+    return { ok: true, tampered: false, data, reason: "ok" };
+  }
+  if (isStrictModeEnrolled()) {
+    return { ok: false, tampered: true, data, reason: "signature-required" };
+  }
+  return { ok: true, tampered: false, data, reason: "ok" };
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   AuditChain,

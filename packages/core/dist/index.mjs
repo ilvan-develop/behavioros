@@ -1656,11 +1656,12 @@ import { execSync } from "child_process";
 import { randomUUID as randomUUID5 } from "crypto";
 import { existsSync as existsSync2, readdirSync, readFileSync as readFileSync2, statSync, writeFileSync as writeFileSync2 } from "fs";
 import { extname, join as join2 } from "path";
-function runCommand(cmd, cwd) {
+var DEFAULT_COMMAND_TIMEOUT_MS = 18e4;
+function runCommand(cmd, cwd, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS) {
   try {
     const stdout = execSync(cmd, {
       encoding: "utf-8",
-      timeout: 6e4,
+      timeout: timeoutMs,
       cwd,
       stdio: ["pipe", "pipe", "pipe"]
     });
@@ -5620,6 +5621,9 @@ var GovernanceEngine = class _GovernanceEngine {
     if (!boundaryCheck.allowed) {
       return boundaryCheck;
     }
+    if (boundaryCheck.escalationRequired) {
+      return boundaryCheck;
+    }
     return { allowed: true, reason: "All governance checks passed", escalationRequired: false };
   }
   checkAuthority(context) {
@@ -5702,10 +5706,14 @@ var GovernanceEngine = class _GovernanceEngine {
   // ----------------------------------------------------------
   checkBoundaries(context) {
     const boundaries = context.boundaries ?? [];
+    let escalated;
     for (const boundary of boundaries) {
       const result = this.evaluateBoundaryRule(boundary, context);
       if (!result.allowed) {
         return result;
+      }
+      if (result.escalationRequired) {
+        escalated = result;
       }
     }
     const timeCheck = this.checkTimeRestrictions(context);
@@ -5715,6 +5723,9 @@ var GovernanceEngine = class _GovernanceEngine {
     const depCheck = this.checkDependencyBoundary(context);
     if (!depCheck.allowed) {
       return depCheck;
+    }
+    if (escalated) {
+      return escalated;
     }
     return { allowed: true, reason: "All boundary checks passed", escalationRequired: false };
   }
@@ -5743,6 +5754,20 @@ var GovernanceEngine = class _GovernanceEngine {
    * Forbidden boundaries block access to specific paths/modules.
    */
   checkForbidden(boundary, context) {
+    if (boundary.value === true) {
+      return {
+        allowed: false,
+        reason: `Boundary violation: action unconditionally forbidden (boundary: ${boundary.name}). No authority level overrides this.`,
+        escalationRequired: false
+      };
+    }
+    if (boundary.value === false) {
+      return {
+        allowed: true,
+        reason: `Boundary '${boundary.name}' is disabled (value: false)`,
+        escalationRequired: false
+      };
+    }
     const pattern = String(boundary.value);
     if (context.targetFiles) {
       for (const file of context.targetFiles) {
@@ -6032,8 +6057,85 @@ var GovernanceEngine = class _GovernanceEngine {
   }
 };
 
-// src/engines/learning/learning-engine.ts
+// src/engines/integration/webhook-manager.ts
 import { randomUUID as randomUUID7 } from "crypto";
+var WebhookManager = class {
+  webhooks = /* @__PURE__ */ new Map();
+  deliveryHistory = [];
+  register(url, events, secret, headers) {
+    const id = randomUUID7();
+    const webhook = {
+      id,
+      url,
+      events,
+      secret,
+      headers,
+      retryCount: 0,
+      maxRetries: 3,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    this.webhooks.set(id, webhook);
+    return id;
+  }
+  unregister(id) {
+    if (!this.webhooks.has(id)) {
+      throw new Error(`Webhook not found: ${id}`);
+    }
+    this.webhooks.delete(id);
+  }
+  async deliver(event, payload) {
+    const matched = Array.from(this.webhooks.values()).filter((w) => w.events.includes(event));
+    if (matched.length === 0) return [];
+    const results = [];
+    for (const webhook of matched) {
+      let delivered = false;
+      let statusCode;
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Webhook-Event": event,
+        "X-Webhook-Signature": webhook.secret,
+        ...webhook.headers
+      };
+      try {
+        const response = await fetch(webhook.url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload)
+        });
+        delivered = response.ok;
+        statusCode = response.status;
+      } catch {
+        delivered = false;
+        statusCode = void 0;
+      }
+      if (!delivered && webhook.retryCount < webhook.maxRetries) {
+        webhook.retryCount++;
+      }
+      const record = {
+        webhookId: webhook.id,
+        event,
+        delivered,
+        statusCode,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      this.deliveryHistory.push(record);
+      results.push({ webhookId: webhook.id, delivered, statusCode });
+    }
+    return results;
+  }
+  list() {
+    return Array.from(this.webhooks.values());
+  }
+  getDeliveryHistory(webhookId) {
+    if (webhookId) {
+      return this.deliveryHistory.filter((r) => r.webhookId === webhookId);
+    }
+    return [...this.deliveryHistory];
+  }
+};
+
+// src/engines/learning/learning-engine.ts
+import { randomUUID as randomUUID8 } from "crypto";
 import { readFile as readFile4, writeFile } from "fs/promises";
 var DEFAULT_MAX_EVENTS = 5e3;
 var DEFAULT_MAX_INSIGHTS = 1e3;
@@ -6052,7 +6154,7 @@ var LearningEngine = class {
   }
   record(event) {
     const enriched = {
-      id: randomUUID7(),
+      id: randomUUID8(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       ...event
     };
@@ -6180,7 +6282,7 @@ var LearningEngine = class {
   }
   generateReport() {
     return {
-      id: randomUUID7(),
+      id: randomUUID8(),
       totalEvents: this.events.length,
       insights: this.insights,
       appliedCount: this.events.filter((e) => e.applied).length,
@@ -6580,7 +6682,7 @@ var LearningEngine = class {
 };
 
 // src/engines/mission/mission-engine.ts
-import { randomUUID as randomUUID8 } from "crypto";
+import { randomUUID as randomUUID9 } from "crypto";
 import { MissionSchema } from "@behavioros/schemas";
 var VALID_TRANSITIONS = {
   draft: ["queued", "cancelled"],
@@ -6605,7 +6707,7 @@ var MissionEngine = class {
    */
   decompose(mission, subMissions) {
     const plan = {
-      id: randomUUID8(),
+      id: randomUUID9(),
       rootMission: mission.id,
       subMissions: [],
       dependencies: [],
@@ -6614,7 +6716,7 @@ var MissionEngine = class {
     };
     for (const sub of subMissions) {
       const subMission = MissionSchema.parse({
-        id: randomUUID8(),
+        id: randomUUID9(),
         title: sub.title ?? `Sub-task of ${mission.title}`,
         description: sub.description,
         type: sub.type ?? mission.type,
@@ -6689,7 +6791,7 @@ var MissionEngine = class {
 };
 
 // src/engines/mission-manager.ts
-import { randomUUID as randomUUID9 } from "crypto";
+import { randomUUID as randomUUID10 } from "crypto";
 import { MissionSchema as MissionSchema2 } from "@behavioros/schemas";
 var MissionManager = class {
   missions = /* @__PURE__ */ new Map();
@@ -6701,7 +6803,7 @@ var MissionManager = class {
   }
   async create(input) {
     const mission = MissionSchema2.parse({
-      id: randomUUID9(),
+      id: randomUUID10(),
       title: input.title,
       description: input.description,
       type: input.type,
@@ -6803,7 +6905,7 @@ var MissionManager = class {
 };
 
 // src/engines/orchestrator/autonomous-decomposer.ts
-import { randomUUID as randomUUID10 } from "crypto";
+import { randomUUID as randomUUID11 } from "crypto";
 var AutonomousDecomposer = class {
   constructor(options = {}) {
     this.options = options;
@@ -7022,7 +7124,7 @@ var AutonomousDecomposer = class {
   // ─── Helpers ───────────────────────────────────────────────
   createSubtask(type, requiredSkill, overrides = {}) {
     return {
-      id: randomUUID10(),
+      id: randomUUID11(),
       title: overrides.title ?? "Untitled subtask",
       type,
       requiredSkill,
@@ -7033,7 +7135,7 @@ var AutonomousDecomposer = class {
 };
 
 // src/engines/orchestrator/autonomous-orchestrator.ts
-import { randomUUID as randomUUID13 } from "crypto";
+import { randomUUID as randomUUID14 } from "crypto";
 
 // src/engines/orchestrator/auto-documentation-trigger.ts
 import { mkdir, writeFile as writeFile2 } from "fs/promises";
@@ -7288,7 +7390,7 @@ ${subtask.description ?? "Auto-generated documentation."}
 };
 
 // src/engines/orchestrator/handoff-protocol.ts
-import { randomUUID as randomUUID11 } from "crypto";
+import { randomUUID as randomUUID12 } from "crypto";
 var HandoffProtocol = class {
   handoffs = /* @__PURE__ */ new Map();
   maxActiveHandoffs;
@@ -7306,7 +7408,7 @@ var HandoffProtocol = class {
         `Maximum active handoffs reached (${this.maxActiveHandoffs}). Complete or cancel some handoffs before requesting new ones.`
       );
     }
-    const handoffId = randomUUID11();
+    const handoffId = randomUUID12();
     const now = (/* @__PURE__ */ new Date()).toISOString();
     const record = {
       handoffId,
@@ -7452,7 +7554,7 @@ var HandoffProtocol = class {
 };
 
 // src/engines/orchestrator/lifecycle-pipeline.ts
-import { randomUUID as randomUUID12 } from "crypto";
+import { randomUUID as randomUUID13 } from "crypto";
 var LifecyclePipeline = class {
   constructor(decomposer, router, _handoffProtocol, autoDocs, skillEngine) {
     this.decomposer = decomposer;
@@ -7471,7 +7573,7 @@ var LifecyclePipeline = class {
   async execute(input) {
     this.missionStartTime = Date.now();
     const mission = {
-      id: randomUUID12(),
+      id: randomUUID13(),
       title: input.title,
       type: input.type,
       priority: input.priority,
@@ -7944,7 +8046,7 @@ var AutonomousOrchestrator = class {
   async processTask(input) {
     this.status = "processing";
     const trackingMission = {
-      id: randomUUID13(),
+      id: randomUUID14(),
       title: input.title,
       type: input.type,
       priority: input.priority,
@@ -8189,7 +8291,7 @@ var AutonomousOrchestrator = class {
 
 // src/engines/quality/quality-engine.ts
 import { execSync as execSync5 } from "child_process";
-import { randomUUID as randomUUID14 } from "crypto";
+import { randomUUID as randomUUID15 } from "crypto";
 import { existsSync as existsSync3, readFileSync as readFileSync5 } from "fs";
 function runCommand2(cmd, cwd, timeout = 12e4) {
   try {
@@ -8230,7 +8332,7 @@ var QualityEngine = class {
    * Run all quality gates against a real project
    */
   async runAll(projectPath) {
-    const reportId = randomUUID14();
+    const reportId = randomUUID15();
     const start = Date.now();
     const checks = [];
     const metrics = [];
@@ -8532,7 +8634,7 @@ var QualityEngine = class {
       timestamp: (/* @__PURE__ */ new Date()).toISOString()
     }));
     return {
-      id: randomUUID14(),
+      id: randomUUID15(),
       passed: score >= this.minScore && results.every((c) => c.passed),
       score,
       checks: results,
@@ -8543,7 +8645,7 @@ var QualityEngine = class {
   }
   // --- Existing API ---
   evaluate(metrics) {
-    const reportId = randomUUID14();
+    const reportId = randomUUID15();
     const start = Date.now();
     const checks = [];
     for (const gate of this.gates) {
@@ -9157,7 +9259,13 @@ var GovernanceTelemetryEngine = class {
     if (existing) {
       existing.count += 1;
     } else {
-      map.set(rule.id, { ruleId: rule.id, ruleName: rule.name, level: rule.level, action: rule.action, count: 1 });
+      map.set(rule.id, {
+        ruleId: rule.id,
+        ruleName: rule.name,
+        level: rule.level,
+        action: rule.action,
+        count: 1
+      });
     }
   }
   getOrCreateAgentCounter(agentId) {
@@ -9217,83 +9325,6 @@ var GovernanceTelemetryEngine = class {
   /** Stop the export interval timer, if running. Call on shutdown. */
   stop() {
     if (this.exportTimer) clearInterval(this.exportTimer);
-  }
-};
-
-// src/engines/integration/webhook-manager.ts
-import { randomUUID as randomUUID15 } from "crypto";
-var WebhookManager = class {
-  webhooks = /* @__PURE__ */ new Map();
-  deliveryHistory = [];
-  register(url, events, secret, headers) {
-    const id = randomUUID15();
-    const webhook = {
-      id,
-      url,
-      events,
-      secret,
-      headers,
-      retryCount: 0,
-      maxRetries: 3,
-      createdAt: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    this.webhooks.set(id, webhook);
-    return id;
-  }
-  unregister(id) {
-    if (!this.webhooks.has(id)) {
-      throw new Error(`Webhook not found: ${id}`);
-    }
-    this.webhooks.delete(id);
-  }
-  async deliver(event, payload) {
-    const matched = Array.from(this.webhooks.values()).filter((w) => w.events.includes(event));
-    if (matched.length === 0) return [];
-    const results = [];
-    for (const webhook of matched) {
-      let delivered = false;
-      let statusCode;
-      const headers = {
-        "Content-Type": "application/json",
-        "X-Webhook-Event": event,
-        "X-Webhook-Signature": webhook.secret,
-        ...webhook.headers
-      };
-      try {
-        const response = await fetch(webhook.url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(payload)
-        });
-        delivered = response.ok;
-        statusCode = response.status;
-      } catch {
-        delivered = false;
-        statusCode = void 0;
-      }
-      if (!delivered && webhook.retryCount < webhook.maxRetries) {
-        webhook.retryCount++;
-      }
-      const record = {
-        webhookId: webhook.id,
-        event,
-        delivered,
-        statusCode,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      this.deliveryHistory.push(record);
-      results.push({ webhookId: webhook.id, delivered, statusCode });
-    }
-    return results;
-  }
-  list() {
-    return Array.from(this.webhooks.values());
-  }
-  getDeliveryHistory(webhookId) {
-    if (webhookId) {
-      return this.deliveryHistory.filter((r) => r.webhookId === webhookId);
-    }
-    return [...this.deliveryHistory];
   }
 };
 
@@ -9364,7 +9395,11 @@ var BehaviorOSEngine = class extends EventEmitter5 {
     this.telemetryWebhooks = new WebhookManager();
     const telemetryConfig = config.telemetry;
     if (telemetryConfig?.enabled && telemetryConfig.webhookUrl) {
-      this.telemetryWebhooks.register(telemetryConfig.webhookUrl, ["telemetry:summary"], randomUUID16());
+      this.telemetryWebhooks.register(
+        telemetryConfig.webhookUrl,
+        ["telemetry:summary"],
+        randomUUID16()
+      );
     }
     this.telemetryEngine = new GovernanceTelemetryEngine(
       telemetryConfig,
@@ -11223,151 +11258,6 @@ var ProtocolStateTracker = class _ProtocolStateTracker {
   }
 };
 
-// src/state/agent-state-store.ts
-import { createHmac, randomBytes } from "crypto";
-import {
-  chmodSync,
-  existsSync as existsSync5,
-  mkdirSync as mkdirSync2,
-  readFileSync as readFileSync7,
-  renameSync,
-  statSync as statSync2,
-  unlinkSync,
-  writeFileSync as writeFileSync4
-} from "fs";
-import { homedir as homedir3 } from "os";
-import { dirname as dirname3, join as join12 } from "path";
-function getStateSecretPath() {
-  return process.env.BEHAVIOROS_STATE_KEY_PATH ?? join12(homedir3(), ".behavioros", "state.key");
-}
-function isStrictModeEnrolled() {
-  if (process.env.BEHAVIOROS_STATE_SECRET) return true;
-  return existsSync5(getStateSecretPath());
-}
-function getOrCreateStateSecret() {
-  const envSecret = process.env.BEHAVIOROS_STATE_SECRET;
-  if (envSecret) return envSecret;
-  const keyPath = getStateSecretPath();
-  if (existsSync5(keyPath)) {
-    return readFileSync7(keyPath, "utf-8").trim();
-  }
-  const secret = randomBytes(32).toString("hex");
-  mkdirSync2(dirname3(keyPath), { recursive: true });
-  writeFileSync4(keyPath, secret, "utf-8");
-  try {
-    chmodSync(keyPath, 384);
-  } catch {
-  }
-  return secret;
-}
-function canonicalPayload(protocol, sessionId, issuedAt) {
-  return [
-    protocol.dnaSelected,
-    protocol.truthResolved,
-    protocol.missionCreated,
-    protocol.auditDone,
-    protocol.learningRecorded,
-    protocol.activeRole ?? "",
-    sessionId,
-    issuedAt
-  ].join("|");
-}
-function signProtocolState(protocol, secret, sessionId, issuedAt) {
-  return createHmac("sha256", secret).update(canonicalPayload(protocol, sessionId, issuedAt)).digest("hex");
-}
-function acquireLock(lockPath, timeoutMs = 3e3, staleMs = 1e4) {
-  const deadline = Date.now() + timeoutMs;
-  for (; ; ) {
-    try {
-      writeFileSync4(lockPath, String(process.pid), { flag: "wx" });
-      return;
-    } catch (err) {
-      if (err.code !== "EEXIST") throw err;
-      try {
-        const stat2 = statSync2(lockPath);
-        if (Date.now() - stat2.mtimeMs > staleMs) {
-          try {
-            unlinkSync(lockPath);
-            continue;
-          } catch {
-          }
-        }
-      } catch {
-      }
-      if (Date.now() > deadline) {
-        throw new Error(`Timed out waiting for lock: ${lockPath}`);
-      }
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
-    }
-  }
-}
-function releaseLock(lockPath) {
-  try {
-    unlinkSync(lockPath);
-  } catch {
-  }
-}
-function atomicWriteFileSync(path, content) {
-  const lockPath = `${path}.lock`;
-  acquireLock(lockPath);
-  try {
-    const tmpPath = `${path}.tmp.${process.pid}.${randomBytes(4).toString("hex")}`;
-    writeFileSync4(tmpPath, content, "utf-8");
-    renameSync(tmpPath, path);
-  } finally {
-    releaseLock(lockPath);
-  }
-}
-function writeSignedState(filePath, protocol, opts) {
-  const secret = getOrCreateStateSecret();
-  const sessionId = opts?.sessionId ?? process.env.BEHAVIOROS_SESSION_ID ?? randomBytes(8).toString("hex");
-  const issuedAt = (/* @__PURE__ */ new Date()).toISOString();
-  const signature = signProtocolState(protocol, secret, sessionId, issuedAt);
-  const data = {
-    version: "1.0",
-    protocol,
-    security: { sessionId, issuedAt, signature }
-  };
-  atomicWriteFileSync(filePath, JSON.stringify(data, null, 2));
-}
-function readState(filePath) {
-  if (!existsSync5(filePath)) {
-    return { ok: false, tampered: false, reason: "not-found" };
-  }
-  let raw;
-  try {
-    raw = readFileSync7(filePath, "utf-8");
-  } catch {
-    return { ok: false, tampered: false, reason: "read-error" };
-  }
-  let data;
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    return { ok: false, tampered: false, reason: "corrupt-json" };
-  }
-  if (!data.protocol) {
-    return { ok: false, tampered: false, reason: "missing-protocol" };
-  }
-  if (data.security?.signature) {
-    const secret = getOrCreateStateSecret();
-    const expected = signProtocolState(
-      data.protocol,
-      secret,
-      data.security.sessionId,
-      data.security.issuedAt
-    );
-    if (expected !== data.security.signature) {
-      return { ok: false, tampered: true, data, reason: "signature-mismatch" };
-    }
-    return { ok: true, tampered: false, data, reason: "ok" };
-  }
-  if (isStrictModeEnrolled()) {
-    return { ok: false, tampered: true, data, reason: "signature-required" };
-  }
-  return { ok: true, tampered: false, data, reason: "ok" };
-}
-
 // src/engines/quality/self-healing-engine.ts
 import { randomUUID as randomUUID18 } from "crypto";
 var DEFAULT_MAX_RETRIES = 3;
@@ -11483,7 +11373,7 @@ var SelfHealingEngine = class {
 // src/engines/recovery/context-recovery-engine.ts
 import { randomUUID as randomUUID19 } from "crypto";
 import { mkdir as mkdir3, readFile as readFile7, writeFile as writeFile4 } from "fs/promises";
-import { join as join13 } from "path";
+import { join as join12 } from "path";
 var DEFAULT_MAX_CHECKPOINTS = 50;
 var CHECKPOINTS_FILE = "recovery-checkpoints.json";
 var COVERAGE_MAJOR_THRESHOLD = 20;
@@ -11492,7 +11382,7 @@ var ContextRecoveryEngine = class {
   basePath;
   maxCheckpoints;
   constructor(options) {
-    this.basePath = options?.basePath ?? join13(process.cwd(), ".behavioros");
+    this.basePath = options?.basePath ?? join12(process.cwd(), ".behavioros");
     this.maxCheckpoints = options?.maxCheckpoints ?? DEFAULT_MAX_CHECKPOINTS;
   }
   // ----------------------------------------------------------
@@ -11605,7 +11495,7 @@ var ContextRecoveryEngine = class {
   async loadCheckpoints() {
     await this.ensureDirectory();
     try {
-      const filePath = join13(this.basePath, CHECKPOINTS_FILE);
+      const filePath = join12(this.basePath, CHECKPOINTS_FILE);
       const content = await readFile7(filePath, "utf-8");
       const parsed = JSON.parse(content);
       return Array.isArray(parsed) ? parsed : [];
@@ -11615,7 +11505,7 @@ var ContextRecoveryEngine = class {
   }
   async saveCheckpoints(checkpoints) {
     await this.ensureDirectory();
-    const filePath = join13(this.basePath, CHECKPOINTS_FILE);
+    const filePath = join12(this.basePath, CHECKPOINTS_FILE);
     await writeFile4(filePath, JSON.stringify(checkpoints, null, 2), "utf-8");
   }
   async ensureDirectory() {
@@ -11626,7 +11516,7 @@ var ContextRecoveryEngine = class {
     const memoryFiles = ["memory.md", "decisions.md", "domains.md", "architecture.md"];
     for (const fileName of memoryFiles) {
       try {
-        const filePath = join13(this.basePath, fileName);
+        const filePath = join12(this.basePath, fileName);
         const content = await readFile7(filePath, "utf-8");
         const sections = content.split(/^## /m).filter(Boolean);
         for (const section of sections) {
@@ -11754,8 +11644,8 @@ var EventReplay = class {
 };
 
 // src/events/event-store.ts
-import { existsSync as existsSync6, mkdirSync as mkdirSync3, readFileSync as readFileSync8, writeFileSync as writeFileSync5 } from "fs";
-import { dirname as dirname4 } from "path";
+import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync7, writeFileSync as writeFileSync4 } from "fs";
+import { dirname as dirname3 } from "path";
 var DEFAULT_MAX_EVENTS2 = 1e5;
 var DEFAULT_SNAPSHOT_INTERVAL = 100;
 var EventStore = class {
@@ -11769,9 +11659,9 @@ var EventStore = class {
     this.snapshotInterval = config?.snapshotInterval ?? DEFAULT_SNAPSHOT_INTERVAL;
     this.persistPath = config?.persistPath ?? null;
     if (this.persistPath) {
-      const dir = dirname4(this.persistPath);
-      if (!existsSync6(dir)) {
-        mkdirSync3(dir, { recursive: true });
+      const dir = dirname3(this.persistPath);
+      if (!existsSync5(dir)) {
+        mkdirSync2(dir, { recursive: true });
       }
       this.load();
     }
@@ -11847,13 +11737,13 @@ var EventStore = class {
   persist() {
     if (!this.persistPath) return;
     const data = JSON.stringify({ events: this.events, snapshots: this.snapshots }, null, 2);
-    writeFileSync5(this.persistPath, data);
+    writeFileSync4(this.persistPath, data);
   }
   load() {
     if (!this.persistPath) return;
     try {
-      if (existsSync6(this.persistPath)) {
-        const raw = readFileSync8(this.persistPath, "utf-8");
+      if (existsSync5(this.persistPath)) {
+        const raw = readFileSync7(this.persistPath, "utf-8");
         const parsed = JSON.parse(raw);
         this.events = parsed.events ?? [];
         this.snapshots = parsed.snapshots ?? [];
@@ -11995,11 +11885,11 @@ var EngineRegistry = class {
 
 // src/kernel/storage/fs-storage.ts
 import { mkdir as mkdir4, readdir as readdir5, readFile as readFile8, unlink, writeFile as writeFile5 } from "fs/promises";
-import { join as join14 } from "path";
+import { join as join13 } from "path";
 
 // src/kernel/storage/sqlite-storage.ts
-import { existsSync as existsSync7, mkdirSync as mkdirSync4, readFileSync as readFileSync9, writeFileSync as writeFileSync6 } from "fs";
-import { dirname as dirname5 } from "path";
+import { existsSync as existsSync6, mkdirSync as mkdirSync3, readFileSync as readFileSync8, writeFileSync as writeFileSync5 } from "fs";
+import { dirname as dirname4 } from "path";
 
 // src/mesh/command-bus.ts
 var CommandBus = class {
@@ -12305,8 +12195,8 @@ var MeshHub = class {
 
 // src/persistence/sqlite-audit-store.ts
 import { createHash } from "crypto";
-import { existsSync as existsSync8, mkdirSync as mkdirSync5 } from "fs";
-import { dirname as dirname6 } from "path";
+import { existsSync as existsSync7, mkdirSync as mkdirSync4 } from "fs";
+import { dirname as dirname5 } from "path";
 var SQLiteAuditStore = class {
   entries = [];
   maxEntries;
@@ -12318,9 +12208,9 @@ var SQLiteAuditStore = class {
     this.maxEntries = config.maxEntries ?? 1e5;
     this.enableHMAC = config.enableHMAC ?? false;
     this.hmacKey = config.hmacKey;
-    const dir = dirname6(config.dbPath);
-    if (!existsSync8(dir)) {
-      mkdirSync5(dir, { recursive: true });
+    const dir = dirname5(config.dbPath);
+    if (!existsSync7(dir)) {
+      mkdirSync4(dir, { recursive: true });
     }
     this.load();
   }
@@ -12428,7 +12318,7 @@ var SQLiteAuditStore = class {
   load() {
     try {
       const { readFileSync: readFileSync11 } = __require("fs");
-      if (existsSync8(this.dbPath)) {
+      if (existsSync7(this.dbPath)) {
         const data = readFileSync11(this.dbPath, "utf-8");
         this.entries = JSON.parse(data);
       }
@@ -12440,17 +12330,17 @@ var SQLiteAuditStore = class {
 
 // src/persistence/sqlite-store.ts
 import { randomUUID as randomUUID21 } from "crypto";
-import { existsSync as existsSync9, mkdirSync as mkdirSync6 } from "fs";
-import { dirname as dirname7 } from "path";
+import { existsSync as existsSync8, mkdirSync as mkdirSync5 } from "fs";
+import { dirname as dirname6 } from "path";
 import Database from "better-sqlite3";
 var SQLiteStore = class {
   db;
   constructor(config = {}) {
     const dbPath = config.dbPath ?? "./.behavioros/data/behavioros.db";
     if (!config.memory) {
-      const dir = dirname7(dbPath);
-      if (!existsSync9(dir)) {
-        mkdirSync6(dir, { recursive: true });
+      const dir = dirname6(dbPath);
+      if (!existsSync8(dir)) {
+        mkdirSync5(dir, { recursive: true });
       }
     }
     this.db = config.memory ? new Database(":memory:") : new Database(dbPath);
@@ -14417,29 +14307,29 @@ var TrafficReplay = class {
 
 // src/security/authority-verifier.ts
 import { generateKeyPairSync, sign, verify } from "crypto";
-import { existsSync as existsSync10, readFileSync as readFileSync10, writeFileSync as writeFileSync7 } from "fs";
-import { join as join15 } from "path";
+import { existsSync as existsSync9, readFileSync as readFileSync9, writeFileSync as writeFileSync6 } from "fs";
+import { join as join14 } from "path";
 var AuthorityVerifier = class {
   privateKey;
   publicKey;
   defaultTtlMs;
   constructor(config) {
     this.defaultTtlMs = config.defaultTtlMs ?? 36e5;
-    const privateKeyPath = join15(config.keyDir, "authority-key.pem");
-    const publicKeyPath = join15(config.keyDir, "authority-key.pub.pem");
-    if (existsSync10(privateKeyPath) && existsSync10(publicKeyPath)) {
-      this.privateKey = readFileSync10(privateKeyPath, "utf-8");
-      this.publicKey = readFileSync10(publicKeyPath, "utf-8");
+    const privateKeyPath = join14(config.keyDir, "authority-key.pem");
+    const publicKeyPath = join14(config.keyDir, "authority-key.pub.pem");
+    if (existsSync9(privateKeyPath) && existsSync9(publicKeyPath)) {
+      this.privateKey = readFileSync9(privateKeyPath, "utf-8");
+      this.publicKey = readFileSync9(publicKeyPath, "utf-8");
     } else {
       const keyPair = generateKeyPairSync("ed25519");
       this.privateKey = keyPair.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
       this.publicKey = keyPair.publicKey.export({ type: "spki", format: "pem" }).toString();
       const dir = config.keyDir;
-      if (!existsSync10(dir)) {
-        writeFileSync7(join15(dir, ".gitkeep"), "");
+      if (!existsSync9(dir)) {
+        writeFileSync6(join14(dir, ".gitkeep"), "");
       }
-      writeFileSync7(privateKeyPath, this.privateKey);
-      writeFileSync7(publicKeyPath, this.publicKey);
+      writeFileSync6(privateKeyPath, this.privateKey);
+      writeFileSync6(publicKeyPath, this.publicKey);
     }
   }
   /**
@@ -14518,6 +14408,151 @@ var Logger = class {
     }
   }
 };
+
+// src/state/agent-state-store.ts
+import { createHmac, randomBytes } from "crypto";
+import {
+  chmodSync,
+  existsSync as existsSync10,
+  mkdirSync as mkdirSync6,
+  readFileSync as readFileSync10,
+  renameSync,
+  statSync as statSync2,
+  unlinkSync,
+  writeFileSync as writeFileSync7
+} from "fs";
+import { homedir as homedir3 } from "os";
+import { dirname as dirname7, join as join15 } from "path";
+function getStateSecretPath() {
+  return process.env.BEHAVIOROS_STATE_KEY_PATH ?? join15(homedir3(), ".behavioros", "state.key");
+}
+function isStrictModeEnrolled() {
+  if (process.env.BEHAVIOROS_STATE_SECRET) return true;
+  return existsSync10(getStateSecretPath());
+}
+function getOrCreateStateSecret() {
+  const envSecret = process.env.BEHAVIOROS_STATE_SECRET;
+  if (envSecret) return envSecret;
+  const keyPath = getStateSecretPath();
+  if (existsSync10(keyPath)) {
+    return readFileSync10(keyPath, "utf-8").trim();
+  }
+  const secret = randomBytes(32).toString("hex");
+  mkdirSync6(dirname7(keyPath), { recursive: true });
+  writeFileSync7(keyPath, secret, "utf-8");
+  try {
+    chmodSync(keyPath, 384);
+  } catch {
+  }
+  return secret;
+}
+function canonicalPayload(protocol, sessionId, issuedAt) {
+  return [
+    protocol.dnaSelected,
+    protocol.truthResolved,
+    protocol.missionCreated,
+    protocol.auditDone,
+    protocol.learningRecorded,
+    protocol.activeRole ?? "",
+    sessionId,
+    issuedAt
+  ].join("|");
+}
+function signProtocolState(protocol, secret, sessionId, issuedAt) {
+  return createHmac("sha256", secret).update(canonicalPayload(protocol, sessionId, issuedAt)).digest("hex");
+}
+function acquireLock(lockPath, timeoutMs = 3e3, staleMs = 1e4) {
+  const deadline = Date.now() + timeoutMs;
+  for (; ; ) {
+    try {
+      writeFileSync7(lockPath, String(process.pid), { flag: "wx" });
+      return;
+    } catch (err) {
+      if (err.code !== "EEXIST") throw err;
+      try {
+        const stat2 = statSync2(lockPath);
+        if (Date.now() - stat2.mtimeMs > staleMs) {
+          try {
+            unlinkSync(lockPath);
+            continue;
+          } catch {
+          }
+        }
+      } catch {
+      }
+      if (Date.now() > deadline) {
+        throw new Error(`Timed out waiting for lock: ${lockPath}`);
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+    }
+  }
+}
+function releaseLock(lockPath) {
+  try {
+    unlinkSync(lockPath);
+  } catch {
+  }
+}
+function atomicWriteFileSync(path, content) {
+  const lockPath = `${path}.lock`;
+  acquireLock(lockPath);
+  try {
+    const tmpPath = `${path}.tmp.${process.pid}.${randomBytes(4).toString("hex")}`;
+    writeFileSync7(tmpPath, content, "utf-8");
+    renameSync(tmpPath, path);
+  } finally {
+    releaseLock(lockPath);
+  }
+}
+function writeSignedState(filePath, protocol, opts) {
+  const secret = getOrCreateStateSecret();
+  const sessionId = opts?.sessionId ?? process.env.BEHAVIOROS_SESSION_ID ?? randomBytes(8).toString("hex");
+  const issuedAt = (/* @__PURE__ */ new Date()).toISOString();
+  const signature = signProtocolState(protocol, secret, sessionId, issuedAt);
+  const data = {
+    version: "1.0",
+    protocol,
+    security: { sessionId, issuedAt, signature }
+  };
+  atomicWriteFileSync(filePath, JSON.stringify(data, null, 2));
+}
+function readState(filePath) {
+  if (!existsSync10(filePath)) {
+    return { ok: false, tampered: false, reason: "not-found" };
+  }
+  let raw;
+  try {
+    raw = readFileSync10(filePath, "utf-8");
+  } catch {
+    return { ok: false, tampered: false, reason: "read-error" };
+  }
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return { ok: false, tampered: false, reason: "corrupt-json" };
+  }
+  if (!data.protocol) {
+    return { ok: false, tampered: false, reason: "missing-protocol" };
+  }
+  if (data.security?.signature) {
+    const secret = getOrCreateStateSecret();
+    const expected = signProtocolState(
+      data.protocol,
+      secret,
+      data.security.sessionId,
+      data.security.issuedAt
+    );
+    if (expected !== data.security.signature) {
+      return { ok: false, tampered: true, data, reason: "signature-mismatch" };
+    }
+    return { ok: true, tampered: false, data, reason: "ok" };
+  }
+  if (isStrictModeEnrolled()) {
+    return { ok: false, tampered: true, data, reason: "signature-required" };
+  }
+  return { ok: true, tampered: false, data, reason: "ok" };
+}
 export {
   AuditChain,
   AuditEngine,

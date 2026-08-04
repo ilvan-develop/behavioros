@@ -36,6 +36,14 @@ const bos = new BehaviorOS({
 })
 ```
 
+If you run the packaged `@behavioros/mcp-server` binary (rather than embedding `BehaviorOSEngine` yourself), set these env vars instead — `createServer()` reads them at startup:
+
+```bash
+BEHAVIOROS_TELEMETRY_ENABLED=true
+BEHAVIOROS_TELEMETRY_WEBHOOK_URL=https://your-collector.example.com/hook   # optional
+BEHAVIOROS_TELEMETRY_INTERVAL_MS=900000                                    # optional, default 15 min
+```
+
 or directly against the engine config:
 
 ```typescript

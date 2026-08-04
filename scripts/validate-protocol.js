@@ -5,8 +5,9 @@
  * BehaviorOS PreToolUse enforcement hook.
  *
  * Reads the Claude Code hook payload from stdin (`{ tool_name, tool_input, cwd, ... }`),
- * verifies the signed `.agent_state.json` in the project root, and blocks (exit 1)
- * when:
+ * verifies the signed `.agent_state.json` in the project root, and blocks (exit 2 — Claude
+ * Code's specific "block this tool call" signal for PreToolUse hooks; exit 1 is treated as a
+ * generic script error, not a block) when:
  *   - a write-capable tool (Edit/Write/NotebookEdit/MultiEdit/Bash) is invoked before
  *     bos_select_dna has run, OR
  *   - the signed state file was hand-edited without recomputing its HMAC signature
@@ -151,32 +152,32 @@ function main() {
         '.agent_state.json was modified without going through BehaviorOS tools. ' +
         'Run bos_reset_protocol with confirm=true to acknowledge and reset.',
     );
-    process.exit(1);
+    process.exit(2);
   }
 
   if (!result.ok || !result.data) {
     console.error('BOS: .agent_state.json not found or unreadable. Protocol state not initialized.');
-    process.exit(1);
+    process.exit(2);
   }
 
   const p = result.data.protocol;
 
   if (!p.dnaSelected) {
     console.error('BOS: bos_select_dna must be called before any action tool.');
-    process.exit(1);
+    process.exit(2);
   }
   if (!p.truthResolved) {
     console.error('BOS: bos_resolve_truth must be called before delegation.');
-    process.exit(1);
+    process.exit(2);
   }
   if (!p.missionCreated) {
     console.error('BOS: create-mission must be called before starting work.');
-    process.exit(1);
+    process.exit(2);
   }
 
   if (p.activeRole === 'orchestrator' && FILE_EDIT_TOOLS.has(toolName)) {
     console.error('Permission denied: orchestrator may not edit files.');
-    process.exit(1);
+    process.exit(2);
   }
 
   console.log('BOS: Protocol validation passed.');

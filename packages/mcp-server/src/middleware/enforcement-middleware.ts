@@ -243,15 +243,18 @@ export class EnforcementMiddleware {
    * otherwise opt into full governance evaluation.
    */
   private async evaluateBoundaries(options: EnforcementOptions): Promise<EnforcementResult> {
-    const govResult = await this.engine.evaluateGovernance(options.governanceAction ?? options.toolName, {
-      toolName: options.toolName,
-      agentRole: options.agentRole ?? this.activeRole,
-      agentAuthority: options.agentAuthority,
-      targetFiles: options.targetFiles,
-      fileCount: options.fileCount ?? options.targetFiles?.length,
-      lineCount: options.lineCount,
-      boundaries: options.boundaries,
-    });
+    const govResult = await this.engine.evaluateGovernance(
+      options.governanceAction ?? options.toolName,
+      {
+        toolName: options.toolName,
+        agentRole: options.agentRole ?? this.activeRole,
+        agentAuthority: options.agentAuthority,
+        targetFiles: options.targetFiles,
+        fileCount: options.fileCount ?? options.targetFiles?.length,
+        lineCount: options.lineCount,
+        boundaries: options.boundaries,
+      },
+    );
 
     if (!govResult.approved && this.level !== 'audit') {
       const reason =

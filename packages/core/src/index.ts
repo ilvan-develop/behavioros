@@ -200,22 +200,6 @@ export {
   ProtocolStateTracker,
 } from './engines/protocol-engine';
 export type {
-  SecurityBlock,
-  SignedProtocolFields,
-  SignedStateFile,
-  StateReadReason,
-  StateReadResult,
-} from './state/agent-state-store';
-export {
-  atomicWriteFileSync,
-  getOrCreateStateSecret,
-  getStateSecretPath,
-  isStrictModeEnrolled,
-  readState,
-  signProtocolState,
-  writeSignedState,
-} from './state/agent-state-store';
-export type {
   QualityCheckResult,
   QualityEngineConfig,
   QualityReport,
@@ -399,3 +383,19 @@ export { analyzeIntent, sanitizeDNA } from './security/dna-sanitizer';
 export type { LogEntry } from './shared/logger';
 // Shared — Logger
 export { Logger } from './shared/logger';
+export type {
+  SecurityBlock,
+  SignedProtocolFields,
+  SignedStateFile,
+  StateReadReason,
+  StateReadResult,
+} from './state/agent-state-store';
+export {
+  atomicWriteFileSync,
+  getOrCreateStateSecret,
+  getStateSecretPath,
+  isStrictModeEnrolled,
+  readState,
+  signProtocolState,
+  writeSignedState,
+} from './state/agent-state-store';

@@ -74,8 +74,12 @@ function runHook(toolName) {
 
 function assertBlocked(label, toolName, expectedSubstring) {
   const { status, stderr } = runHook(toolName);
-  if (status === 0) {
-    console.error(`FAIL: ${label} — expected block (non-zero exit), got exit 0`);
+  // Claude Code's PreToolUse hooks specifically require exit code 2 to block a tool call —
+  // exit 1 is treated as a generic script error and does NOT stop the tool from running.
+  // (This was itself a real bug found during live verification: the hook used exit 1 and
+  // silently never blocked anything in an actual Claude Code session.)
+  if (status !== 2) {
+    console.error(`FAIL: ${label} — expected block (exit 2), got exit ${status}`);
     failures++;
     return;
   }
