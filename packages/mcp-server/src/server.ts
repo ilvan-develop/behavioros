@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
@@ -373,6 +374,54 @@ export async function createServer(): Promise<McpServer> {
   _bosAuditChain = bosAuditChain;
   _bosLearningEngine = bosLearningEngine;
 
+  // Live verification found bosLearningEngine.record() was never called anywhere — the DNA
+  // pattern performance meta-learning behind bos_get_insights ("which patterns are working,
+  // which need mutation") had no data source at all, so it always returned zero insights
+  // regardless of real usage. Wire it to the mission lifecycle so every mission's outcome
+  // feeds it automatically, no separate tool call required. `quality` is a coarse 1/0
+  // success heuristic, not a real quality-gate score — BosLearningEngine.analyze() only needs
+  // a directional signal (reinforce/mutate/abandon), not a precise metric.
+  _engine.on('mission:completed', (mission) => {
+    const durationMs =
+      mission.startedAt && mission.completedAt
+        ? new Date(mission.completedAt).getTime() - new Date(mission.startedAt).getTime()
+        : 0;
+    bosLearningEngine
+      .record({
+        id: randomUUID(),
+        timestamp: new Date().toISOString(),
+        dna: dna.name,
+        task: mission.type,
+        agent: mission.assignees?.[0] ?? 'unknown',
+        success: true,
+        duration: Math.max(0, durationMs),
+        quality: 1,
+      })
+      .catch(() => {
+        // Non-fatal: mission completion must not fail because meta-learning couldn't record.
+      });
+  });
+  _engine.on('mission:failed', (mission) => {
+    const durationMs =
+      mission.startedAt && mission.completedAt
+        ? new Date(mission.completedAt).getTime() - new Date(mission.startedAt).getTime()
+        : 0;
+    bosLearningEngine
+      .record({
+        id: randomUUID(),
+        timestamp: new Date().toISOString(),
+        dna: dna.name,
+        task: mission.type,
+        agent: mission.assignees?.[0] ?? 'unknown',
+        success: false,
+        duration: Math.max(0, durationMs),
+        quality: 0,
+      })
+      .catch(() => {
+        // Non-fatal
+      });
+  });
+
   // Register BOS Behavioral tools
   _server.tool(
     'bos_select_dna',
@@ -570,8 +619,15 @@ export async function createServer(): Promise<McpServer> {
         evaluateGovernance: true,
         governanceAction: 'bos-agent-handoff',
         toolName: 'bos-agent-handoff',
-        requiredSkills: args.action === 'request' ? ['orchestration'] : undefined,
-        agentId: _getAgentId(),
+        // 'delegation' is what DNA orchestrator personas actually grant (see
+        // enterprise-governance.yaml) — the literal string 'orchestration' required here
+        // previously never matched any real skill in any bundled DNA, so this check always
+        // failed for action: 'request'. Also: the requesting agent's real id is `args.from`
+        // (already part of this tool's own input), not _getAgentId()'s BEHAVIOROS_AGENT_ID env
+        // var, which can never be set correctly in advance since AgentManager generates agent
+        // ids with a random suffix at runtime.
+        requiredSkills: args.action === 'request' ? ['delegation'] : undefined,
+        agentId: args.action === 'request' ? args.from : _getAgentId(),
       });
       if (enforcement.blocked) throw new Error(enforcement.reason);
       return bosAgentHandoff(_engine!.handoffProtocol, args);

@@ -15,7 +15,12 @@ tags:
   - lifecycle
 
 personas:
-  - role: autonomous-orchestrator
+  # 'autonomous-orchestrator' and 'sub-agent' (below) were invalid AgentRoleSchema values —
+  # this DNA failed schema validation and was never registered in @behavioros/dnas's manifest,
+  # so it silently never actually loaded. Remapped to the closest valid roles: 'orchestrator'
+  # is the schema's real name for exactly this concept (see enterprise-governance.yaml's
+  # orchestrator persona), and 'specialist' matches a generic skill-routed executor agent.
+  - role: orchestrator
     authority: lead
     name: Autonomous Orchestrator
     description: >
@@ -36,7 +41,7 @@ personas:
       - failure-recovery
       - escalation-handling
 
-  - role: sub-agent
+  - role: specialist
     authority: senior
     name: Sub-Agent
     description: >
@@ -49,6 +54,24 @@ personas:
         value: true
         scope: global
     skills: []
+
+  - role: qa
+    authority: senior
+    name: Autonomous QA Gate
+    description: >
+      Verifica qg-decomposition-coverage, qg-handoff-success e
+      qg-autonomous-completion antes de qualquer missão autônoma
+      ser marcada como concluída — o loop autônomo não pode
+      auto-atestar sua própria qualidade.
+    boundaries:
+      - id: qa-require-gate-pass
+        name: Require all quality gates to pass before completion
+        type: require_approval
+        value: true
+        scope: per_pr
+    skills:
+      - quality-gate-verification
+      - decomposition-review
 
 governance:
   - id: gov-auto-delegation
@@ -112,7 +135,7 @@ quality:
 patterns:
   - id: pat-autonomous-loop
     name: Autonomous Agent Loop
-    type: action
+    type: custom
     description: >
       Loop contínuo: receive → decompose → route → delegate →
       monitor → handle-rejection → report → loop
@@ -180,49 +203,74 @@ workflows:
     name: Autonomous Execution
     type: action
     description: Pipeline completo de execução autônoma
-    agent: autonomous-orchestrator
+    agent: orchestrator
     next: []
     timeout: 3600000
     retries: 1
     steps:
       - name: Decompose
         action: break mission into subtasks
-        agent: autonomous-orchestrator
+        agent: orchestrator
       - name: Route
         action: match subtasks to agents by skill
-        agent: autonomous-orchestrator
+        agent: orchestrator
       - name: Execute
         action: run subtasks in parallel
-        agent: autonomous-orchestrator
+        agent: orchestrator
       - name: Quality Gates
         action: verify all quality checks pass
-        agent: autonomous-orchestrator
+        agent: orchestrator
       - name: Document
         action: generate all documentation
-        agent: autonomous-orchestrator
+        agent: orchestrator
       - name: Audit
         action: run audit pipeline
-        agent: autonomous-orchestrator
+        agent: orchestrator
       - name: Learn
         action: record learning events
-        agent: autonomous-orchestrator
+        agent: orchestrator
       - name: Report
         action: generate ecosystem report
-        agent: autonomous-orchestrator
+        agent: orchestrator
 
   - id: wf-rejection-handling
     name: Rejection Handling
     type: gate
     description: Fluxo de tratamento de rejeição de agentes
-    agent: autonomous-orchestrator
+    agent: orchestrator
     next: []
     steps:
       - name: Receive Rejection
         action: receive and parse rejection reason
-        agent: autonomous-orchestrator
+        agent: orchestrator
       - name: Find Alternative
         action: search for alternative agent
-        agent: autonomous-orchestrator
+        agent: orchestrator
       - name: Reroute or Escalate
         action: reroute subtask or escalate to human
-        agent: autonomous-orchestrator
+        agent: orchestrator
+
+  - id: wf-escalation
+    name: Human Escalation
+    type: gate
+    description: >
+      Execution counterpart of the pat-escalation-threshold pattern above —
+      the pattern describes when to escalate, this workflow is what actually
+      runs when that threshold is crossed.
+    agent: orchestrator
+    next: []
+    timeout: 1800000
+    retries: 0
+    steps:
+      - name: Create Escalation Record
+        action: create-escalation-record
+        agent: orchestrator
+      - name: Verify Quality Gates
+        action: confirm qg-decomposition-coverage/qg-handoff-success/qg-autonomous-completion status
+        agent: qa
+      - name: Notify Human
+        action: notify-human
+        agent: orchestrator
+      - name: Await Decision
+        action: wait-for-decision
+        agent: orchestrator

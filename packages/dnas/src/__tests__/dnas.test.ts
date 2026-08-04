@@ -15,6 +15,7 @@ const DNA_IDS = [
   'gaming-platform',
   'healthcare-operations',
   'enterprise-agent-review',
+  'autonomous-orchestrator',
 ] as const;
 
 describe('DNA Catalog', () => {
