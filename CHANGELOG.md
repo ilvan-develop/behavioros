@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-08-04
+
+### Fixed — found via live verification against a real connected Claude Code session
+
+- **The PreToolUse enforcement hook was never actually active.** It was configured in
+  `.claude/hooks.json`, a file Claude Code does not read — hooks belong under a `"hooks"` key
+  in `.claude/settings.json`. Moved it there. A fresh `.mcp.json` was also added so the
+  BehaviorOS MCP server is registered for this project in Claude Code.
+- **The hook's block signal used the wrong exit code.** `validate-protocol.js` exited with
+  code 1 to mean "block," but Claude Code's `PreToolUse` contract specifically requires exit
+  code 2 — exit 1 is treated as a generic script error and does not stop the tool call.
+- **`GovernanceEngine.checkForbidden()` silently never enforced boolean `forbidden` boundaries.**
+  `value: true` was coerced to the literal glob pattern `"true"` instead of being treated as
+  "unconditionally forbidden," so DNA-authored rules such as the orchestrator persona's
+  `orch-no-direct-edit` (`value: true`, present in the bundled `enterprise-governance.yaml`
+  and 6 other catalog DNAs) never actually blocked anything. Also fixed `evaluate()` /
+  `checkBoundaries()` dropping `escalationRequired` on the allow-via-scope-escalation path.
+- **`bos_run_audit`'s typecheck stage had a flaky false-FAIL.** The shared command timeout was
+  hardcoded to 60s; this monorepo's real `turbo typecheck` takes ~49–60s, so a passing check
+  was occasionally reported as failed. Raised to 180s.
+
+All four were reproduced live in a real session (a `Bash rm` was blocked before completing the
+protocol and allowed after; `evaluate-governance` blocked a real orchestrator file-edit attempt
+post-fix) and are now covered by regression tests, including a new `real-server-simulation.test.ts`
+that spawns the actual built `dist/server.js` over stdio rather than testing against hand-built
+minimal servers.
+
 ## [1.1.0] - 2026-08-03
 
 ### Security

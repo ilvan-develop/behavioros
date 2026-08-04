@@ -1,6 +1,6 @@
 {
   "name": "@behavioros/cli",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "BehaviorOS CLI — Command-line interface for BehaviorOS",
   "bin": {
     "behavioros": "./dist/bin.js"
