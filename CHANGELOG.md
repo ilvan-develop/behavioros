@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Cursor's `beforeMCPExecution` hook was structurally dead for its stated purpose.**
+  `scripts/validate-protocol.js` only recognized Claude-Code-style native tool names
+  (`Edit`/`Write`/`Bash`), but Cursor never routes native file edits through
+  `beforeMCPExecution` (that event only sees MCP-routed tool calls) — so the check could
+  never match. Now also recognizes Cursor's `beforeShellExecution` payload shape (a bare
+  `{ command }`, no `tool_name`) as an implicit `Bash` call, and that event — the one real
+  pre-emptive interception point Cursor has — is wired into `.cursor/hooks.json`. See
+  [docs/CURSOR-INTEGRATION.md](docs/CURSOR-INTEGRATION.md) for what's still not coverable
+  in Cursor (no hook can block a native file edit there; documented, not fixable here).
+- **`scripts/validate-dna.js` (Cursor's `afterFileEdit` hook) exited 0 on both success and
+  failure**, so a failing DNA could never be distinguished from a passing one. Catch branch
+  now exits 1.
+
+### Added
+
+- **Windsurf's Cascade Hooks are now wired for real enforcement** (`.windsurf/hooks.json`:
+  `pre_write_code`, `pre_run_command`, `pre_mcp_tool_use` → `scripts/validate-protocol.js`).
+  Windsurf is the only platform in this repo whose hook API can genuinely block a native
+  file edit before it lands — see [docs/WINDSURF-INTEGRATION.md](docs/WINDSURF-INTEGRATION.md).
+- `scripts/validate-protocol.js`'s payload handling was generalized into a single
+  `classifyCall()` normalizer covering Claude Code, Cursor, and Windsurf's differing hook
+  payload shapes, plus a curated (explicitly unverified) set of likely VS Code Copilot tool
+  names — see [docs/COPILOT-INTEGRATION.md](docs/COPILOT-INTEGRATION.md) for the honest
+  status of that one (the only platform here not live-verified).
+- 4 new regression cases in `scripts/test-enforcement-e2e.mjs` covering the Cursor and
+  Windsurf payload shapes (11/11 passing).
+
 ## [1.1.2] - 2026-08-05
 
 ### Fixed

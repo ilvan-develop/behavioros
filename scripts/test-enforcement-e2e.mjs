@@ -16,6 +16,10 @@
  *   7. Cursor's beforeMCPExecution payload shape for BehaviorOS's own tools
  *      ({ server: 'behavioros', tool_name: 'bos_select_dna' }) is exempted, not
  *      re-gated (avoids the chicken-and-egg deadlock).
+ *   8. Windsurf's Cascade pre_write_code payload ({ agent_action_name, tool_info })
+ *      is recognized as a file edit and gated the same way — Windsurf is the one
+ *      platform here that can genuinely block a native file edit pre-emptively.
+ *   9. Windsurf's pre_mcp_tool_use payload for BehaviorOS's own tools is exempted.
  *
  * Runs in an isolated temp project dir with its own state secret, so it never
  * touches the real ~/.behavioros/state.key or any real .agent_state.json.
@@ -80,6 +84,26 @@ function runShellHook(command) {
 /** Cursor's beforeMCPExecution payload for a BehaviorOS-owned tool: server + bare tool_name, no cwd. */
 function runCursorMcpHook(toolName) {
   const payload = JSON.stringify({ server: 'behavioros', tool_name: toolName, tool_input: '{}' });
+  return runHookRaw(payload, { cwd: TEST_DIR });
+}
+
+/** Windsurf's Cascade pre_write_code payload: agent_action_name + tool_info.file_path, no top-level cwd. */
+function runWindsurfWriteHook(filePath) {
+  const payload = JSON.stringify({
+    agent_action_name: 'pre_write_code',
+    trajectory_id: 't1',
+    execution_id: 'e1',
+    tool_info: { file_path: filePath, edits: [{ old_string: 'a', new_string: 'b' }] },
+  });
+  return runHookRaw(payload, { cwd: TEST_DIR });
+}
+
+/** Windsurf's Cascade pre_mcp_tool_use payload for a BehaviorOS-owned tool. */
+function runWindsurfMcpHook(toolName) {
+  const payload = JSON.stringify({
+    agent_action_name: 'pre_mcp_tool_use',
+    tool_info: { mcp_server_name: 'behavioros', mcp_tool_name: toolName, mcp_tool_arguments: {} },
+  });
   return runHookRaw(payload, { cwd: TEST_DIR });
 }
 
@@ -209,6 +233,21 @@ try {
     "Cursor beforeMCPExecution payload for BehaviorOS's own tool is exempted (no chicken-and-egg block)",
     'bos_select_dna',
     runCursorMcpHook,
+  );
+
+  // 8. Windsurf's pre_write_code shape ({ agent_action_name, tool_info }) is a real file edit
+  assertBlocked(
+    'Windsurf pre_write_code payload is treated as a file edit and blocked',
+    'src/index.ts',
+    'bos_select_dna must be called',
+    runWindsurfWriteHook,
+  );
+
+  // 9. Windsurf's pre_mcp_tool_use shape for BehaviorOS's own tools is exempted
+  assertAllowed(
+    "Windsurf pre_mcp_tool_use payload for BehaviorOS's own tool is exempted",
+    'bos_select_dna',
+    runWindsurfMcpHook,
   );
 } finally {
   rmSync(TEST_DIR, { recursive: true, force: true });

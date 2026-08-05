@@ -155,6 +155,14 @@ Ships as a real plugin in this repo: `.opencode/plugins/protocol-enforcer.ts`, r
 
 **Not currently viable for file-edit gating** — see [CODEX-INTEGRATION.md](CODEX-INTEGRATION.md) for why (hooks are experimental, unavailable on Windows, and only intercept the `Bash` tool as of Aug 2026). MCP tool calls are still gated in-process regardless.
 
+### Windsurf
+
+**Native file edits are genuinely gated** — see [WINDSURF-INTEGRATION.md](WINDSURF-INTEGRATION.md). `.windsurf/hooks.json` wires `pre_write_code`, `pre_run_command`, and `pre_mcp_tool_use` to `scripts/validate-protocol.js`. Unlike Cursor and Codex, Windsurf's `pre_write_code` hook fires *before* a file edit and can actually deny it — this is the one platform here without the "can't block a native edit" gap.
+
+### VS Code + GitHub Copilot
+
+**Status unverified** — see [COPILOT-INTEGRATION.md](COPILOT-INTEGRATION.md). Copilot's agent-mode hooks reportedly share `.claude/settings.json` (already configured above) using the same contract as Claude Code, which would mean this repo's existing hook already protects Copilot for free — but Copilot's exact native tool names for edit/terminal actions haven't been confirmed against a real session, unlike every other platform in this guide. `scripts/validate-protocol.js` includes a curated, explicitly-marked-unverified set of likely tool-name aliases as a best effort.
+
 ## 5. Try it
 
 Ask your agent to do something. It should:
@@ -174,5 +182,7 @@ If it tries to edit a file before step 1 and you've wired the hook from step 4, 
 - [EAARG-18-LAYERS.md](EAARG-18-LAYERS.md) — the 18-layer architecture review framework, for a deeper SDLC-wide governance pass beyond the 7-step protocol.
 - [CODEX-INTEGRATION.md](CODEX-INTEGRATION.md) — current (limited) status of Codex CLI support.
 - [CURSOR-INTEGRATION.md](CURSOR-INTEGRATION.md) — current (partial) status of Cursor support.
+- [WINDSURF-INTEGRATION.md](WINDSURF-INTEGRATION.md) — current (full) status of Windsurf support.
+- [COPILOT-INTEGRATION.md](COPILOT-INTEGRATION.md) — current (unverified) status of VS Code Copilot support.
 - [RUNBOOK.md](RUNBOOK.md) — operational troubleshooting once BehaviorOS is running.
 - [CLI.md](CLI.md) — full CLI command reference.
