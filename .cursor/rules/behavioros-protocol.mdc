@@ -56,6 +56,9 @@ Refer to the canonical protocol document at `docs/PROTOCOL.md`.
 ## Enforcement
 
 - These steps are mandatory. Do not skip any step.
-- The MCP server will block actions that violate the protocol.
-- Direct file editing by the orchestrator is FORBIDDEN.
+- The MCP server blocks any BehaviorOS MCP tool call that violates the protocol.
+- Shell commands are gated by `.cursor/hooks.json`'s `beforeShellExecution` hook.
+- Direct file editing by the orchestrator is against policy, but — unlike Claude Code and
+  Windsurf — Cursor has no hook that can technically block a native file edit before it
+  lands. Treat this rule as a strong instruction to follow, not a guaranteed block.
 - Always delegate to specialized subagents.

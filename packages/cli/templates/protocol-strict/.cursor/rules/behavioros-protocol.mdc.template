@@ -18,7 +18,10 @@ Refer to the canonical protocol document at `{{PROTOCOL_PATH}}`.
 ## Enforcement ({{ENFORCEMENT_LEVEL}})
 
 - These steps are mandatory. Do not skip any step.
-- The MCP server (`{{MCP_SERVER_COMMAND}}`) will block actions that violate the protocol.
+- The MCP server (`{{MCP_SERVER_COMMAND}}`) blocks any BehaviorOS MCP tool call that violates the protocol.
 - DNA config is at `{{DNA_PATH}}`.
-- Direct file editing by the orchestrator is FORBIDDEN.
+- Direct file editing by the orchestrator is against policy, but — unlike Claude Code and
+  Windsurf — Cursor has no hook that can technically block a native file edit before it
+  lands (see the project's `docs/CURSOR-INTEGRATION.md` if present). Treat this as a
+  strong instruction to follow, not a guaranteed block.
 - Always delegate to specialized subagents.

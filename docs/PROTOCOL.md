@@ -568,10 +568,18 @@ Refer to the canonical protocol document at `docs/PROTOCOL.md`.
 ## Enforcement
 
 - These steps are mandatory. Do not skip any step.
-- The MCP server will block actions that violate the protocol.
-- Direct file editing by the orchestrator is FORBIDDEN.
+- The MCP server blocks any BehaviorOS MCP tool call that violates the protocol.
 - Always delegate to specialized subagents.
 ```
+
+> **Known gap — do not treat this as equivalent to Claude Code's enforcement**: Cursor's
+> hook API has no event that can block a *native* file edit before it lands
+> (`afterFileEdit` fires only after the edit already happened, and is documented as
+> informational-only). "Direct file editing by the orchestrator is FORBIDDEN" is *not*
+> currently enforceable in Cursor for native edits — only for MCP tool calls and shell
+> commands, which `.cursor/hooks.json` in this repo does gate. See
+> [CURSOR-INTEGRATION.md](CURSOR-INTEGRATION.md) for the full picture before relying on
+> this in production.
 
 ### Claude Code
 
@@ -627,6 +635,11 @@ Enforcement:
 - All quality gates must pass before mission completion
 ```
 
+> Windsurf is the one platform among those documented here whose hooks can genuinely
+> block a native file edit before it lands (`pre_write_code`, wired in this repo's
+> `.windsurf/hooks.json`) — see [WINDSURF-INTEGRATION.md](WINDSURF-INTEGRATION.md) for
+> what's actually enforced versus advisory.
+
 ### GitHub Copilot
 
 **File:** `.github/copilot-instructions.md`
@@ -653,6 +666,21 @@ This project uses BehaviorOS for AI agent governance. The canonical protocol is 
 - Mark mission complete without running audit
 - Bypass quality gates
 ```
+
+> **Status: unverified.** This repo's `scripts/validate-protocol.js` has a best-effort,
+> explicitly-marked-unverified set of likely VS Code Copilot tool-name aliases, but
+> Copilot's exact native tool names for edit/terminal actions have not been confirmed
+> against a real session — see [COPILOT-INTEGRATION.md](COPILOT-INTEGRATION.md) before
+> relying on deterministic enforcement here.
+
+### Codex CLI
+
+**Not currently viable for file-edit gating.** Codex's hook system is experimental
+(disabled by default), unavailable on Windows, and — even where enabled — only
+intercepts the `Bash` tool; there is no interception point for Codex's native
+file-editing/Apply-Patch mechanism. MCP tool calls are still gated in-process by
+`EnforcementMiddleware` regardless. See [CODEX-INTEGRATION.md](CODEX-INTEGRATION.md) for
+the full research behind this and what to recheck as Codex's hook API matures.
 
 ---
 
