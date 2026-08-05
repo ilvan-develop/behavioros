@@ -31,6 +31,8 @@ export interface EnforcementOptions {
   lineCount?: number;
   /** Boundary rules (from the active persona's DNA) to enforce for this call */
   boundaries?: BoundaryRule[];
+  /** Explicit approval from a separate architect+ authority, satisfying require_approval boundaries */
+  approvedBy?: { agentId: string; authority: string };
 }
 
 export interface EnforcementResult {
@@ -208,6 +210,7 @@ export class EnforcementMiddleware {
         fileCount: options.fileCount ?? options.targetFiles?.length,
         lineCount: options.lineCount,
         boundaries: options.boundaries,
+        approvedBy: options.approvedBy,
       });
 
       // Not just `violations.length > 0`: boundary rejections (max_files, forbidden
@@ -253,6 +256,7 @@ export class EnforcementMiddleware {
         fileCount: options.fileCount ?? options.targetFiles?.length,
         lineCount: options.lineCount,
         boundaries: options.boundaries,
+        approvedBy: options.approvedBy,
       },
     );
 

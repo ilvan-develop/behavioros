@@ -43,6 +43,14 @@ export interface GovernanceContext {
   targetDependency?: string;
   /** Current time for time-based restrictions (defaults to new Date()) */
   currentTime?: Date;
+  /**
+   * An explicit approval from a separate, sufficiently-authorized approver. Satisfies
+   * `require_approval` boundaries on behalf of an acting agent whose own authority is too
+   * low to self-escalate — e.g. a senior engineer's change approved by an architect,
+   * without granting the engineer architect-level authority generally. Does NOT affect
+   * `forbidden` boundaries, which have no approval mechanism by design.
+   */
+  approvedBy?: { agentId: string; authority: AuthorityLevelValue };
 }
 
 /**
@@ -505,13 +513,25 @@ export class GovernanceEngine {
   }
 
   /**
-   * If boundary requires approval, escalate regardless of other factors.
+   * If boundary requires approval, an explicit `approvedBy` from an architect+ approver
+   * satisfies it on behalf of the acting agent. Otherwise falls back to scope-escalation
+   * on the acting agent's own authority — which, unlike an approval, is a self-override,
+   * not a second reviewer.
    */
   private checkBoundaryApproval(
     boundary: BoundaryRule,
     context: GovernanceContext,
   ): GovernanceDecision {
     if (boundary.value === true) {
+      const approver = context.approvedBy;
+      if (approver && AUTHORITY_HIERARCHY[approver.authority] >= AUTHORITY_HIERARCHY.architect) {
+        return {
+          allowed: true,
+          reason: `Approved by ${approver.agentId} (${approver.authority}) per boundary: ${boundary.name}`,
+          escalationRequired: true, // still flagged — a real approval event, worth auditing
+        };
+      }
+
       const msg = `Action requires approval per boundary: ${boundary.name}`;
       return this.applyScopeEscalation(msg, context);
     }

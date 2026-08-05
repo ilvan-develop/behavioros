@@ -1006,6 +1006,56 @@ describe('GovernanceEngine', () => {
         const result = engine.evaluate(ctx);
         expect(result.allowed).toBe(true);
       });
+
+      it('an architect+ approvedBy satisfies require_approval for a junior/senior acting agent', () => {
+        const engine = new GovernanceEngine([]);
+        const ctx: GovernanceContext = {
+          ...juniorContext, // authority: 'junior' — cannot self-escalate
+          impact: 'low',
+          boundaries: [
+            {
+              id: 'eng-require-review',
+              name: 'Require code review',
+              type: 'require_approval',
+              value: true,
+              scope: 'global',
+            },
+          ],
+          approvedBy: { agentId: 'architect-1', authority: 'architect' },
+        };
+        const result = engine.evaluate(ctx);
+        expect(result.allowed).toBe(true);
+        expect(result.reason).toContain('Approved by architect-1');
+        expect(result.escalationRequired).toBe(true); // still flagged for audit visibility
+      });
+
+      it('an approvedBy below architect authority does NOT satisfy require_approval', () => {
+        const engine = new GovernanceEngine([]);
+        const ctx: GovernanceContext = {
+          ...juniorContext,
+          impact: 'low',
+          boundaries: [
+            { id: 'b1', name: 'Requires approval', type: 'require_approval', value: true, scope: 'global' },
+          ],
+          approvedBy: { agentId: 'peer-1', authority: 'senior' },
+        };
+        const result = engine.evaluate(ctx);
+        expect(result.allowed).toBe(false);
+      });
+
+      it('approvedBy does NOT bypass a forbidden boundary (approval mechanism is require_approval-only)', () => {
+        const engine = new GovernanceEngine([]);
+        const ctx: GovernanceContext = {
+          ...juniorContext,
+          impact: 'low',
+          boundaries: [
+            { id: 'orch-no-edit', name: 'No direct file editing', type: 'forbidden', value: true, scope: 'global' },
+          ],
+          approvedBy: { agentId: 'architect-1', authority: 'architect' },
+        };
+        const result = engine.evaluate(ctx);
+        expect(result.allowed).toBe(false);
+      });
     });
 
     describe('boundary checks — unknown type', () => {

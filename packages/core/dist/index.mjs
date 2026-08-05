@@ -2930,6 +2930,300 @@ var AuditChain = class {
   }
 };
 
+// src/engines/behavioral/audit-chain/hash-chain.ts
+import { createHash, createHmac, randomUUID as randomUUID6 } from "crypto";
+var HashChain = class _HashChain {
+  entries = [];
+  signingKey;
+  constructor(signingKey) {
+    this.signingKey = signingKey;
+  }
+  /** Return a shallow copy of the chain. */
+  getEntries() {
+    return this.entries;
+  }
+  /** Number of entries in the chain. */
+  get length() {
+    return this.entries.length;
+  }
+  /** Return the last entry, or `undefined` if the chain is empty. */
+  getLastEntry() {
+    return this.entries[this.entries.length - 1];
+  }
+  /**
+   * Create the genesis (first) block of a new chain.
+   *
+   * @param agentId  - Agent that creates the genesis entry.
+   * @param action   - Initial action label.
+   * @param details  - Arbitrary payload.
+   * @param metadata - Optional metadata.
+   * @returns The genesis {@link AuditEntry}.
+   */
+  createGenesis(agentId, action, details = {}, metadata = {}) {
+    if (this.entries.length > 0) {
+      throw new Error("Cannot create genesis block: chain already has entries");
+    }
+    const entry = this.buildEntry({
+      id: randomUUID6(),
+      timestamp: /* @__PURE__ */ new Date(),
+      agentId,
+      action,
+      details,
+      previousHash: "",
+      metadata
+    });
+    this.entries.push(entry);
+    return entry;
+  }
+  /**
+   * Append a new entry to the chain.
+   *
+   * @param agentId  - Agent performing the action.
+   * @param action   - Action label.
+   * @param details  - Arbitrary payload.
+   * @param metadata - Optional metadata.
+   * @returns The newly created {@link AuditEntry}.
+   * @throws If the chain is empty (call {@link createGenesis} first).
+   */
+  append(agentId, action, details = {}, metadata = {}) {
+    if (this.entries.length === 0) {
+      throw new Error("Chain is empty \u2014 call createGenesis() before appending");
+    }
+    const prev = this.entries[this.entries.length - 1];
+    const entry = this.buildEntry({
+      id: randomUUID6(),
+      timestamp: /* @__PURE__ */ new Date(),
+      agentId,
+      action,
+      details,
+      previousHash: prev.hash,
+      metadata
+    });
+    this.entries.push(entry);
+    return entry;
+  }
+  /**
+   * Recompute the expected hash for an entry payload.
+   *
+   * The canonical form is a deterministic JSON string of the payload fields
+   * (sorted keys) followed by the `previousHash`.
+   */
+  static computeHash(payload) {
+    const canonical = _HashChain.canonicalise(payload);
+    return createHash("sha256").update(canonical).digest("hex");
+  }
+  /**
+   * Verify a single entry's hash matches the expected value.
+   * If a signing key is configured, also verifies the HMAC signature.
+   *
+   * @returns `true` if the recomputed hash equals `entry.hash` (and signature is valid if present).
+   */
+  static verifyEntry(entry, signingKey) {
+    const { hash, ...rest } = entry;
+    const expected = _HashChain.computeHash(rest);
+    if (hash !== expected) return false;
+    if (entry.signature && signingKey) {
+      const hmac = createHmac("sha256", signingKey).update(expected).digest("hex");
+      if (hmac !== entry.signature) return false;
+    }
+    return true;
+  }
+  /**
+   * Load entries from a serialised array (e.g. from disk / database).
+   * Replaces any existing entries.
+   */
+  loadFrom(entries) {
+    this.entries.length = 0;
+    this.entries.push(...entries);
+  }
+  // ------------------------------------------------------------
+  // Private helpers
+  // ------------------------------------------------------------
+  buildEntry(payload) {
+    const hash = _HashChain.computeHash(payload);
+    const entry = { ...payload, hash };
+    if (this.signingKey) {
+      const hmac = createHmac("sha256", this.signingKey).update(hash).digest("hex");
+      entry.signature = hmac;
+    }
+    return entry;
+  }
+  /**
+   * Deterministic serialisation — keys sorted alphabetically, Dates ISO-8601,
+   * no whitespace.
+   */
+  static canonicalise(payload) {
+    const obj = {
+      id: payload.id,
+      timestamp: payload.timestamp instanceof Date ? payload.timestamp.toISOString() : String(payload.timestamp),
+      agentId: payload.agentId,
+      action: payload.action,
+      details: payload.details,
+      previousHash: payload.previousHash,
+      metadata: payload.metadata
+    };
+    const sorted = {};
+    for (const key of Object.keys(obj).sort()) {
+      sorted[key] = obj[key];
+    }
+    return JSON.stringify(sorted);
+  }
+};
+
+// src/engines/behavioral/audit-chain/audit-chain-verifier.ts
+var AuditChainVerifier = class {
+  chain;
+  constructor(chain) {
+    this.chain = chain;
+  }
+  /**
+   * Verify the entire chain from genesis.
+   *
+   * Walks every entry, recomputes its hash, and checks that each entry's
+   * `previousHash` matches the preceding entry's stored hash.
+   *
+   * @returns A {@link VerificationResult} describing the outcome.
+   */
+  verify() {
+    const entries = this.chain.getEntries();
+    return this.verifyRange(entries, 0);
+  }
+  /**
+   * Verify only the last `n` entries (incremental verification).
+   *
+   * This is useful for quick checks after appending new entries without
+   * re-scanning the entire chain.
+   *
+   * @param n - Number of trailing entries to verify. Capped at chain length.
+   * @returns A {@link VerificationResult} scoped to the requested window.
+   */
+  verifyLast(n) {
+    const entries = this.chain.getEntries();
+    const count = Math.min(n, entries.length);
+    const start = entries.length - count;
+    return this.verifyRange(entries, start);
+  }
+  /**
+   * Verify a single entry by its 0-based index.
+   *
+   * @param index - Index of the entry to verify.
+   * @returns `true` if the entry's hash is valid **and** its `previousHash`
+   *          matches the predecessor's hash (unless it is the genesis entry).
+   */
+  verifyEntryAt(index) {
+    const entries = this.chain.getEntries();
+    if (index < 0 || index >= entries.length) {
+      return false;
+    }
+    const entry = entries[index];
+    if (!HashChain.verifyEntry(entry)) {
+      return false;
+    }
+    if (index === 0) {
+      return entry.previousHash === "";
+    }
+    return entry.previousHash === entries[index - 1].hash;
+  }
+  /**
+   * Generate a human-readable verification report string.
+   */
+  report(result) {
+    const lines = [];
+    lines.push("=== Audit Chain Verification Report ===");
+    lines.push(`Valid:             ${result.valid ? "YES" : "NO"}`);
+    lines.push(`Total entries:     ${result.totalEntries}`);
+    lines.push(`Verified entries:  ${result.verifiedEntries}`);
+    lines.push(`Broken links:      ${result.brokenLinks.length}`);
+    lines.push(`Tampered entries:  ${result.tamperedEntries.length}`);
+    lines.push(
+      `Time span:         ${result.firstEntryTimestamp.toISOString()} \u2192 ${result.lastEntryTimestamp.toISOString()}`
+    );
+    lines.push(`Duration:          ${result.duration}ms`);
+    if (result.brokenLinks.length > 0) {
+      lines.push("");
+      lines.push("Broken links at indices:");
+      for (const idx of result.brokenLinks) {
+        lines.push(`  - [${idx}]`);
+      }
+    }
+    if (result.tamperedEntries.length > 0) {
+      lines.push("");
+      lines.push("Tampered entries at indices:");
+      for (const idx of result.tamperedEntries) {
+        lines.push(`  - [${idx}]`);
+      }
+    }
+    return lines.join("\n");
+  }
+  /**
+   * Return the list of all tampered entry indices in the entire chain.
+   */
+  getTamperedIndices() {
+    const entries = this.chain.getEntries();
+    const tampered = [];
+    for (let i = 0; i < entries.length; i++) {
+      if (!HashChain.verifyEntry(entries[i])) {
+        tampered.push(i);
+      }
+    }
+    return tampered;
+  }
+  /**
+   * Return the list of all broken link indices in the entire chain.
+   *
+   * A broken link exists when entry[i].previousHash !== entry[i-1].hash.
+   */
+  getBrokenLinkIndices() {
+    const entries = this.chain.getEntries();
+    const broken = [];
+    for (let i = 1; i < entries.length; i++) {
+      if (entries[i].previousHash !== entries[i - 1].hash) {
+        broken.push(i);
+      }
+    }
+    return broken;
+  }
+  // ------------------------------------------------------------
+  // Private helpers
+  // ------------------------------------------------------------
+  verifyRange(entries, start) {
+    const t0 = Date.now();
+    const brokenLinks = [];
+    const tamperedEntries = [];
+    let verifiedEntries = 0;
+    for (let i = start; i < entries.length; i++) {
+      const entry = entries[i];
+      if (HashChain.verifyEntry(entry)) {
+        verifiedEntries++;
+      } else {
+        tamperedEntries.push(i);
+      }
+      if (i > start || i === start && i > 0) {
+        if (entry.previousHash !== entries[i - 1].hash) {
+          brokenLinks.push(i);
+        }
+      } else if (i === start && i === 0) {
+        if (entry.previousHash !== "") {
+          brokenLinks.push(i);
+        }
+      }
+    }
+    const totalEntries = entries.length - start;
+    const firstEntry = entries[start];
+    const lastEntry = entries[entries.length - 1];
+    return {
+      valid: brokenLinks.length === 0 && tamperedEntries.length === 0,
+      totalEntries,
+      verifiedEntries,
+      brokenLinks,
+      tamperedEntries,
+      firstEntryTimestamp: firstEntry.timestamp,
+      lastEntryTimestamp: lastEntry.timestamp,
+      duration: Date.now() - t0
+    };
+  }
+};
+
 // src/engines/behavioral/behavior-selector.ts
 var BehaviorSelector = class {
   rules = [];
@@ -4523,7 +4817,7 @@ var BosLearningEngine = class {
 };
 
 // src/engines/core-engine.ts
-import { randomUUID as randomUUID16 } from "crypto";
+import { randomUUID as randomUUID17 } from "crypto";
 import EventEmitter5 from "eventemitter3";
 
 // src/engines/adapters/aitmpl-adapter.ts
@@ -5062,7 +5356,7 @@ var UIUXProMaxAdapter = class {
 };
 
 // src/engines/agent-manager.ts
-import { randomUUID as randomUUID6 } from "crypto";
+import { randomUUID as randomUUID7 } from "crypto";
 var AgentManager = class {
   agents = /* @__PURE__ */ new Map();
   constructor(dna) {
@@ -5071,7 +5365,7 @@ var AgentManager = class {
   initialize(dna) {
     for (const persona of dna.personas) {
       const agent = {
-        id: `agent-${persona.role}-${randomUUID6().slice(0, 8)}`,
+        id: `agent-${persona.role}-${randomUUID7().slice(0, 8)}`,
         role: persona.role,
         status: "idle",
         authority: persona.authority,
@@ -5856,10 +6150,22 @@ var GovernanceEngine = class _GovernanceEngine {
     };
   }
   /**
-   * If boundary requires approval, escalate regardless of other factors.
+   * If boundary requires approval, an explicit `approvedBy` from an architect+ approver
+   * satisfies it on behalf of the acting agent. Otherwise falls back to scope-escalation
+   * on the acting agent's own authority — which, unlike an approval, is a self-override,
+   * not a second reviewer.
    */
   checkBoundaryApproval(boundary, context) {
     if (boundary.value === true) {
+      const approver = context.approvedBy;
+      if (approver && AUTHORITY_HIERARCHY[approver.authority] >= AUTHORITY_HIERARCHY.architect) {
+        return {
+          allowed: true,
+          reason: `Approved by ${approver.agentId} (${approver.authority}) per boundary: ${boundary.name}`,
+          escalationRequired: true
+          // still flagged — a real approval event, worth auditing
+        };
+      }
       const msg = `Action requires approval per boundary: ${boundary.name}`;
       return this.applyScopeEscalation(msg, context);
     }
@@ -6058,12 +6364,12 @@ var GovernanceEngine = class _GovernanceEngine {
 };
 
 // src/engines/integration/webhook-manager.ts
-import { randomUUID as randomUUID7 } from "crypto";
+import { randomUUID as randomUUID8 } from "crypto";
 var WebhookManager = class {
   webhooks = /* @__PURE__ */ new Map();
   deliveryHistory = [];
   register(url, events, secret, headers) {
-    const id = randomUUID7();
+    const id = randomUUID8();
     const webhook = {
       id,
       url,
@@ -6135,7 +6441,7 @@ var WebhookManager = class {
 };
 
 // src/engines/learning/learning-engine.ts
-import { randomUUID as randomUUID8 } from "crypto";
+import { randomUUID as randomUUID9 } from "crypto";
 import { readFile as readFile4, writeFile } from "fs/promises";
 var DEFAULT_MAX_EVENTS = 5e3;
 var DEFAULT_MAX_INSIGHTS = 1e3;
@@ -6154,7 +6460,7 @@ var LearningEngine = class {
   }
   record(event) {
     const enriched = {
-      id: randomUUID8(),
+      id: randomUUID9(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       ...event
     };
@@ -6282,7 +6588,7 @@ var LearningEngine = class {
   }
   generateReport() {
     return {
-      id: randomUUID8(),
+      id: randomUUID9(),
       totalEvents: this.events.length,
       insights: this.insights,
       appliedCount: this.events.filter((e) => e.applied).length,
@@ -6682,7 +6988,7 @@ var LearningEngine = class {
 };
 
 // src/engines/mission/mission-engine.ts
-import { randomUUID as randomUUID9 } from "crypto";
+import { randomUUID as randomUUID10 } from "crypto";
 import { MissionSchema } from "@behavioros/schemas";
 var VALID_TRANSITIONS = {
   draft: ["queued", "cancelled"],
@@ -6707,7 +7013,7 @@ var MissionEngine = class {
    */
   decompose(mission, subMissions) {
     const plan = {
-      id: randomUUID9(),
+      id: randomUUID10(),
       rootMission: mission.id,
       subMissions: [],
       dependencies: [],
@@ -6716,7 +7022,7 @@ var MissionEngine = class {
     };
     for (const sub of subMissions) {
       const subMission = MissionSchema.parse({
-        id: randomUUID9(),
+        id: randomUUID10(),
         title: sub.title ?? `Sub-task of ${mission.title}`,
         description: sub.description,
         type: sub.type ?? mission.type,
@@ -6791,7 +7097,7 @@ var MissionEngine = class {
 };
 
 // src/engines/mission-manager.ts
-import { randomUUID as randomUUID10 } from "crypto";
+import { randomUUID as randomUUID11 } from "crypto";
 import { MissionSchema as MissionSchema2 } from "@behavioros/schemas";
 var MissionManager = class {
   missions = /* @__PURE__ */ new Map();
@@ -6803,7 +7109,7 @@ var MissionManager = class {
   }
   async create(input) {
     const mission = MissionSchema2.parse({
-      id: randomUUID10(),
+      id: randomUUID11(),
       title: input.title,
       description: input.description,
       type: input.type,
@@ -6905,7 +7211,7 @@ var MissionManager = class {
 };
 
 // src/engines/orchestrator/autonomous-decomposer.ts
-import { randomUUID as randomUUID11 } from "crypto";
+import { randomUUID as randomUUID12 } from "crypto";
 var AutonomousDecomposer = class {
   constructor(options = {}) {
     this.options = options;
@@ -7124,7 +7430,7 @@ var AutonomousDecomposer = class {
   // ─── Helpers ───────────────────────────────────────────────
   createSubtask(type, requiredSkill, overrides = {}) {
     return {
-      id: randomUUID11(),
+      id: randomUUID12(),
       title: overrides.title ?? "Untitled subtask",
       type,
       requiredSkill,
@@ -7135,7 +7441,7 @@ var AutonomousDecomposer = class {
 };
 
 // src/engines/orchestrator/autonomous-orchestrator.ts
-import { randomUUID as randomUUID14 } from "crypto";
+import { randomUUID as randomUUID15 } from "crypto";
 
 // src/engines/orchestrator/auto-documentation-trigger.ts
 import { mkdir, writeFile as writeFile2 } from "fs/promises";
@@ -7390,7 +7696,7 @@ ${subtask.description ?? "Auto-generated documentation."}
 };
 
 // src/engines/orchestrator/handoff-protocol.ts
-import { randomUUID as randomUUID12 } from "crypto";
+import { randomUUID as randomUUID13 } from "crypto";
 var HandoffProtocol = class {
   handoffs = /* @__PURE__ */ new Map();
   maxActiveHandoffs;
@@ -7408,7 +7714,7 @@ var HandoffProtocol = class {
         `Maximum active handoffs reached (${this.maxActiveHandoffs}). Complete or cancel some handoffs before requesting new ones.`
       );
     }
-    const handoffId = randomUUID12();
+    const handoffId = randomUUID13();
     const now = (/* @__PURE__ */ new Date()).toISOString();
     const record = {
       handoffId,
@@ -7554,7 +7860,7 @@ var HandoffProtocol = class {
 };
 
 // src/engines/orchestrator/lifecycle-pipeline.ts
-import { randomUUID as randomUUID13 } from "crypto";
+import { randomUUID as randomUUID14 } from "crypto";
 var LifecyclePipeline = class {
   constructor(decomposer, router, _handoffProtocol, autoDocs, skillEngine) {
     this.decomposer = decomposer;
@@ -7573,7 +7879,7 @@ var LifecyclePipeline = class {
   async execute(input) {
     this.missionStartTime = Date.now();
     const mission = {
-      id: randomUUID13(),
+      id: randomUUID14(),
       title: input.title,
       type: input.type,
       priority: input.priority,
@@ -8046,7 +8352,7 @@ var AutonomousOrchestrator = class {
   async processTask(input) {
     this.status = "processing";
     const trackingMission = {
-      id: randomUUID14(),
+      id: randomUUID15(),
       title: input.title,
       type: input.type,
       priority: input.priority,
@@ -8291,7 +8597,7 @@ var AutonomousOrchestrator = class {
 
 // src/engines/quality/quality-engine.ts
 import { execSync as execSync5 } from "child_process";
-import { randomUUID as randomUUID15 } from "crypto";
+import { randomUUID as randomUUID16 } from "crypto";
 import { existsSync as existsSync3, readFileSync as readFileSync5 } from "fs";
 function runCommand2(cmd, cwd, timeout = 12e4) {
   try {
@@ -8332,7 +8638,7 @@ var QualityEngine = class {
    * Run all quality gates against a real project
    */
   async runAll(projectPath) {
-    const reportId = randomUUID15();
+    const reportId = randomUUID16();
     const start = Date.now();
     const checks = [];
     const metrics = [];
@@ -8634,7 +8940,7 @@ var QualityEngine = class {
       timestamp: (/* @__PURE__ */ new Date()).toISOString()
     }));
     return {
-      id: randomUUID15(),
+      id: randomUUID16(),
       passed: score >= this.minScore && results.every((c) => c.passed),
       score,
       checks: results,
@@ -8645,7 +8951,7 @@ var QualityEngine = class {
   }
   // --- Existing API ---
   evaluate(metrics) {
-    const reportId = randomUUID15();
+    const reportId = randomUUID16();
     const start = Date.now();
     const checks = [];
     for (const gate of this.gates) {
@@ -9414,7 +9720,7 @@ var BehaviorOSEngine = class extends EventEmitter5 {
       this.telemetryWebhooks.register(
         telemetryConfig.webhookUrl,
         ["telemetry:summary"],
-        randomUUID16()
+        randomUUID17()
       );
     }
     this.telemetryEngine = new GovernanceTelemetryEngine(
@@ -9488,7 +9794,8 @@ var BehaviorOSEngine = class extends EventEmitter5 {
       fileCount: context.fileCount,
       lineCount: context.lineCount,
       targetDependency: context.targetDependency,
-      currentTime: context.currentTime
+      currentTime: context.currentTime,
+      approvedBy: context.approvedBy
     };
     const decision = this.governanceEngine.evaluate(govContext);
     const applicableRules = this.governanceEngine.getApplicableRules(govContext);
@@ -9574,7 +9881,7 @@ var BehaviorOSEngine = class extends EventEmitter5 {
   // ─── Internal Audit Log ───────────────────────────────────
   auditEvent(type, severity, result, description, details) {
     const event = {
-      id: randomUUID16(),
+      id: randomUUID17(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       type,
       severity,
@@ -10337,7 +10644,7 @@ var MemoryEngine = class {
 };
 
 // src/engines/pipeline/pipeline-engine.ts
-import { randomUUID as randomUUID17 } from "crypto";
+import { randomUUID as randomUUID18 } from "crypto";
 import { LayerResultSchema } from "@behavioros/schemas";
 import EventEmitter6 from "eventemitter3";
 var PipelineEngine = class extends EventEmitter6 {
@@ -10616,7 +10923,7 @@ var PipelineEngine = class extends EventEmitter6 {
   }
   createInitialState() {
     return {
-      id: randomUUID17(),
+      id: randomUUID18(),
       dnaId: this.dna.id,
       status: "created",
       currentLayer: this.options.startLayer ?? 1,
@@ -11275,7 +11582,7 @@ var ProtocolStateTracker = class _ProtocolStateTracker {
 };
 
 // src/engines/quality/self-healing-engine.ts
-import { randomUUID as randomUUID18 } from "crypto";
+import { randomUUID as randomUUID19 } from "crypto";
 var DEFAULT_MAX_RETRIES = 3;
 var SelfHealingEngine = class {
   enabled;
@@ -11377,7 +11684,7 @@ var SelfHealingEngine = class {
   // ----------------------------------------------------------
   recordAction(data) {
     const action = {
-      id: randomUUID18(),
+      id: randomUUID19(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       ...data
     };
@@ -11387,7 +11694,7 @@ var SelfHealingEngine = class {
 };
 
 // src/engines/recovery/context-recovery-engine.ts
-import { randomUUID as randomUUID19 } from "crypto";
+import { randomUUID as randomUUID20 } from "crypto";
 import { mkdir as mkdir3, readFile as readFile7, writeFile as writeFile4 } from "fs/promises";
 import { join as join12 } from "path";
 var DEFAULT_MAX_CHECKPOINTS = 50;
@@ -11406,7 +11713,7 @@ var ContextRecoveryEngine = class {
   // ----------------------------------------------------------
   async createCheckpoint(missionId, phase, state) {
     const checkpoint = {
-      id: randomUUID19(),
+      id: randomUUID20(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       missionId,
       phase,
@@ -11777,7 +12084,7 @@ var EventStore = class {
 };
 
 // src/engines/knowledge/knowledge-graph.ts
-import { randomUUID as randomUUID20 } from "crypto";
+import { randomUUID as randomUUID21 } from "crypto";
 
 // src/kernel/capability-registry.ts
 var CapabilityRegistry = class {
@@ -12210,7 +12517,7 @@ var MeshHub = class {
 };
 
 // src/persistence/sqlite-audit-store.ts
-import { createHash } from "crypto";
+import { createHash as createHash2 } from "crypto";
 import { existsSync as existsSync7, mkdirSync as mkdirSync4 } from "fs";
 import { dirname as dirname5 } from "path";
 var SQLiteAuditStore = class {
@@ -12317,10 +12624,10 @@ var SQLiteAuditStore = class {
   }
   computeHash(data) {
     const canonical = JSON.stringify(data, Object.keys(data).sort());
-    let hash = createHash("sha256").update(canonical).digest("hex");
+    let hash = createHash2("sha256").update(canonical).digest("hex");
     if (this.enableHMAC && this.hmacKey) {
-      const { createHmac: createHmac2 } = __require("crypto");
-      hash = createHmac2("sha256", this.hmacKey).update(canonical).digest("hex");
+      const { createHmac: createHmac3 } = __require("crypto");
+      hash = createHmac3("sha256", this.hmacKey).update(canonical).digest("hex");
     }
     return hash;
   }
@@ -12345,7 +12652,7 @@ var SQLiteAuditStore = class {
 };
 
 // src/persistence/sqlite-store.ts
-import { randomUUID as randomUUID21 } from "crypto";
+import { randomUUID as randomUUID22 } from "crypto";
 import { existsSync as existsSync8, mkdirSync as mkdirSync5 } from "fs";
 import { dirname as dirname6 } from "path";
 import Database from "better-sqlite3";
@@ -12523,7 +12830,7 @@ var SQLiteStore = class {
   }
   // --- Quality Metrics ---
   saveQualityMetric(metric) {
-    const id = randomUUID21();
+    const id = randomUUID22();
     this.db.prepare(
       `INSERT INTO quality_metrics (id, name, value, data, timestamp)
          VALUES (?, ?, ?, ?, ?)`
@@ -13076,7 +13383,7 @@ var PipelineDispatcher = class {
 };
 
 // src/resilience/agent-isolation/forensic-collector.ts
-import { createHash as createHash2 } from "crypto";
+import { createHash as createHash3 } from "crypto";
 import EventEmitter7 from "eventemitter3";
 var ForensicCollector = class {
   config;
@@ -13288,7 +13595,7 @@ var ForensicCollector = class {
   }
   computeHash(data, previousHash) {
     const combined = previousHash + data;
-    return createHash2("sha256").update(combined).digest("hex");
+    return createHash3("sha256").update(combined).digest("hex");
   }
   generateId() {
     const timestamp = Date.now().toString(36);
@@ -14173,7 +14480,7 @@ var ShadowEnvironment = class {
 };
 
 // src/sandbox/sandbox-engine.ts
-import { randomUUID as randomUUID22 } from "crypto";
+import { randomUUID as randomUUID23 } from "crypto";
 var EXPIRY_DURATION = {
   ephemeral: void 0,
   persistent: 24 * 60 * 60 * 1e3,
@@ -14182,7 +14489,7 @@ var EXPIRY_DURATION = {
 var SandboxEngine = class {
   environments = /* @__PURE__ */ new Map();
   createEnvironment(type, dnaId) {
-    const id = `sandbox-${Date.now()}-${randomUUID22().slice(0, 9)}`;
+    const id = `sandbox-${Date.now()}-${randomUUID23().slice(0, 9)}`;
     const now = Date.now();
     const env = {
       id,
@@ -14257,12 +14564,12 @@ var PromptSimulator = class {
 };
 
 // src/sandbox/simulation/response-collector.ts
-import { randomUUID as randomUUID23 } from "crypto";
+import { randomUUID as randomUUID24 } from "crypto";
 var ResponseCollector = class {
   responses = [];
   collect(scenarioId, response, metadata = {}) {
     const collected = {
-      id: `response-${Date.now()}-${randomUUID23().slice(0, 9)}`,
+      id: `response-${Date.now()}-${randomUUID24().slice(0, 9)}`,
       timestamp: Date.now(),
       scenarioId,
       response,
@@ -14286,12 +14593,12 @@ var ResponseCollector = class {
 };
 
 // src/sandbox/simulation/traffic-replay.ts
-import { randomUUID as randomUUID24 } from "crypto";
+import { randomUUID as randomUUID25 } from "crypto";
 var TrafficReplay = class {
   captures = [];
   capture(request, response, metadata = {}) {
     const capture = {
-      id: `capture-${Date.now()}-${randomUUID24().slice(0, 9)}`,
+      id: `capture-${Date.now()}-${randomUUID25().slice(0, 9)}`,
       timestamp: Date.now(),
       request,
       response,
@@ -14426,7 +14733,7 @@ var Logger = class {
 };
 
 // src/state/agent-state-store.ts
-import { createHmac, randomBytes } from "crypto";
+import { createHmac as createHmac2, randomBytes } from "crypto";
 import {
   chmodSync,
   existsSync as existsSync10,
@@ -14475,7 +14782,7 @@ function canonicalPayload(protocol, sessionId, issuedAt) {
   ].join("|");
 }
 function signProtocolState(protocol, secret, sessionId, issuedAt) {
-  return createHmac("sha256", secret).update(canonicalPayload(protocol, sessionId, issuedAt)).digest("hex");
+  return createHmac2("sha256", secret).update(canonicalPayload(protocol, sessionId, issuedAt)).digest("hex");
 }
 function acquireLock(lockPath, timeoutMs = 3e3, staleMs = 1e4) {
   const deadline = Date.now() + timeoutMs;
@@ -14571,6 +14878,7 @@ function readState(filePath) {
 }
 export {
   AuditChain,
+  AuditChainVerifier,
   AuditEngine,
   AuthorityVerifier,
   AutonomousOrchestrator,
@@ -14611,6 +14919,7 @@ export {
   GovernanceEngine,
   GovernanceTelemetryEngine,
   HandoffProtocol,
+  HashChain,
   HealthChecker,
   LearningEngine,
   Logger,

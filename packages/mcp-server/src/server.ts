@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   AuditChain,
+  AuditChainVerifier,
   BehaviorOSEngine,
   BehaviorSelector,
   BosLearningEngine,
@@ -14,6 +15,7 @@ import {
 import type { DNAPackage } from '@behavioros/schemas';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { loadOrCreateAuditChain, persistAuditChain } from './audit-chain-store.js';
 import type { ToolHandler } from './http-bridge.js';
 import { HttpBridge } from './http-bridge.js';
 import { EnforcementMiddleware } from './middleware/enforcement-middleware.js';
@@ -62,6 +64,7 @@ import { bosSelectDna, bosSelectDnaInput } from './tools/bos-select-dna.js';
 import { bosSkillsList, bosSkillsListInput } from './tools/bos-skills-list.js';
 import { bosSkillsValidate, bosSkillsValidateInput } from './tools/bos-skills-validate.js';
 import { bosTelemetrySummary } from './tools/bos-telemetry-summary.js';
+import { bosVerifyAuditChain, bosVerifyAuditChainInput } from './tools/bos-verify-audit-chain.js';
 import { bosValidateProtocol, bosValidateProtocolInput } from './tools/bos-validate-protocol.js';
 import {
   approveLayer,
@@ -108,6 +111,7 @@ let _bosSelector: BehaviorSelector | null = null;
 let _bosConflictResolver: ConflictResolver | null = null;
 let _bosEscalationManager: EscalationManager | null = null;
 let _bosAuditChain: AuditChain | null = null;
+let _bosAuditChainVerifier: AuditChainVerifier | null = null;
 let _bosLearningEngine: BosLearningEngine | null = null;
 
 function _getAgentId(): string {
@@ -367,11 +371,15 @@ export async function createServer(): Promise<McpServer> {
   }
   const bosAuditChain = new AuditChain(bosProjectRoot);
   const bosLearningEngine = new BosLearningEngine();
+  const { chain: bosAuditHashChain, filePath: auditChainFilePath } =
+    loadOrCreateAuditChain(defaultPersistDir);
+  const bosAuditChainVerifier = new AuditChainVerifier(bosAuditHashChain);
 
   _bosSelector = bosSelector;
   _bosConflictResolver = bosConflictResolver;
   _bosEscalationManager = bosEscalationManager;
   _bosAuditChain = bosAuditChain;
+  _bosAuditChainVerifier = bosAuditChainVerifier;
   _bosLearningEngine = bosLearningEngine;
 
   // Live verification found bosLearningEngine.record() was never called anywhere — the DNA
@@ -483,10 +491,26 @@ export async function createServer(): Promise<McpServer> {
         toolName: 'bos_run_audit',
       });
       if (enforcement.blocked) throw new Error(enforcement.reason);
-      const result = await bosRunAudit(bosAuditChain, args);
+      const result = await bosRunAudit(bosAuditChain, args, bosAuditHashChain, _getAgentId());
+      persistAuditChain(bosAuditHashChain, auditChainFilePath);
       _protocolTracker?.markAuditDone();
       _enforcementMiddleware?.persist();
       return result;
+    },
+  );
+
+  _server.tool(
+    'bos_verify_audit_chain',
+    'Verify the tamper-evident hash chain of past bos_run_audit results. Detects broken links or altered entries.',
+    bosVerifyAuditChainInput.shape,
+    async (args) => {
+      const enforcement = await _enforcementMiddleware!.enforce({
+        requiredSteps: [],
+        evaluateGovernance: false,
+        toolName: 'bos_verify_audit_chain',
+      });
+      if (enforcement.blocked) throw new Error(enforcement.reason);
+      return bosVerifyAuditChain(bosAuditChainVerifier, args);
     },
   );
 
@@ -1021,6 +1045,12 @@ export function buildToolHandlers(): Map<string, ToolHandler> {
 
   if (_bosAuditChain) {
     handlers.set('bos_run_audit', (args) => bosRunAudit(_bosAuditChain!, args as any));
+  }
+
+  if (_bosAuditChainVerifier) {
+    handlers.set('bos_verify_audit_chain', (args) =>
+      bosVerifyAuditChain(_bosAuditChainVerifier!, args as any),
+    );
   }
 
   if (_bosLearningEngine) {

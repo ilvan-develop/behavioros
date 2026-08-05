@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -31,8 +31,8 @@ if (!serverBuilt) {
   );
 }
 
-async function spawnRealServer(extraEnv: Record<string, string> = {}) {
-  const cwd = mkdtempSync(join(tmpdir(), 'bos-sim-'));
+async function spawnRealServer(extraEnv: Record<string, string> = {}, reuseCwd?: string) {
+  const cwd = reuseCwd ?? mkdtempSync(join(tmpdir(), 'bos-sim-'));
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [SERVER_ENTRY],
@@ -537,14 +537,14 @@ describeIfBuilt('Real MCP server simulation (spawns actual dist/server.js over s
       expect(decision.approved).toBe(false);
     });
 
-    it('FINDING: a senior-authority engineer is blocked by their own require_approval boundary, with no way to self-approve', async () => {
-      // This is a real, verified gap: eng-require-review (type: require_approval, value: true)
-      // on the engineer persona routes through the same architect+ scope-escalation override as
-      // "forbidden" boundaries — but there is no implemented mechanism to mark an action as
-      // already-approved, so in practice this boundary hard-blocks every senior-authority
-      // engineer's governed action, unconditionally, same as if it were forbidden. Documented
-      // here rather than silently fixed, since redesigning the approval workflow (e.g. accepting
-      // an "approvedBy"/"approvalToken" context field) is a product decision, not a bugfix.
+    it('a senior-authority engineer is blocked by their own require_approval boundary, with no self-approval', async () => {
+      // Originally documented as a design gap: eng-require-review (type: require_approval,
+      // value: true) had no mechanism to mark an action as already-approved, so it hard-blocked
+      // every senior-authority engineer's governed action unconditionally, same as if it were
+      // forbidden. Resolved below via an explicit `approvedBy` context field rather than by
+      // granting the engineer's own authority a self-override (which would defeat the point of
+      // requiring a second reviewer). This test now documents the still-correct baseline case:
+      // no approvedBy, and no self-authority high enough, means still blocked.
       const result = await session.client.callTool({
         name: 'evaluate-governance',
         arguments: {
@@ -558,6 +558,52 @@ describeIfBuilt('Real MCP server simulation (spawns actual dist/server.js over s
       });
       const decision = toolJSON(result);
       expect(decision.approved).toBe(false);
+    });
+
+    it('an explicit approvedBy from an architect+ reviewer unblocks the same senior engineer, without granting them architect authority generally', async () => {
+      const withoutApproval = await session.client.callTool({
+        name: 'evaluate-governance',
+        arguments: {
+          action: 'edit-file',
+          context: {
+            agentRole: 'engineer',
+            agentAuthority: 'senior',
+            targetFiles: ['apps/api/src/payments.ts'],
+          },
+        },
+      });
+      expect(toolJSON(withoutApproval).approved).toBe(false);
+
+      const withApproval = await session.client.callTool({
+        name: 'evaluate-governance',
+        arguments: {
+          action: 'edit-file',
+          context: {
+            agentRole: 'engineer',
+            agentAuthority: 'senior',
+            targetFiles: ['apps/api/src/payments.ts'],
+            approvedBy: { agentId: 'architect-reviewer-1', authority: 'architect' },
+          },
+        },
+      });
+      const decision = toolJSON(withApproval);
+      expect(decision.approved).toBe(true);
+    });
+
+    it('an approvedBy below architect authority does not unblock the boundary (a peer cannot self-approve for another peer)', async () => {
+      const result = await session.client.callTool({
+        name: 'evaluate-governance',
+        arguments: {
+          action: 'edit-file',
+          context: {
+            agentRole: 'engineer',
+            agentAuthority: 'senior',
+            targetFiles: ['apps/api/src/payments.ts'],
+            approvedBy: { agentId: 'peer-engineer-2', authority: 'senior' },
+          },
+        },
+      });
+      expect(toolJSON(result).approved).toBe(false);
     });
 
     it('an architect-authority persona CAN scope-escalate past a require_approval boundary (unlike the hard stop above)', async () => {
@@ -612,5 +658,85 @@ describeIfBuilt('Real MCP server simulation (spawns actual dist/server.js over s
       expect(summary.telemetryEnabled).toBe(true);
       await session.cleanup();
     }, 30000);
+  });
+
+  describe('Promise: "auditable" — bos_run_audit results form a real, tamper-evident hash chain', () => {
+    let session: Awaited<ReturnType<typeof spawnRealServer>>;
+    let auditChainPath: string;
+
+    beforeAll(async () => {
+      session = await spawnRealServer();
+      auditChainPath = join(session.cwd, 'generated', 'mcp', 'audit-chain.json');
+      await session.client.callTool({
+        name: 'bos_select_dna',
+        arguments: { taskType: 'feature', domain: 'backend' },
+      });
+      await session.client.callTool({
+        name: 'bos_resolve_truth',
+        arguments: { taskType: 'feature', domain: 'backend' },
+      });
+      await session.client.callTool({
+        name: 'create-mission',
+        arguments: { title: 'Audit chain simulation', type: 'feature' },
+      });
+    }, 30000);
+    afterAll(async () => session.cleanup());
+
+    it('each bos_run_audit call appends a real, linked hash chain entry (was previously dead code — AuditChainVerifier existed but nothing wired it up)', async () => {
+      const first = await session.client.callTool({
+        name: 'bos_run_audit',
+        arguments: { trigger: 'commit', projectPath: session.cwd },
+      });
+      expect(allText(first)).toContain('Hash chain: entry #');
+
+      const second = await session.client.callTool({
+        name: 'bos_run_audit',
+        arguments: { trigger: 'commit', projectPath: session.cwd },
+      });
+      const secondRaw = rawDataJSON(second);
+      expect(secondRaw.hashChain.chainIndex).toBeGreaterThan(0);
+
+      expect(existsSync(auditChainPath)).toBe(true);
+      const persisted = JSON.parse(readFileSync(auditChainPath, 'utf-8'));
+      // genesis entry + 2 real audit entries
+      expect(persisted.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('bos_verify_audit_chain confirms the chain is genuinely valid', async () => {
+      const result = await session.client.callTool({
+        name: 'bos_verify_audit_chain',
+        arguments: {},
+      });
+      const report = rawDataJSON(result);
+      expect(report.valid).toBe(true);
+      expect(report.tamperedEntries).toHaveLength(0);
+      expect(report.brokenLinks).toHaveLength(0);
+    });
+
+    it('hand-editing a persisted entry is detected as tampering, not silently trusted', async () => {
+      const before = readFileSync(auditChainPath, 'utf-8');
+      const entries = JSON.parse(before);
+      // Flip a field on a real entry without recomputing its hash — the same class of bypass
+      // this whole session's work has been closing for .agent_state.json.
+      entries[1].details.overallStatus = 'pass';
+      writeFileSync(auditChainPath, JSON.stringify(entries, null, 2));
+
+      // Restart the server (same cwd, so it reloads the tampered file from disk —
+      // loadOrCreateAuditChain reads at startup) to mirror how a real Claude Code session
+      // would pick up a project whose audit-chain.json was hand-edited between sessions.
+      // Only close the client here, not the full cleanup() — that would delete cwd itself.
+      await session.client.close();
+      session = await spawnRealServer({}, session.cwd);
+
+      const result = await session.client.callTool({
+        name: 'bos_verify_audit_chain',
+        arguments: {},
+      });
+      const report = rawDataJSON(result);
+      expect(report.valid).toBe(false);
+      expect(report.tamperedEntries.length).toBeGreaterThan(0);
+
+      writeFileSync(auditChainPath, before); // restore, so afterAll's cleanup isn't surprising
+    });
   });
 });

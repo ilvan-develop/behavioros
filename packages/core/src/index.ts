@@ -96,6 +96,18 @@ export type {
 export { AuditEngine } from './engines/audit/audit-engine';
 export type { AuditChainReport, AuditResult, AuditStep } from './engines/behavioral/audit-chain';
 export { AuditChain } from './engines/behavioral/audit-chain';
+// Audit Chain hash-chain integrity verifier. IMPORTANT: this lives at
+// engines/behavioral/audit-chain/ (a directory with its own index.ts), which is shadowed by
+// the sibling engines/behavioral/audit-chain.ts file above under plain module resolution —
+// a bare `from './engines/behavioral/audit-chain'` always resolves to the .ts file, never the
+// directory. That's why bos_run_audit never had access to this: the barrel file that exports
+// it was structurally unreachable from this package's public API, not just unused.
+export type {
+  AuditEntry as AuditChainEntry,
+  AuditEntryPayload as AuditChainEntryPayload,
+  VerificationResult as AuditChainVerificationResult,
+} from './engines/behavioral/audit-chain/index';
+export { AuditChainVerifier, HashChain } from './engines/behavioral/audit-chain/index';
 export type { DnaSelection, TaskContext } from './engines/behavioral/behavior-selector';
 // BOS Behavioral Engines
 export { BehaviorSelector } from './engines/behavioral/behavior-selector';

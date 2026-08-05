@@ -1,4 +1,4 @@
-import type { AuditChain, AuditChainReport, AuditResult } from '@behavioros/core';
+import type { AuditChain, AuditChainReport, AuditResult, HashChain } from '@behavioros/core';
 import { z } from 'zod';
 
 export const bosRunAuditInput = z.object({
@@ -69,14 +69,50 @@ function formatAuditReport(report: AuditChainReport): string {
   return lines.join('\n');
 }
 
-export async function bosRunAudit(auditChain: AuditChain, input: BosRunAuditInput) {
+export interface AuditHashChainInfo {
+  chainIndex: number;
+  entryHash: string;
+  previousHash: string;
+}
+
+export async function bosRunAudit(
+  auditChain: AuditChain,
+  input: BosRunAuditInput,
+  hashChain?: HashChain,
+  agentId = 'unknown',
+) {
   const report = await auditChain.execute(input.trigger, input.context ?? {});
   const formatted = formatAuditReport(report);
+
+  let chainInfo: AuditHashChainInfo | undefined;
+  if (hashChain) {
+    const entry = hashChain.append(agentId, `audit:${input.trigger}`, {
+      overallStatus: report.overallStatus,
+      totalDuration: report.totalDuration,
+      stepCount: report.results.length,
+      failedSteps: report.results.filter((r) => r.status === 'fail').map((r) => r.step),
+    });
+    chainInfo = {
+      chainIndex: hashChain.length - 1,
+      entryHash: entry.hash,
+      previousHash: entry.previousHash,
+    };
+  }
+
+  const rawData = chainInfo ? { ...report, hashChain: chainInfo } : report;
 
   return {
     content: [
       { type: 'text' as const, text: formatted },
-      { type: 'text' as const, text: `\n--- RAW DATA ---\n${JSON.stringify(report, null, 2)}` },
+      ...(chainInfo
+        ? [
+            {
+              type: 'text' as const,
+              text: `\nHash chain: entry #${chainInfo.chainIndex}, hash ${chainInfo.entryHash.slice(0, 16)}... (verify with bos_verify_audit_chain)`,
+            },
+          ]
+        : []),
+      { type: 'text' as const, text: `\n--- RAW DATA ---\n${JSON.stringify(rawData, null, 2)}` },
     ],
   };
 }

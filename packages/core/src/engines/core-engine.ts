@@ -265,6 +265,7 @@ export class BehaviorOSEngine extends EventEmitter<EngineEvents> {
       lineCount: context.lineCount as number | undefined,
       targetDependency: context.targetDependency as string | undefined,
       currentTime: context.currentTime as Date | undefined,
+      approvedBy: context.approvedBy as GovernanceContext['approvedBy'],
     };
 
     const decision = this.governanceEngine.evaluate(govContext);
