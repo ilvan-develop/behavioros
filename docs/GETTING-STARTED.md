@@ -137,7 +137,15 @@ Claude Code loads both MCP servers and hooks at session start — editing either
 
 ### Cursor
 
-Has its own hook shape (`.cursor/hooks.json` with `beforeMCPExecution`/`afterFileEdit`) — see the live example in this repo's own `.cursor/hooks.json` if you want to replicate it; MCP tool calls are gated in-process by `EnforcementMiddleware` regardless of whether you wire the Cursor-specific hook.
+**Shell commands and MCP tool calls are gated; native file edits are not** — see
+[CURSOR-INTEGRATION.md](CURSOR-INTEGRATION.md) for the full picture. `.cursor/hooks.json`
+(the real, correct location — copy the live example in this repo's own `.cursor/hooks.json`)
+wires `beforeShellExecution` and `beforeMCPExecution` to `scripts/validate-protocol.js`.
+Cursor's own hook API has no event that can block a native file edit before it lands
+(`afterFileEdit` fires too late and is documented as informational-only), so an agent that
+skips BehaviorOS's MCP tools and edits directly cannot be stopped by a hook in Cursor today —
+the same shape of gap Codex has for its Apply-Patch tool. MCP tool calls remain gated
+in-process by `EnforcementMiddleware` regardless of hook configuration.
 
 ### OpenCode
 
@@ -165,5 +173,6 @@ If it tries to edit a file before step 1 and you've wired the hook from step 4, 
 - [DNAs.md](DNAs.md) — the DNA catalog, including stack-specific presets.
 - [EAARG-18-LAYERS.md](EAARG-18-LAYERS.md) — the 18-layer architecture review framework, for a deeper SDLC-wide governance pass beyond the 7-step protocol.
 - [CODEX-INTEGRATION.md](CODEX-INTEGRATION.md) — current (limited) status of Codex CLI support.
+- [CURSOR-INTEGRATION.md](CURSOR-INTEGRATION.md) — current (partial) status of Cursor support.
 - [RUNBOOK.md](RUNBOOK.md) — operational troubleshooting once BehaviorOS is running.
 - [CLI.md](CLI.md) — full CLI command reference.

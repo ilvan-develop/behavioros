@@ -11,6 +11,11 @@
  *   4. Tampered state (booleans flipped without resigning) -> blocked as tampering,
  *      not silently accepted.
  *   5. activeRole 'orchestrator' -> Edit is blocked, but Read is still allowed.
+ *   6. Cursor's beforeShellExecution payload shape ({ command, no tool_name }) is
+ *      recognized as an implicit Bash call and gated the same way.
+ *   7. Cursor's beforeMCPExecution payload shape for BehaviorOS's own tools
+ *      ({ server: 'behavioros', tool_name: 'bos_select_dna' }) is exempted, not
+ *      re-gated (avoids the chicken-and-egg deadlock).
  *
  * Runs in an isolated temp project dir with its own state secret, so it never
  * touches the real ~/.behavioros/state.key or any real .agent_state.json.
@@ -63,21 +68,39 @@ function writeSignedState(protocol) {
 
 function runHook(toolName) {
   const payload = JSON.stringify({ tool_name: toolName, cwd: TEST_DIR, tool_input: {} });
+  return runHookRaw(payload);
+}
+
+/** Cursor's beforeShellExecution payload: no tool_name, no cwd, just a command string. */
+function runShellHook(command) {
+  const payload = JSON.stringify({ command });
+  return runHookRaw(payload, { cwd: TEST_DIR });
+}
+
+/** Cursor's beforeMCPExecution payload for a BehaviorOS-owned tool: server + bare tool_name, no cwd. */
+function runCursorMcpHook(toolName) {
+  const payload = JSON.stringify({ server: 'behavioros', tool_name: toolName, tool_input: '{}' });
+  return runHookRaw(payload, { cwd: TEST_DIR });
+}
+
+function runHookRaw(payload, spawnOpts = {}) {
   const result = spawnSync(process.execPath, [HOOK_PATH], {
     input: payload,
     cwd: TEST_DIR,
     env: { ...process.env, BEHAVIOROS_STATE_SECRET: SECRET },
     encoding: 'utf-8',
+    ...spawnOpts,
   });
   return { status: result.status, stderr: result.stderr, stdout: result.stdout };
 }
 
-function assertBlocked(label, toolName, expectedSubstring) {
-  const { status, stderr } = runHook(toolName);
+function assertBlocked(label, toolName, expectedSubstring, runner = runHook) {
+  const { status, stderr } = runner(toolName);
   // Claude Code's PreToolUse hooks specifically require exit code 2 to block a tool call —
   // exit 1 is treated as a generic script error and does NOT stop the tool from running.
   // (This was itself a real bug found during live verification: the hook used exit 1 and
-  // silently never blocked anything in an actual Claude Code session.)
+  // silently never blocked anything in an actual Claude Code session.) Cursor's
+  // command-hook contract treats exit 2 as a block too, so the same check covers both.
   if (status !== 2) {
     console.error(`FAIL: ${label} — expected block (exit 2), got exit ${status}`);
     failures++;
@@ -92,8 +115,8 @@ function assertBlocked(label, toolName, expectedSubstring) {
   passed++;
 }
 
-function assertAllowed(label, toolName) {
-  const { status, stderr } = runHook(toolName);
+function assertAllowed(label, toolName, runner = runHook) {
+  const { status, stderr } = runner(toolName);
   if (status !== 0) {
     console.error(`FAIL: ${label} — expected allow (exit 0), got exit ${status}: ${stderr}`);
     failures++;
@@ -163,6 +186,30 @@ try {
     'Permission denied: orchestrator may not edit files.',
   );
   assertAllowed('Orchestrator role does not block Read', 'Read');
+
+  // 6. Cursor's beforeShellExecution shape ({ command }, no tool_name) before dna selection
+  writeSignedState({
+    dnaSelected: false,
+    truthResolved: false,
+    missionCreated: false,
+    auditDone: false,
+    learningRecorded: false,
+    lastStep: null,
+    lastUpdated: new Date().toISOString(),
+  });
+  assertBlocked(
+    'Cursor beforeShellExecution payload (no tool_name) is treated as Bash and blocked',
+    'rm -rf node_modules',
+    'bos_select_dna must be called',
+    runShellHook,
+  );
+
+  // 7. Cursor's beforeMCPExecution shape for BehaviorOS's own tools is exempted, not re-gated
+  assertAllowed(
+    "Cursor beforeMCPExecution payload for BehaviorOS's own tool is exempted (no chicken-and-egg block)",
+    'bos_select_dna',
+    runCursorMcpHook,
+  );
 } finally {
   rmSync(TEST_DIR, { recursive: true, force: true });
 }

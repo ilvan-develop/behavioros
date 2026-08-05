@@ -4,16 +4,27 @@
 /**
  * BehaviorOS PreToolUse enforcement hook.
  *
- * Reads the Claude Code hook payload from stdin (`{ tool_name, tool_input, cwd, ... }`),
- * verifies the signed `.agent_state.json` in the project root, and blocks (exit 2 — Claude
- * Code's specific "block this tool call" signal for PreToolUse hooks; exit 1 is treated as a
- * generic script error, not a block) when:
+ * Shared across two different hook contracts:
+ *   - Claude Code's `PreToolUse` payload: `{ tool_name, tool_input, cwd, ... }`.
+ *   - Cursor's `beforeMCPExecution` payload: `{ tool_name, tool_input, server, ... }`
+ *     (no `cwd`), and its `beforeShellExecution` payload: `{ command, ... }` — no
+ *     `tool_name` at all, since that event only ever fires for a shell command. That
+ *     shell-only shape is treated as an implicit 'Bash' tool call below.
+ *
+ * Verifies the signed `.agent_state.json` in the project root, and blocks (exit 2 —
+ * both Claude Code's and Cursor's command-hook contracts treat exit 2 as "block this
+ * action"; exit 1 is a generic script error, not a block) when:
  *   - a write-capable tool (Edit/Write/NotebookEdit/MultiEdit/Bash) is invoked before
  *     bos_select_dna has run, OR
  *   - the signed state file was hand-edited without recomputing its HMAC signature
  *     (tamper detection), OR
  *   - the active persona role is 'orchestrator' and the tool is a direct file-edit tool
  *     (per docs/PROTOCOL.md's "Orchestrator edits files directly" rule).
+ *
+ * Known gap (see docs/CURSOR-INTEGRATION.md): Cursor has no "before a native file edit"
+ * hook at all — `beforeMCPExecution` only sees MCP-routed tool calls, so native
+ * Edit/Write actions in Cursor never reach this script. Only shell commands
+ * (`beforeShellExecution`) and MCP tool calls are interceptable there.
  *
  * IMPORTANT: the signing scheme here (secret key location, canonical payload, HMAC
  * algorithm) MUST stay in sync with packages/core/src/state/agent-state-store.ts.
@@ -127,20 +138,25 @@ function readStdinPayload() {
   }
 }
 
-function isBehaviorosMcpTool(toolName) {
+function isBehaviorosMcpTool(payload, toolName) {
   // BehaviorOS's own MCP tools are self-gated by EnforcementMiddleware — re-gating them
   // here would create a chicken-and-egg problem (bos_select_dna blocked by a check that
   // itself requires bos_select_dna to have already run).
+  // Claude Code names MCP tools "mcp__<server>__<tool>"; Cursor sends the bare tool
+  // name plus a separate "server" field — check both shapes.
+  if (payload.server === 'behavioros') return true;
   return typeof toolName === 'string' && /^mcp__behavioros__/.test(toolName);
 }
 
 function main() {
   const payload = readStdinPayload();
-  const toolName = payload.tool_name || '';
+  // Cursor's beforeShellExecution payload has no tool_name (it only ever fires for a
+  // shell command) — a bare `command` field with no tool_name means "this is Bash".
+  const toolName = payload.tool_name || (typeof payload.command === 'string' ? 'Bash' : '');
   const cwd = payload.cwd || process.cwd();
   const stateFile = join(cwd, '.agent_state.json');
 
-  if (isBehaviorosMcpTool(toolName) || !WRITE_CAPABLE_TOOLS.has(toolName)) {
+  if (isBehaviorosMcpTool(payload, toolName) || !WRITE_CAPABLE_TOOLS.has(toolName)) {
     process.exit(0);
   }
 

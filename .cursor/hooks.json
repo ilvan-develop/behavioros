@@ -11,6 +11,11 @@
         "command": "node scripts/validate-protocol.js"
       }
     ],
+    "beforeShellExecution": [
+      {
+        "command": "node scripts/validate-protocol.js"
+      }
+    ],
     "afterFileEdit": [
       {
         "command": "node scripts/validate-dna.js"
