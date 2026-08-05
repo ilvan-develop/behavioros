@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2026-08-05
+
+### Fixed
+
+- **Delegation was silently always broken.** `bos-agent-handoff(action: 'request')` required
+  a skill literally named `'orchestration'`, which no bundled DNA persona actually grants
+  (they grant `'delegation'`); it also derived the requesting agent's id from an env var that
+  can never match a real generated agent id. Fixed to require `'delegation'` and use the
+  request's own `from` field.
+- **DNA pattern meta-learning (`bos_get_insights`) always returned zero records.** Nothing
+  anywhere called `BosLearningEngine.record()`. Wired it to real mission completion/failure
+  events.
+- **5 of 12 bundled DNAs failed schema validation and were never registered**, including
+  `autonomous-orchestrator.yaml` (invalid persona roles). Fixed and enriched all; 12/12 now
+  load and validate for real.
+- **`npx @behavioros/cli init` crashed with a raw stack trace outside a real TTY** — the exact
+  command README documents as step one, and the only failure mode in any CI/scripted context.
+  Added `--yes` for non-interactive runs and a clean cancellation message otherwise. Also fixed
+  the default scaffold's personas having zero boundaries, which tripped the CLI's own DNA
+  sanitizer on the very first `validate` after `init`.
+- **`.opencode/plugins/protocol-enforcer.ts` wrote unsigned `.agent_state.json`**, silently
+  stripping the HMAC signature if OpenCode ran after Claude Code on the same project. Now uses
+  the same signed-state scheme as the MCP server and Claude Code's hook.
+
+### Added
+
+- **`approvedBy` for `require_approval` boundaries.** Previously these hard-blocked any acting
+  agent below architect authority with no way to satisfy them short of granting that agent
+  architect authority generally. `GovernanceContext` now accepts
+  `approvedBy: { agentId, authority }` — an architect+ approval satisfies the boundary on the
+  acting agent's behalf without changing their own authority level.
+- **Real audit hash-chain.** `bos_run_audit` results now append to a persisted, HMAC-signed
+  hash chain (reusing the same secret as `.agent_state.json`); a new `bos_verify_audit_chain`
+  tool detects tampering or broken links. The verifier (`HashChain`/`AuditChainVerifier`)
+  already existed in `@behavioros/core` but was structurally unreachable from the package's
+  public API — a same-named sibling file shadowed the directory barrel that exported it.
+
+All of the above were found and fixed via live verification against a real, connected Claude
+Code session and a real spawned `dist/server.js` (see `real-server-simulation.test.ts`), not
+just static review.
+
 ## [1.1.1] - 2026-08-04
 
 ### Fixed — found via live verification against a real connected Claude Code session

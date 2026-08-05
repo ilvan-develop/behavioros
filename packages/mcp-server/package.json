@@ -1,6 +1,6 @@
 {
   "name": "@behavioros/mcp-server",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "BehaviorOS MCP Server — Model Context Protocol server for BehaviorOS",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

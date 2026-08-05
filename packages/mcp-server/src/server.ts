@@ -226,7 +226,7 @@ export async function createServer(): Promise<McpServer> {
   // Create MCP server
   _server = new McpServer({
     name: 'behavioros',
-    version: '1.1.1',
+    version: '1.1.2',
   });
 
   // Register tools — each tool declares its own enforcement requirements
@@ -1124,7 +1124,7 @@ if (_isDirectExec || process.env.BEHAVIOROS_MCP_AUTO_START === 'true') {
         toolHandlers: handlers,
         port: _httpPort,
         toolCount: handlers.size,
-        version: '1.1.1',
+        version: '1.1.2',
         allowedOrigins: process.env.BEHAVIOROS_ALLOWED_ORIGINS
           ? process.env.BEHAVIOROS_ALLOWED_ORIGINS.split(',')
           : ['*'],

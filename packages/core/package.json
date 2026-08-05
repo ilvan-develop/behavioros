@@ -1,6 +1,6 @@
 {
   "name": "@behavioros/core",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "BehaviorOS Core Engine — 7 behavioral engines for AI agent governance",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
