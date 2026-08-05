@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
@@ -129,6 +130,62 @@ describe('init --yes (non-interactive)', () => {
     const result = sanitizeDNA(yaml);
     expect(result.violations).toHaveLength(0);
     expect(result.riskScore).toBe(0);
+  });
+
+  it('--with-protocol scaffolds real enforcement files, not just advisory docs', async () => {
+    // Live verification (2026-08) found `init --with-protocol` only ever generated
+    // advisory rule files (CLAUDE.md, .cursor/rules/*.mdc, etc.) — the actual enforcement
+    // hooks (.claude/settings.json, .cursor/hooks.json, .windsurf/hooks.json, .mcp.json,
+    // scripts/validate-protocol.js) had to be copied in by hand, which GETTING-STARTED.md
+    // used to document as a "Known gap". This asserts that gap stays closed.
+    const program = new Command();
+    program.name('behavioros-test').version('0.1.0-test').exitOverride();
+    initCommand(program);
+    await program.parseAsync(['node', 'behavioros', 'init', '--yes', '--with-protocol']);
+
+    for (const relativePath of [
+      '.claude/settings.json',
+      '.mcp.json',
+      '.cursor/hooks.json',
+      '.windsurf/hooks.json',
+      'scripts/validate-protocol.js',
+      'scripts/validate-dna.js',
+      'scripts/read-agent-state.js',
+    ]) {
+      expect(existsSync(join(tmpDir, ...relativePath.split('/')))).toBe(true);
+    }
+
+    // Template variables must be fully substituted — no literal {{VAR}} left behind.
+    const mcpConfig = readFileSync(join(tmpDir, '.mcp.json'), 'utf-8');
+    expect(mcpConfig).not.toContain('{{');
+    expect(JSON.parse(mcpConfig).mcpServers.behavioros.env.BEHAVIOROS_DNA_PATH).toBe(
+      './behavioros.yaml',
+    );
+
+    const validateDna = readFileSync(join(tmpDir, 'scripts/validate-dna.js'), 'utf-8');
+    expect(validateDna).toContain('./behavioros.yaml');
+    expect(validateDna).not.toContain('{{DNA_PATH}}');
+  });
+
+  it('the scaffolded scripts/validate-protocol.js genuinely blocks Edit with no .agent_state.json', async () => {
+    // Not enough to check the file exists — this spawns the real generated script as a
+    // subprocess (same pattern as scripts/test-enforcement-e2e.mjs) to prove it actually
+    // enforces, not just that init claims to.
+    const program = new Command();
+    program.name('behavioros-test').version('0.1.0-test').exitOverride();
+    initCommand(program);
+    await program.parseAsync(['node', 'behavioros', 'init', '--yes', '--with-protocol']);
+
+    const hookPath = join(tmpDir, 'scripts', 'validate-protocol.js');
+    const result = spawnSync(process.execPath, [hookPath], {
+      input: JSON.stringify({ tool_name: 'Edit', cwd: tmpDir, tool_input: {} }),
+      cwd: tmpDir,
+      env: { ...process.env, BEHAVIOROS_STATE_SECRET: 'test-secret' },
+      encoding: 'utf-8',
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('not found or unreadable');
   });
 });
 

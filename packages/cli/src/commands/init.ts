@@ -344,7 +344,7 @@ async function runInit(
     console.log(`    ${chalk.cyan('behavioros status')}    — View project status`);
     if (opts?.withProtocol) {
       console.log(
-        `    ${chalk.cyan('behavioros validate --protocol')}  — Validate protocol enforcement\n`,
+        `    ${chalk.cyan('behavioros protocol check')}  — Validate protocol enforcement\n`,
       );
     } else {
       console.log('');

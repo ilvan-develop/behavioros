@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "pre_write_code": [
+      {
+        "command": "node scripts/validate-protocol.js"
+      }
+    ],
+    "pre_run_command": [
+      {
+        "command": "node scripts/validate-protocol.js"
+      }
+    ],
+    "pre_mcp_tool_use": [
+      {
+        "command": "node scripts/validate-protocol.js"
+      }
+    ]
+  }
+}

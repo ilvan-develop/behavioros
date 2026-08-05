@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`npx @behavioros/cli init --with-protocol` never generated any actual enforcement
+  file** — only advisory rule docs (`CLAUDE.md`, `.cursor/rules/*.mdc`, etc.). The real
+  hook files (`.claude/settings.json`, `.mcp.json`, `.cursor/hooks.json`,
+  `.windsurf/hooks.json`, `scripts/{validate-protocol,validate-dna,read-agent-state}.js`)
+  had to be copied in by hand, which GETTING-STARTED.md documented as a "Known gap."
+  They're now real `.template` files under `packages/cli/templates/protocol-strict/` and
+  get scaffolded for every new project. Live-verified: a fresh `init --yes --with-protocol`
+  run in an empty directory produces a `scripts/validate-protocol.js` that genuinely exits
+  2 and blocks an `Edit` call before `.agent_state.json` exists — not just a file that
+  exists, but one that works. 2 new regression tests in `packages/cli/src/__tests__/cli.test.ts`.
+- **`init --with-protocol`'s own printed "next step" told users to run
+  `behavioros validate --protocol`, which errors with `unknown option '--protocol'`** — that
+  flag was never implemented; the real command is `behavioros protocol check`.
+  `docs/PROTOCOL.md` had the same broken command in two places (also
+  `validate --dna behavioros.yaml`, which should be the positional `validate behavioros.yaml`
+  — `--dna` was never a flag either). Fixed all three.
 - **Cursor's `beforeMCPExecution` hook was structurally dead for its stated purpose.**
   `scripts/validate-protocol.js` only recognized Claude-Code-style native tool names
   (`Edit`/`Write`/`Bash`), but Cursor never routes native file edits through

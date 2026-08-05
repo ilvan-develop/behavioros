@@ -96,6 +96,8 @@ You should see your DNA's name and persona count. If it falls back to `enterpris
 
 Step 1–3 get the MCP tools (`bos_select_dna`, `create-mission`, etc.) available to your agent, but by themselves they're **advisory** — nothing stops the agent from ignoring them and calling `Edit`/`Write` directly. To actually gate native file-edit tools, you need a `PreToolUse`-style hook — and the exact mechanics differ enough per tool that getting them wrong means the hook silently never fires. This section was corrected after live-verifying it against a real Claude Code session; the version below is the one that actually works, not the one that looks right on paper.
 
+**`npx @behavioros/cli init --with-protocol` now generates all of this for you** — `.claude/settings.json`, `.mcp.json`, `.cursor/hooks.json`, `.windsurf/hooks.json`, and `scripts/{validate-protocol,validate-dna,read-agent-state}.js` are real generated files, not something you copy by hand. Live-verified: a fresh `init --yes --with-protocol` run in an empty directory produces a `scripts/validate-protocol.js` that genuinely exits 2 and blocks an `Edit` call before `.agent_state.json` exists. The per-platform detail below is for understanding *why* each file looks the way it does, not a copy-paste chore.
+
 ### Claude Code
 
 Hooks live in **`.claude/settings.json`** (project-level) or `~/.claude/settings.json` (user-global) under a `"hooks"` key — **not** a standalone `.claude/hooks.json` file. A hook configured in the wrong file is silently never read; Claude Code won't warn you.
@@ -133,14 +135,12 @@ You also need a project-scoped `.mcp.json` pointing at the built server so Claud
 
 Claude Code loads both MCP servers and hooks at session start — editing either file requires restarting the session (or reconnecting via `/mcp` for MCP config) before it takes effect.
 
-> **Known gap**: `init --with-protocol` does not yet generate `.claude/settings.json`, `.mcp.json`, or `scripts/validate-protocol.js` for you — copy them by hand for now. Everything else in this guide (DNA file, MCP config, protocol reference docs) *is* generated.
-
 ### Cursor
 
 **Shell commands and MCP tool calls are gated; native file edits are not** — see
-[CURSOR-INTEGRATION.md](CURSOR-INTEGRATION.md) for the full picture. `.cursor/hooks.json`
-(the real, correct location — copy the live example in this repo's own `.cursor/hooks.json`)
-wires `beforeShellExecution` and `beforeMCPExecution` to `scripts/validate-protocol.js`.
+[CURSOR-INTEGRATION.md](CURSOR-INTEGRATION.md) for the full picture. `init --with-protocol`
+generates `.cursor/hooks.json` (the real, correct location) wiring `beforeShellExecution`
+and `beforeMCPExecution` to `scripts/validate-protocol.js`.
 Cursor's own hook API has no event that can block a native file edit before it lands
 (`afterFileEdit` fires too late and is documented as informational-only), so an agent that
 skips BehaviorOS's MCP tools and edits directly cannot be stopped by a hook in Cursor today —
@@ -151,13 +151,15 @@ in-process by `EnforcementMiddleware` regardless of hook configuration.
 
 Ships as a real plugin in this repo: `.opencode/plugins/protocol-enforcer.ts`, registered via `opencode.json`'s `plugin` array. It implements the same signed-state scheme as the Claude Code hook (same secret, same HMAC algorithm) specifically so state written by one tool is trusted, not silently downgraded, when read by the other on the same project.
 
+> **Known gap**: unlike the other platforms in this section, `init --with-protocol` does not yet generate the OpenCode plugin file or wire it into `opencode.json` — copy `.opencode/plugins/protocol-enforcer.ts` from this repo by hand for now. It's a real TypeScript file with a dependency on `@opencode-ai/plugin` and an `opencode.json` merge step, which makes it a poor fit for the same template-file-copy mechanism used for the other platforms' hook files.
+
 ### Codex CLI
 
 **Not currently viable for file-edit gating** — see [CODEX-INTEGRATION.md](CODEX-INTEGRATION.md) for why (hooks are experimental, unavailable on Windows, and only intercept the `Bash` tool as of Aug 2026). MCP tool calls are still gated in-process regardless.
 
 ### Windsurf
 
-**Native file edits are genuinely gated** — see [WINDSURF-INTEGRATION.md](WINDSURF-INTEGRATION.md). `.windsurf/hooks.json` wires `pre_write_code`, `pre_run_command`, and `pre_mcp_tool_use` to `scripts/validate-protocol.js`. Unlike Cursor and Codex, Windsurf's `pre_write_code` hook fires *before* a file edit and can actually deny it — this is the one platform here without the "can't block a native edit" gap.
+**Native file edits are genuinely gated** — see [WINDSURF-INTEGRATION.md](WINDSURF-INTEGRATION.md). `init --with-protocol` generates `.windsurf/hooks.json`, wiring `pre_write_code`, `pre_run_command`, and `pre_mcp_tool_use` to `scripts/validate-protocol.js`. Unlike Cursor and Codex, Windsurf's `pre_write_code` hook fires *before* a file edit and can actually deny it — this is the one platform here without the "can't block a native edit" gap.
 
 ### VS Code + GitHub Copilot
 

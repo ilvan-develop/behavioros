@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "behavioros": {
+      "command": "npx",
+      "args": ["@behavioros/mcp-server"],
+      "env": {
+        "BEHAVIOROS_DNA_PATH": "{{DNA_PATH}}",
+        "BEHAVIOROS_PROJECT": "{{PROJECT_NAME}}"
+      }
+    }
+  }
+}
