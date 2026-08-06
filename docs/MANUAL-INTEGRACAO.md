@@ -160,8 +160,8 @@ Configura o BehaviorOS MCP server para o projeto [NOME_DO_PROJETO].
      - Setup Node
      - pnpm install
      - pnpm --filter @behavioros/core build
-     - npx @behavioros/cli validate
-     - npx @behavioros/cli eaarg start
+     - npx @behavioros/cli validate behavioros.yaml
+     - npx @behavioros/cli enforce check
      - Upload report como artifact
 
 3. Cria .github/workflows/behavioros-merge-gate.yml:
@@ -424,9 +424,11 @@ pnpm lint
 # Typecheck
 pnpm typecheck
 
-# Pipeline EAARG
-npx @behavioros/cli validate --dna [dna-file].yaml
-npx @behavioros/cli eaarg start
+# Pipeline EAARG (nota: "eaarg" ainda não é um subcomando do CLI — é usável
+# hoje só como config DNA; ver docs/EAARG-18-LAYERS.md. `enforce check` é o
+# mais próximo real de "correr as verificações da pipeline".)
+npx @behavioros/cli validate [dna-file].yaml
+npx @behavioros/cli enforce check
 
 # MCP Server
 node packages/mcp-server/dist/index.js

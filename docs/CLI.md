@@ -115,17 +115,14 @@ Options:
 
 Use before DNA merges and configuration audits to identify drift in governance rules, quality gates, patterns, and personas.
 
-### `version`
+### `--version`
 
-Display the current CLI version and check for updates.
+Display the current CLI version. There is no `version` subcommand — this is a global flag,
+and there is no built-in update-check (no registry-query equivalent to `--check`).
 
 ```bash
-npx @behavioros/cli version
-npx @behavioros/cli version --check
+npx @behavioros/cli --version
 ```
-
-**`version`** — Outputs the installed CLI version.
-**`--check`** — Queries the registry for newer releases and shows the latest available version.
 
 ### `simulate`
 
@@ -576,7 +573,7 @@ npx @behavioros/cli init
 npx @behavioros/cli validate ./dnas/military-operations.yaml
 
 # Compile all DNAs
-npx @behavioros/cli compile --dna ./dnas/
+npx @behavioros/cli compile ./dnas/
 
 # Check system status
 npx @behavioros/cli status

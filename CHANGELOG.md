@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **6 documented CLI invocations across `docs/` used flags/commands that don't exist**,
+  found by systematically diffing every documented command against the real CLI's
+  `--help` output: `docs/MANUAL-INTEGRACAO.md:164,429` (`cli eaarg start` — no such
+  command; `eaarg` is DNA config only, see `docs/EAARG-18-LAYERS.md`), `:428`
+  (`validate --dna file.yaml` — `--dna` isn't a flag, path is positional),
+  `docs/FINTECH-GUIDE.md:509` (`validate --pci-dss --sox --bacen` — `validate` has zero
+  flags; framework-specific rules are DNA governance config, not CLI options),
+  `docs/CLI.md:579` (`compile --dna ./dnas/` — same positional-arg issue),
+  `docs/CLI.md:118-128` (documented a `version`/`version --check` subcommand that doesn't
+  exist — only the global `-V/--version` flag does, and there's no update-check),
+  `docs/RUNBOOK.md:36` (`ecosystem sync --report` — `--report` isn't a `sync` flag; the
+  report is the separate `ecosystem report --format` command). All verified broken by
+  actually running them (`error: unknown option`/`unknown command`) before fixing. (A 7th,
+  `docs/enterprise-blueprint/25-production-readiness-assessment.md:162`'s `cli backup` —
+  also genuinely broken, not an implemented command — was left as-is: that file is part
+  of an uncommitted `feature/enterprise-arch`-shaped body of work outside this fix's
+  scope, per explicit instruction not to touch it.)
+- **README.md's "The 10 DNA Patterns" table listed 4 DNAs that don't exist anywhere in
+  the codebase** (Manufacturing, Immune System, Wolf Pack, Bee Colony) while omitting 6
+  that do (E-Commerce Platform, Gaming Platform, Next.js+NestJS Fullstack,
+  Python/Go Microservices, Complex Monorepo, EAARG). Replaced with the real 12-DNA
+  catalog (verified against `dnas/*.yaml`, `packages/dnas/src/index.ts`, and
+  `dnas.test.ts`, which all agree on 12).
+- **README.md's MCP tool count was inconsistent**: "36 Tools" (twice — the MCP Server
+  section header and the OpenCode integration row) vs. "45 tools" (the packages table).
+  45 is correct (verified by counting real `_server.tool(` registrations in
+  `packages/mcp-server/src/server.ts`); no OpenCode-specific tool filtering exists, so
+  both stale "36"s are now "45".
+
 - **`npx @behavioros/cli init --with-protocol` never generated any actual enforcement
   file** — only advisory rule docs (`CLAUDE.md`, `.cursor/rules/*.mdc`, etc.). The real
   hook files (`.claude/settings.json`, `.mcp.json`, `.cursor/hooks.json`,

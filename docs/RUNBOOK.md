@@ -32,8 +32,10 @@ Saídas esperadas: resumo com checks (SkillEngine, DNALoader, MCPs, Adapters). E
 4) Forçar re-sincronização de DNAs
 
 ```bash
-# Gera um relatório de sincronização e valida schemas
-npx @behavioros/cli ecosystem sync --report
+# Re-sincroniza o registry (--report não existe em `sync`; o relatório é um
+# comando separado)
+npx @behavioros/cli ecosystem sync
+npx @behavioros/cli ecosystem report --format md
 ```
 
 5) Quando escalonar para humanos

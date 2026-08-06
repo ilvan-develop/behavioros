@@ -506,7 +506,10 @@ jobs:
         run: npx @behavioros/cli enforce check
 
       - name: Compliance Report
-        run: npx @behavioros/cli validate --pci-dss --sox --bacen
+        # `validate` has no framework-specific flags — PCI-DSS/SOX/BACEN rules are
+        # expressed as DNA governance config, not CLI options. `compliance check`
+        # runs all compliance checks configured for the project.
+        run: npx @behavioros/cli compliance check
 
       - name: Block if Non-Compliant
         if: failure()

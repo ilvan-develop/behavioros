@@ -171,7 +171,7 @@ quality:
     threshold: 100
 ```
 
-### The 10 DNA Patterns
+### The 12 DNA Patterns
 
 | Pattern | Description | Best For |
 |---|---|---|
@@ -179,14 +179,16 @@ quality:
 | **Enterprise Governance** | Compliance, audit trails, access control, change management | Regulated industries |
 | **Military Operations** | Chain of command, mission focus, after-action reviews | High-stakes coordination |
 | **Lean Factory** | Kaizen events, 5S methodology, value stream mapping | Continuous improvement |
-| **Manufacturing** | Deterministic pipelines, quality gates at every stage | CI/CD workflows |
 | **Healthcare Operations** | HIPAA compliance, patient data protection | Healthcare apps |
-| **Immune System** | Adaptive threat response, anomaly detection, self-healing | Security-critical systems |
-| **Wolf Pack** | Distributed decision-making, pack coordination | Scalable autonomous teams |
-| **Bee Colony** | Swarm intelligence, task specialization | High-throughput task processing |
 | **Autonomous Orchestrator** | Self-managing pipelines, auto-scaling agents | Fully autonomous operations |
+| **E-Commerce Platform** | Transactional governance for multi-vendor marketplaces | Payments, checkout, marketplace ops |
+| **Gaming Platform** | Matchmaking, in-game economy, anti-cheat governance | Multiplayer games |
+| **Next.js + NestJS Fullstack** | Stack-specific conventions for a common fullstack pairing | Next.js/NestJS projects |
+| **Python/Go Microservices** | Stack-specific conventions for polyglot microservices | Python/Go backends |
+| **Complex Monorepo** | Cross-package governance for large monorepos | Monorepo maintainers |
+| **EAARG** (Enterprise Agent Architecture Review) | 18-layer framework mapped to enterprise skills | Deep architecture review beyond the 7-step protocol |
 
-Plus stack-specific presets — **Next.js + NestJS Fullstack**, **Python/Go Microservices**, **Complex Monorepo** — and the **EAARG** 18-layer architecture review framework. Full catalog in [`docs/DNAs.md`](docs/DNAs.md); 18-layer breakdown in [`docs/EAARG-18-LAYERS.md`](docs/EAARG-18-LAYERS.md).
+Full catalog in [`docs/DNAs.md`](docs/DNAs.md); 18-layer breakdown in [`docs/EAARG-18-LAYERS.md`](docs/EAARG-18-LAYERS.md).
 
 ### SkillEngine — Two-Stage Routing
 
@@ -196,7 +198,7 @@ Request → DNA Match → Capability Match → Delegate → Validate
 
 Skills are matched in two stages: first by DNA pattern compatibility, then by capability signature. 24 skills registered across 6 agent types.
 
-### MCP Server — 36 Tools + 9 Resources
+### MCP Server — 45 Tools + 9 Resources
 
 Connect BehaviorOS to any AI agent platform via Model Context Protocol:
 
@@ -400,7 +402,7 @@ npx @behavioros/cli status
 | **Cursor** | `.cursor/rules/` | Add `behavioros-protocol.mdc` rule |
 | **VS Code Copilot** | `.github/copilot-instructions.md` | Document 7-step protocol |
 | **Windsurf** | `.windsurfrules` | Enforce protocol rules |
-| **OpenCode** | `opencode.json` → `mcpServers.behavioros` | 36 tools + 9 resources + 7-step protocol |
+| **OpenCode** | `opencode.json` → `mcpServers.behavioros` | 45 tools + 9 resources + 7-step protocol |
 
 Want aggregate metrics on violations blocked and agent efficiency across your team? See [`docs/TELEMETRY.md`](docs/TELEMETRY.md) — opt-in, aggregate-only, bring-your-own-endpoint.
 
