@@ -235,7 +235,11 @@ export function initCommand(program: Command): void {
       try {
         if (existsSync(targetFile)) {
           if (nonInteractive) {
-            console.log(chalk.yellow(`${targetFile} already exists. Use without --yes to overwrite interactively, or delete it first.`));
+            console.log(
+              chalk.yellow(
+                `${targetFile} already exists. Use without --yes to overwrite interactively, or delete it first.`,
+              ),
+            );
             return;
           }
           const overwrite = await confirm({

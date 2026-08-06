@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4] - 2026-08-06
+
+### Fixed
+
+- **`npm install`/`npx` of `@behavioros/cli`, `@behavioros/mcp-server`, or `@behavioros/core`
+  itself could fail outright on machines without a C++ build toolchain.** Found by actually
+  running `npx @behavioros/cli@1.1.3 init` fresh from the registry (not the local dist this
+  session had exclusively tested against until now) — it failed with a `node-gyp` compile
+  error. Root cause: `better-sqlite3` (a native module with no prebuilt binary for every
+  platform/Node version — e.g. none for Node 24 on win32 as of this writing) was a hard
+  `dependencies` entry of `@behavioros/core`, so a failed native build aborted the whole
+  install. Two fixes, together: (1) moved `better-sqlite3` to `optionalDependencies`, so
+  npm/pnpm skip a failed optional install instead of aborting; (2) `SQLiteStore` — the only
+  thing in `@behavioros/core` that touches `better-sqlite3` — is no longer re-exported from
+  the main `@behavioros/core` barrel (that eager re-export would have crashed on `require`
+  for *any* consumer, not just SQLite users, if the optional install had genuinely been
+  skipped). Import it from the new `@behavioros/core/sqlite` subpath instead — confirmed
+  the built main-barrel bundle (`dist/index.js`/`.mjs`) now has zero references to
+  `better-sqlite3` at all, for both `@behavioros/core` and `@behavioros/mcp-server`.
+
 ## [1.1.3] - 2026-08-06
 
 ### Fixed

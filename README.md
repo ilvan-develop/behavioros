@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="#"><img src="https://img.shields.io/badge/tests-5%2C200%2B-brightgreen" alt="Tests" /></a>
-  <a href="#"><img src="https://img.shields.io/badge/version-1.1.3-blue" alt="Version" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/version-1.1.4-blue" alt="Version" /></a>
   <a href="#"><img src="https://img.shields.io/badge/license-MIT-green" alt="License" /></a>
   <a href="#"><img src="https://img.shields.io/badge/node-%3E%3D22-339933" alt="Node" /></a>
   <a href="#"><img src="https://img.shields.io/badge/typescript-strict-3178C6" alt="TypeScript" /></a>
@@ -423,12 +423,12 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
 | Package | Description | Version |
 |---|---|---|
-| `@behavioros/schemas` | Zod v4.4.3 schemas for all types | 1.1.3 |
-| `@behavioros/core` | 22 engines + SkillEngine + EcosystemRegistry | 1.1.3 |
-| `@behavioros/sdk` | High-level TypeScript SDK | 1.1.3 |
-| `@behavioros/cli` | CLI: init, compile, validate, status, ecosystem | 1.1.3 |
-| `@behavioros/dnas` | DNA YAML pattern catalog | 1.1.3 |
-| `@behavioros/mcp-server` | MCP server with 45 tools + 9 resources | 1.1.3 |
+| `@behavioros/schemas` | Zod v4.4.3 schemas for all types | 1.1.4 |
+| `@behavioros/core` | 22 engines + SkillEngine + EcosystemRegistry | 1.1.4 |
+| `@behavioros/sdk` | High-level TypeScript SDK | 1.1.4 |
+| `@behavioros/cli` | CLI: init, compile, validate, status, ecosystem | 1.1.4 |
+| `@behavioros/dnas` | DNA YAML pattern catalog | 1.1.4 |
+| `@behavioros/mcp-server` | MCP server with 45 tools + 9 resources | 1.1.4 |
 | `@behavioros/web` | Next.js 15 dashboard (apps/web) | 0.1.2 |
 
 ## License

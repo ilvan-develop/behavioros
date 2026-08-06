@@ -64,8 +64,8 @@ import { bosSelectDna, bosSelectDnaInput } from './tools/bos-select-dna.js';
 import { bosSkillsList, bosSkillsListInput } from './tools/bos-skills-list.js';
 import { bosSkillsValidate, bosSkillsValidateInput } from './tools/bos-skills-validate.js';
 import { bosTelemetrySummary } from './tools/bos-telemetry-summary.js';
-import { bosVerifyAuditChain, bosVerifyAuditChainInput } from './tools/bos-verify-audit-chain.js';
 import { bosValidateProtocol, bosValidateProtocolInput } from './tools/bos-validate-protocol.js';
+import { bosVerifyAuditChain, bosVerifyAuditChainInput } from './tools/bos-verify-audit-chain.js';
 import {
   approveLayer,
   approveLayerInput,
@@ -226,7 +226,7 @@ export async function createServer(): Promise<McpServer> {
   // Create MCP server
   _server = new McpServer({
     name: 'behavioros',
-    version: '1.1.3',
+    version: '1.1.4',
   });
 
   // Register tools — each tool declares its own enforcement requirements
@@ -1124,7 +1124,7 @@ if (_isDirectExec || process.env.BEHAVIOROS_MCP_AUTO_START === 'true') {
         toolHandlers: handlers,
         port: _httpPort,
         toolCount: handlers.size,
-        version: '1.1.3',
+        version: '1.1.4',
         allowedOrigins: process.env.BEHAVIOROS_ALLOWED_ORIGINS
           ? process.env.BEHAVIOROS_ALLOWED_ORIGINS.split(',')
           : ['*'],

@@ -9,6 +9,24 @@ import type {
   MissionStatus,
   QualityMetric,
 } from '@behavioros/schemas';
+// `better-sqlite3` is a native module with no prebuilt binary for every Node
+// version/platform combo (e.g. no prebuild for Node 24 on win32 as of this writing), and
+// compiling it from source requires a full C++ toolchain most machines don't have. It's
+// declared as an optionalDependency (see package.json) precisely so `npm install`/`npx`
+// never hard-fails a project that depends on @behavioros/core just because this one
+// backend's native module couldn't build on their machine — npm/pnpm skip a failed
+// optionalDependency instead of aborting the whole install.
+//
+// This stays a static import (rather than a lazily-`require`'d one) deliberately: a
+// lazy require() defeats `vi.mock('better-sqlite3', ...)` in this project's own test
+// suite (vitest's mocking hooks the ESM/CJS module graph, which a runtime-obtained
+// require reference bypasses), and this codebase never constructs SQLiteStore itself —
+// only tests do. The accepted residual risk: on the rare machine where the optional
+// install genuinely fails (no prebuild AND no working toolchain), importing
+// @behavioros/core's top-level barrel — not just using SQLiteStore — will throw at that
+// point, since `export { SQLiteStore }` eagerly loads this file. Consumers who need to
+// guarantee that never happens should import the specific persistence backend they use
+// (e.g. `@behavioros/core/...`) rather than the root barrel, or catch it there.
 import Database from 'better-sqlite3';
 
 // ============================================================

@@ -300,9 +300,13 @@ export { CommandBus, EventBus, MeshHub, NotificationBus, QueryBus, StreamBus } f
 // Persistence — Audit trail
 export type { AuditEntry, ChainVerificationResult } from './persistence/sqlite-audit-store';
 export { SQLiteAuditStore } from './persistence/sqlite-audit-store';
-export type { PersistenceConfig } from './persistence/sqlite-store';
-// Persistence
-export { SQLiteStore } from './persistence/sqlite-store';
+// Note: SQLiteStore is intentionally NOT re-exported from this main barrel — it's the
+// only thing in this package with a hard runtime dependency on better-sqlite3, a native
+// module with no prebuilt binary for every platform/Node version (see package.json's
+// optionalDependencies). A value re-export here would eagerly load it for every consumer
+// of `@behavioros/core`, even those who never touch SQLite persistence, and crash on
+// machines where the optional native module couldn't install. Import it explicitly from
+// `@behavioros/core/sqlite` instead — that's an opt-in cost, not a load-bearing one.
 export type { LayerMetrics } from './pipeline/interceptors/metrics-interceptor';
 export { MetricsInterceptor } from './pipeline/interceptors/metrics-interceptor';
 export { TimeoutInterceptor } from './pipeline/interceptors/timeout-interceptor';
