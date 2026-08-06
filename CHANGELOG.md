@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5] - 2026-08-06
+
+### Fixed
+
+- **`@behavioros/core` declared `pg` (the Postgres driver) as a hard runtime dependency
+  while shipping zero code that actually uses it** — a `grep` of the built `dist/index.js`
+  confirmed `pg` isn't referenced anywhere in the published bundle; its only two importers,
+  `persistence/postgres-store.ts` and `persistence/postgres-audit-store.ts`, aren't reachable
+  from the package's exports at all. Removed the dead dependency, so `npm install` of
+  `@behavioros/core` (and anything depending on it) no longer pulls down an unused package.
+  (`redis`, also present, was checked and kept — `CoreEngine` genuinely constructs a
+  `RedisCache` when `config.redis` is provided, a real opt-in feature, and unlike
+  `better-sqlite3` the `redis` client is pure JS with no native-compile risk.)
+
 ## [1.1.4] - 2026-08-06
 
 ### Fixed

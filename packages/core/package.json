@@ -1,6 +1,6 @@
 {
   "name": "@behavioros/core",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "BehaviorOS Core Engine — 7 behavioral engines for AI agent governance",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -102,7 +102,6 @@
     "glob": "^11.0.0",
     "handlebars": "^4.7.0",
     "lru-cache": "^11.0.0",
-    "pg": "^8.13.0",
     "redis": "^4.7.1",
     "yaml": "^2.7.0",
     "zod": "^3.24.0"
