@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import { BehaviorCompiler, DNALoader, DNAValidator } from '@behavioros/core';
@@ -186,6 +186,42 @@ describe('init --yes (non-interactive)', () => {
 
     expect(result.status).toBe(2);
     expect(result.stderr).toContain('not found or unreadable');
+  });
+
+  it('scaffolds a real OpenCode plugin and opencode.json, not just the advisory rule file', async () => {
+    // Live verification (2026-08) found the OpenCode plugin (real runtime enforcement,
+    // .opencode/plugins/protocol-enforcer.ts) was never scaffolded — only the advisory
+    // .opencode/rules/behavioros-protocol.md was. Closing that gap the same way the other
+    // platforms' real hooks were closed.
+    const program = new Command();
+    program.name('behavioros-test').version('0.1.0-test').exitOverride();
+    initCommand(program);
+    await program.parseAsync(['node', 'behavioros', 'init', '--yes', '--with-protocol']);
+
+    expect(existsSync(join(tmpDir, '.opencode', 'plugins', 'protocol-enforcer.ts'))).toBe(true);
+    expect(existsSync(join(tmpDir, 'opencode.json'))).toBe(true);
+
+    const config = JSON.parse(readFileSync(join(tmpDir, 'opencode.json'), 'utf-8'));
+    expect(config.plugin).toContain('./.opencode/plugins/protocol-enforcer.ts');
+    expect(config.mcp.behavioros.environment.BEHAVIOROS_DNA_PATH).toBe('./behavioros.yaml');
+  });
+
+  it('never overwrites a file that already exists (e.g. a hand-configured .mcp.json)', async () => {
+    // Live verification found generateProtocolFiles() had zero existence-check before
+    // writeFileSync — running `init --with-protocol` in a project that already had its
+    // own .mcp.json (other MCP servers configured) would silently wipe it out. Every
+    // template file must be skip-if-exists, not force-overwrite.
+    const preExisting = JSON.stringify({ mcpServers: { 'some-other-tool': { command: 'x' } } });
+    writeFileSync(join(tmpDir, '.mcp.json'), preExisting, 'utf-8');
+
+    const program = new Command();
+    program.name('behavioros-test').version('0.1.0-test').exitOverride();
+    initCommand(program);
+    await program.parseAsync(['node', 'behavioros', 'init', '--yes', '--with-protocol']);
+
+    expect(readFileSync(join(tmpDir, '.mcp.json'), 'utf-8')).toBe(preExisting);
+    // Everything else that didn't pre-exist should still be generated normally.
+    expect(existsSync(join(tmpDir, '.claude', 'settings.json'))).toBe(true);
   });
 });
 

@@ -163,9 +163,10 @@ function substituteVars(content: string, vars: ProtocolVars): string {
     .replace(/\{\{ENFORCEMENT_LEVEL\}\}/g, vars.ENFORCEMENT_LEVEL);
 }
 
-function generateProtocolFiles(vars: ProtocolVars): string[] {
+function generateProtocolFiles(vars: ProtocolVars): { created: string[]; skipped: string[] } {
   const templatesDir = findProtocolTemplatesDir();
   const created: string[] = [];
+  const skipped: string[] = [];
 
   function walkDir(currentDir: string) {
     const entries = readdirSync(currentDir);
@@ -178,20 +179,30 @@ function generateProtocolFiles(vars: ProtocolVars): string[] {
         walkDir(fullPath);
       } else if (entry.endsWith('.template')) {
         const relativePath = relative(templatesDir, fullPath);
-        const outputPath = join(process.cwd(), relativePath.replace(/\.template$/, ''));
+        const outputRelative = relativePath.replace(/\.template$/, '');
+        const outputPath = join(process.cwd(), outputRelative);
+
+        // Never silently clobber a file the user (or another tool) already created —
+        // several of these are real functional configs (.mcp.json, .claude/settings.json,
+        // opencode.json), not just advisory docs, and a blind overwrite could wipe out an
+        // existing MCP server list or hook someone already configured.
+        if (existsSync(outputPath)) {
+          skipped.push(outputRelative);
+          continue;
+        }
 
         const content = readFileSync(fullPath, 'utf-8');
         const substituted = substituteVars(content, vars);
 
         mkdirSync(dirname(outputPath), { recursive: true });
         writeFileSync(outputPath, substituted, 'utf-8');
-        created.push(relativePath.replace(/\.template$/, ''));
+        created.push(outputRelative);
       }
     }
   }
 
   walkDir(templatesDir);
-  return created;
+  return { created, skipped };
 }
 
 const DEFAULT_ANSWERS: Omit<InitAnswers, 'projectName'> = {
@@ -315,7 +326,7 @@ async function runInit(
       const protocolSpinner = ora('Generating protocol files...').start();
 
       try {
-        const filesCreated = generateProtocolFiles({
+        const { created: filesCreated, skipped: filesSkipped } = generateProtocolFiles({
           PROJECT_NAME: answers.projectName,
           PROTOCOL_PATH: 'docs/PROTOCOL.md',
           MCP_SERVER_COMMAND: 'node packages/mcp-server/dist/server.js',
@@ -324,9 +335,20 @@ async function runInit(
         });
 
         protocolSpinner.succeed(`Generated ${filesCreated.length} protocol file(s)`);
-        console.log(chalk.bold('\nProtocol files created:'));
-        for (const file of filesCreated) {
-          console.log(`  ${chalk.cyan('✓')} ${file}`);
+        if (filesCreated.length > 0) {
+          console.log(chalk.bold('\nProtocol files created:'));
+          for (const file of filesCreated) {
+            console.log(`  ${chalk.cyan('✓')} ${file}`);
+          }
+        }
+        if (filesSkipped.length > 0) {
+          console.log(chalk.bold('\nAlready existed, left untouched:'));
+          for (const file of filesSkipped) {
+            console.log(`  ${chalk.yellow('•')} ${file}`);
+          }
+          console.log(
+            chalk.gray('  (delete a file above and re-run to regenerate it from the template)'),
+          );
         }
         console.log('');
       } catch (err) {

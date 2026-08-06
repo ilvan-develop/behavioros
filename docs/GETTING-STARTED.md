@@ -149,9 +149,7 @@ in-process by `EnforcementMiddleware` regardless of hook configuration.
 
 ### OpenCode
 
-Ships as a real plugin in this repo: `.opencode/plugins/protocol-enforcer.ts`, registered via `opencode.json`'s `plugin` array. It implements the same signed-state scheme as the Claude Code hook (same secret, same HMAC algorithm) specifically so state written by one tool is trusted, not silently downgraded, when read by the other on the same project.
-
-> **Known gap**: unlike the other platforms in this section, `init --with-protocol` does not yet generate the OpenCode plugin file or wire it into `opencode.json` — copy `.opencode/plugins/protocol-enforcer.ts` from this repo by hand for now. It's a real TypeScript file with a dependency on `@opencode-ai/plugin` and an `opencode.json` merge step, which makes it a poor fit for the same template-file-copy mechanism used for the other platforms' hook files.
+Ships as a real plugin: `init --with-protocol` generates `.opencode/plugins/protocol-enforcer.ts` and a minimal `opencode.json` registering it (only if you don't already have an `opencode.json` — an existing one is never overwritten, so merge the `plugin`/`mcp` blocks in by hand in that case). It implements the same signed-state scheme as the Claude Code hook (same secret, same HMAC algorithm) specifically so state written by one tool is trusted, not silently downgraded, when read by the other on the same project.
 
 ### Codex CLI
 

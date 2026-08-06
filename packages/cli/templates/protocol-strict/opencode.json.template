@@ -1,0 +1,15 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["{{PROTOCOL_PATH}}", "AGENTS.md"],
+  "plugin": ["./.opencode/plugins/protocol-enforcer.ts"],
+  "mcp": {
+    "behavioros": {
+      "type": "local",
+      "command": ["npx", "@behavioros/mcp-server"],
+      "enabled": true,
+      "environment": {
+        "BEHAVIOROS_DNA_PATH": "{{DNA_PATH}}"
+      }
+    }
+  }
+}
